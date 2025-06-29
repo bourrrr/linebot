@@ -17,7 +17,8 @@ const menu = {
     },
     {
       bounds: { x: 1250, y: 0, width: 1250, height: 843 },
-      action: { type: "uri", uri: "https://你的網站.com/bp_map.html" }
+      action: { type: "uri", uri: "
+https://linebot-o8nr.onrender.com/bp_map.html" }
     }
   ]
 };
