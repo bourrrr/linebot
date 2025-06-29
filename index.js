@@ -4,7 +4,14 @@ const line = require('@line/bot-sdk');
 const cron = require('node-cron');
 const getRandomRecipe = require('./getRandomRecipe');
 const generateRecipeFlex = require('./generateRecipeFlex');
+const admin = require('firebase-admin');
+const serviceAccount = require('/etc/secrets/firebaseKey.json');
 
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+}
 
 // 建立 Express app
 const app = express();
@@ -50,13 +57,13 @@ app.post('/webhook', line.middleware(config), (req, res) => {
         type: 'bubble',
         hero: {
           type: 'image',
-          url: 'https://www.hpa.gov.tw/images/logo.svg',
+          url:'https://www.hpa.gov.tw/images/logo.svg',
           size: 'full',
           aspectRatio: '20:13',
           aspectMode: 'cover',
           action: {
             type: 'uri',
-            uri: 'https://linebot-o8nr.onrender.com/bp_map.html' // ⚠️ 本機測試網址
+            uri:'https://linebot-o8nr.onrender.com/bp_map.html' // ⚠️ 本機測試網址
           }
         },
         body: {
@@ -87,7 +94,7 @@ app.post('/webhook', line.middleware(config), (req, res) => {
               action: {
                 type: 'uri',
                 label: '開啟地圖',
-                uri: 'https://linebot-o8nr.onrender.com/bp_map.html'
+                uri:'https://linebot-o8nr.onrender.com/bp_map.html'
               }
             }
           ]
@@ -107,7 +114,6 @@ app.post('/webhook', line.middleware(config), (req, res) => {
           text: '目前沒有食譜資料喔～'
         });
       }
-
       const flex = generateRecipeFlex(recipe);
       return client.replyMessage(event.replyToken, flex);
     })
@@ -118,9 +124,8 @@ app.post('/webhook', line.middleware(config), (req, res) => {
         text: '推薦失敗，請稍後再試！'
       });
     });
-
-  return; // 提前結束
 }
+
 
       client.replyMessage(event.replyToken, {
         type: 'text',
