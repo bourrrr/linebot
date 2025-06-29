@@ -13,7 +13,7 @@ function handleBpMapRequest(client, event) {
         aspectMode: 'cover',
         action: {
           type: 'uri',
-          uri: 'https://linebot-o8nr.onrender.com/bp_map.html'
+          uri:'https://linebot-o8nr.onrender.com/bp_map.html'
         }
       },
       body: {
@@ -44,7 +44,7 @@ function handleBpMapRequest(client, event) {
             action: {
               type: 'uri',
               label: '開啟地圖',
-              uri: 'https://linebot-o8nr.onrender.com/bp_map.html'
+              uri:'https://linebot-o8nr.onrender.com/bp_map.html'
             }
           }
         ]
