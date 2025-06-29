@@ -56,7 +56,7 @@ app.post('/webhook', line.middleware(config), (req, res) => {
           aspectMode: 'cover',
           action: {
             type: 'uri',
-            uri: 'https://dbea-2001-b011-bc08-d34d-d5a0-cf6a-ef7f-89d9.ngrok-free.app/bp_map.html' // ⚠️ 本機測試網址
+            uri: 'https://linebot-o8nr.onrender.com/bp_map.html' // ⚠️ 本機測試網址
           }
         },
         body: {
@@ -87,7 +87,7 @@ app.post('/webhook', line.middleware(config), (req, res) => {
               action: {
                 type: 'uri',
                 label: '開啟地圖',
-                uri: 'https://ae28-2402-7500-a61-5c25-9838-b59c-8842-b7b8.ngrok-free.app/bp_map.html'
+                uri: 'https://linebot-o8nr.onrender.com/bp_map.html'
               }
             }
           ]

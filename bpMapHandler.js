@@ -14,7 +14,7 @@ function handleBpMapRequest(client, event) {
         aspectMode: 'cover',
         action: {
           type: 'uri',
-          uri: 'https://dbea-2001-b011-bc08-d34d-d5a0-cf6a-ef7f-89d9.ngrok-free.app/bp_map.html'
+          uri: 'https://linebot-o8nr.onrender.com/bp_map.html'
         }
       },
       body: {
@@ -45,7 +45,7 @@ function handleBpMapRequest(client, event) {
             action: {
               type: 'uri',
               label: '開啟地圖',
-              uri: 'https://dbea-2001-b011-bc08-d34d-d5a0-cf6a-ef7f-89d9.ngrok-free.app/bp_map.html'
+              uri: https://linebot-o8nr.onrender.com/bp_map.html'
             }
           }
         ]
