@@ -124,6 +124,7 @@ app.post('/webhook', line.middleware(config), (req, res) => {
         text: '推薦失敗，請稍後再試！'
       });
     });
+	  return; 
 }
 
 
