@@ -184,6 +184,7 @@ function sendReminder(message) {
     console.error('❌ 推播錯誤：', err);
   });
 }
+
 // 讓 Express 可以解析 JSON
 app.use(express.json());
 // 啟動伺服器

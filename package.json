@@ -7,9 +7,10 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "@line/bot-sdk": "^7.5.1",
     "express": "^5.1.0",
-    "node-cron": "^3.0.3",
-    "@line/bot-sdk": "^7.5.1"
+    "firebase-admin": "^13.4.0",
+    "node-cron": "^3.0.3"
   },
   "repository": {
     "type": "git",
