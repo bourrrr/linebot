@@ -9,10 +9,10 @@ const serviceAccount = require('/etc/secrets/firebaseKey.json');
 
 if (!admin.apps.length) {
   admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: "https://medwell-test1.firebaseio.com"
   });
 }
-
 // 建立 Express app
 const app = express();
 app.use(express.static('public'));
