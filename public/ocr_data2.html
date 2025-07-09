@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>健康數據新增</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
 
   <!-- Firebase SDK -->
   <script type="module">
@@ -24,7 +26,6 @@
     const db = getFirestore(app);
 
     window.addEventListener("DOMContentLoaded", () => {
-      // 自動設定日期
       const dateText = document.getElementById("date");
       const today = new Date();
       const yyyy = today.getFullYear();
@@ -52,176 +53,97 @@
             timestamp: new Date()
           });
           alert("✅ 資料成功上傳到 Firebase！");
-		  window.location.href = "ocr_data1.html"; // <-- 這一行新增
+          window.location.href = "ocr_data1.html";
         } catch (err) {
           console.error(err);
           alert("❌ 上傳失敗，請查看 Console");
         }
       });
+
+      // OCR 功能
+      const photoBtn = document.querySelector(".photo-btn");
+      const fileInput = document.getElementById("fileInput");
+      const preview = document.getElementById("preview");
+      const ocrStatus = document.getElementById("ocrStatus");
+
+      photoBtn.addEventListener("click", () => fileInput.click());
+
+      fileInput.addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async () => {
+          preview.src = reader.result;
+          preview.classList.remove("hidden");
+
+          ocrStatus.textContent = "🔍 辨識中...";
+          const result = await Tesseract.recognize(reader.result, 'eng+chi_tra', {
+            logger: m => console.log(m)
+          });
+
+          const text = result.data.text;
+          ocrStatus.textContent = "✅ 辨識完成";
+          console.log("辨識結果：", text);
+
+          // 嘗試自動填入常見欄位（可根據你實際處方樣式再調）
+          if (text.includes("血壓")) {
+            const match = text.match(/血壓[:：]?\s*(\d{2,3}\/\d{2,3})/);
+            if (match) document.getElementById("pressure").value = match[1];
+          }
+          if (text.includes("血糖")) {
+            const match = text.match(/血糖[:：]?\s*(\d+)/);
+            if (match) document.getElementById("sugar").value = match[1];
+          }
+          if (text.includes("脈搏")) {
+            const match = text.match(/脈搏[:：]?\s*(\d+)/);
+            if (match) document.getElementById("pulse").value = match[1];
+          }
+        };
+        reader.readAsDataURL(file);
+      });
     });
   </script>
-
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    html, body {
-      height: 100%;
-      margin: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #e0e7ff, #f7f9fc);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .container {
-      display: flex;
-      align-items: center;
-      gap: 32px;
-      transform: scale(1.15);
-    }
-
-    .brand-text {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      text-align: right;
-      padding-right: 12px;
-    }
-
-    .brand-text h3 {
-      font-size: 28px;
-      margin: 0;
-      color: #0f172a;
-    }
-
-    .brand-text p {
-      margin-top: 6px;
-      font-size: 18px;
-      color: #475569;
-    }
-
-    .input-card {
-      background: white;
-      border-radius: 28px;
-      box-shadow: 0 12px 36px rgba(100, 116, 139, 0.2);
-      padding: 40px 50px;
-      width: 390px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    .input-card h1 {
-      font-size: 26px;
-      color: #1e293b;
-      text-align: center;
-      margin-bottom: 6px;
-    }
-
-    .input-card h2 {
-      font-size: 18px;
-      color: #4f46e5;
-      text-align: center;
-      margin-top: 0;
-      margin-bottom: 20px;
-    }
-
-    label {
-      font-size: 16px;
-      color: #475569;
-      margin-bottom: 4px;
-      display: block;
-    }
-
-    input {
-      border: none;
-      border-radius: 14px;
-      background-color: #f1f5f9;
-      padding: 14px 18px;
-      font-size: 16px;
-      outline: none;
-      transition: background 0.2s ease;
-      width: 100%;
-    }
-
-    input:focus {
-      background-color: #e0e7ff;
-    }
-
-    .button-group {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 14px;
-      margin-top: 12px;
-    }
-
-    .photo-btn,
-    .confirm-btn {
-      flex: 1;
-      border-radius: 14px;
-      padding: 12px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      transition: 0.2s ease;
-    }
-
-    .photo-btn {
-      background-color: white;
-      border: 2px solid #334155;
-      color: #334155;
-    }
-
-    .photo-btn:hover {
-      background-color: #e2e8f0;
-    }
-
-    .confirm-btn {
-      background-color: #4f46e5;
-      color: white;
-      border: none;
-    }
-
-    .confirm-btn:hover {
-      background-color: #4338ca;
-    }
-  </style>
 </head>
-<body>
-  <div class="container">
-    <!-- 左邊：品牌 -->
-    <div class="brand-text">
-      <h3>MakeWell</h3>
-      <p>慢理歲月 樂活永悅</p>
+<body class="min-h-screen bg-gradient-to-br from-indigo-100 to-blue-50 flex items-center justify-center px-4 py-8">
+  <div class="max-w-4xl w-full bg-white rounded-3xl shadow-2xl p-6 md:p-10 flex flex-col-reverse md:flex-row items-center gap-10">
+    
+    <!-- 表單 -->
+    <div class="w-full max-w-md">
+      <h1 class="text-3xl font-bold text-gray-800 text-center mb-1">健康數據新增</h1>
+      <h2 id="date" class="text-center text-indigo-600 text-lg mb-6">日期：--/--</h2>
+
+      <div>
+        <img id="preview" class="w-full max-h-64 rounded-xl mb-4 hidden object-contain border" />
+        <p id="ocrStatus" class="text-sm text-gray-500 mb-4 text-center"></p>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label for="pressure" class="text-gray-700 font-medium">血壓：</label>
+          <input id="pressure" type="text" placeholder="例如：120/80 mmHg" class="w-full bg-indigo-50 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+        </div>
+        <div>
+          <label for="sugar" class="text-gray-700 font-medium">血糖：</label>
+          <input id="sugar" type="text" placeholder="例如：98 mg/dL" class="w-full bg-indigo-50 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+        </div>
+        <div>
+          <label for="pulse" class="text-gray-700 font-medium">脈搏：</label>
+          <input id="pulse" type="text" placeholder="例如：76 / min" class="w-full bg-indigo-50 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+        </div>
+      </div>
+
+      <div class="flex gap-4 mt-6">
+        <input type="file" accept="image/*" capture="environment" id="fileInput" class="hidden" />
+        <button type="button" class="photo-btn flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl border hover:bg-gray-200 transition">📷 拍照上傳</button>
+        <button class="confirm-btn flex-1 px-4 py-3 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition">確認</button>
+      </div>
     </div>
 
-    <!-- 右邊：表單 -->
-    <div class="input-card">
-      <h1>健康數據新增</h1>
-      <h2 id="date">日期：--/--</h2>
-
-      <div>
-        <label for="pressure">血壓：</label>
-        <input id="pressure" type="text" placeholder="例如：120/80 mmHg">
-      </div>
-
-      <div>
-        <label for="sugar">血糖：</label>
-        <input id="sugar" type="text" placeholder="例如：98mg/dL">
-      </div>
-
-      <div>
-        <label for="pulse">脈搏：</label>
-        <input id="pulse" type="text" placeholder="例如：76/min">
-      </div>
-
-      <div class="button-group">
-        <button class="photo-btn">📷 拍照上傳</button>
-        <button class="confirm-btn">確認</button>
-      </div>
+    <!-- 品牌文字 -->
+    <div class="text-center md:text-right">
+      <h3 class="text-3xl font-bold text-indigo-800 mb-1">MakeWell</h3>
+      <p class="text-lg text-slate-600">慢理歲月，樂活永悅</p>
     </div>
   </div>
 </body>

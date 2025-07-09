@@ -11,7 +11,7 @@ const healthCard = {
       aspectMode: 'cover',
       action: {
         type: 'uri',
-        uri: 'https://medwell-test1.web.app/ocr_data1.html'
+        uri: 'https://medwell-test1.web.app/ocr_data1.html?ts=20250710'
       }
     },
     body: {
@@ -43,7 +43,8 @@ const healthCard = {
           action: {
             type: 'uri',
             label: '查看紀錄',
-            uri: 'https://medwell-test1.web.app/ocr_data1.html'
+            uri: 'uri: "https://medwell-test1.web.app/ocr_data1.html?ts=20250710"
+'
           }
         }
       ]
