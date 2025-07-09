@@ -1,5 +1,3 @@
-
-
 const healthCard = {
   type: 'flex',
   altText: '健康數據紀錄',
@@ -41,12 +39,12 @@ const healthCard = {
       contents: [
         {
           type: 'button',
+          style: 'primary',
           action: {
             type: 'uri',
             label: '查看紀錄',
             uri: 'https://medwell-test1.web.app/健康數據1.html'
-          },
-          style: 'primary'
+          }
         }
       ]
     }
