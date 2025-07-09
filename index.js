@@ -91,7 +91,7 @@ async function handleEvent(event, client) {
     text: '✅ 你輸入了紀錄數據'
   });
 }
-	if (msg === "紀錄數據") {
+	if (msg === "健康數據紀錄") {
       console.log("✅ 收到紀錄數據指令"); // ← 新增這行
   return client.replyMessage(event.replyToken, healthCard);
 }
