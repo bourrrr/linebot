@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>藥局搜尋地圖</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    html, body { height: 100%; margin: 0; font-family: "Noto Sans TC", sans-serif; }
+    #container { display: flex; height: 100vh; }
+    #map { flex: 1; height: 100%; }
+    #sidebar {
+      width: 425px;
+      max-width: 98vw;
+      background: #f9f9f9;
+      height: 100vh;
+      box-shadow: 2px 0 12px #00193112;
+      position: fixed;
+      top: 0; left: 0; z-index: 2000;
+      transition: transform .33s cubic-bezier(.77,0,.18,1);
+      will-change: transform;
+      display: flex;
+      flex-direction: column;
+    }
+    #sidebar.collapsed { transform: translateX(-103%); box-shadow: none; }
+    #sidebar-toggle-btn {
+      position: fixed; top: 28px; left: 16px; z-index: 2100;
+      width: 52px; height: 52px; border: none; border-radius: 50%;
+      background: #1976d2; color: #fff; font-size: 30px;
+      box-shadow: 0 4px 16px #1976d230; display: flex;
+      align-items: center; justify-content: center; cursor: pointer; transition: background .17s;
+    }
+    #sidebar:not(.collapsed) ~ #sidebar-toggle-btn { display: none; }
+    #sidebar-toggle-btn:hover { background: #1250a9; }
+    @media (max-width: 700px) {
+      #sidebar { width: 98vw; }
+      #sidebar-toggle-btn { left: 6px; top: 8px; width: 44px; height: 44px; font-size: 25px; }
+    }
+    .controls { background: #f9f9f9; padding: 12px; box-shadow: none; }
+    .controls select,
+    .controls input,
+    .controls button {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px;
+    margin-bottom: 8px;
+    font-size: 16px;
+}
+
+    .controls button {
+      background-color: #4caf50; color: white; border: none;
+      border-radius: 4px; cursor: pointer;
+    }
+    .controls button:hover { background: #45a049; }
+    #clearButton { background-color: #f44336 !important; }
+    #result-container {
+      flex: 1 1 0%;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 12px;
+      position: relative;
+      background: #f9f9f9;
+    }
+    .card {
+      background: white; padding: 15px; margin-bottom: 8px;
+      border-radius: 8px; box-shadow: 0 0 5px rgba(0,0,0,0.1);
+      display: flex; align-items: center;
+    }
+    .card img { width: 50px; height: 50px; margin-right: 10px; }
+    .card-info { font-size: 16px; line-height: 1.4; }
+    .card.active {
+      border: 2px solid #4caf50; transform: scale(0.98); background-color: #e6f7e6;
+    }
+    .notice {
+      display: flex; align-items: center; font-size: 14px;
+      color: #333; background: #eef2ff; border-left: 4px solid #6366f1;
+      padding: 6px 10px; margin: 6px 12px; border-radius: 6px;
+    }
+    .notice .icon { margin-right: 6px; font-size: 16px; }
+    #scrollTopBtn {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;  
+      z-index: 9999;
+      background: #757575;
+      color: white;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 16px;
+      display: none;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div id="map"></div>
+    <div id="sidebar" class="collapsed">
+      <div class="notice">
+        <div class="icon">🔍</div>請選擇下方篩選條件進行查詢
+      </div>
+      <div class="controls">
+        <div class="mode-toggle" style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <button id="btn-clinic" class="mode-btn" data-mode="clinic">🏥 就醫地點</button>
+          <button id="btn-pharmacy" class="mode-btn" data-mode="pharmacy">💊 就近領藥</button>
+        </div>
+        <select id="citySelect"><option value="">縣市</option></select>
+        <select id="districtSelect" disabled><option value="">鄉鎮市區</option></select>
+        <input id="roadInput" placeholder="輸入路名關鍵字">
+        <input id="nameInput" placeholder="輸入藥局名稱">
+        <button id="filterButton">篩選</button>
+        <button id="clearButton">清除篩選</button>
+      </div>
+      <div class="notice">
+        <div class="icon">📄</div>符合條件的搜尋結果（點選可在地圖上標示）
+      </div>
+      <div id="result-container">
+        <div id="result-list"></div>
+      </div>
+    </div>
+    <button id="sidebar-toggle-btn" aria-label="展開側欄">≡</button>
+  </div>
+  <button id="scrollTopBtn" title="回頂部">↑</button>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <script src="map.js"></script>
+  <script>
+    // 側欄收合/展開
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebar-toggle-btn');
+    toggleBtn.onclick = () => { sidebar.classList.remove('collapsed'); };
+    document.getElementById('map').onclick = () => { sidebar.classList.add('collapsed'); };
+
+    // 回到頂部按鈕控制，監聽 result-container 的捲動
+    document.addEventListener('DOMContentLoaded', () => {
+      const resultContainer = document.getElementById('result-container');
+      const scrollBtn = document.getElementById('scrollTopBtn');
+      resultContainer.addEventListener('scroll', () => {
+        scrollBtn.style.display = resultContainer.scrollTop > 200 ? 'block' : 'none';
+      });
+      scrollBtn.addEventListener('click', () => {
+        resultContainer.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+  </script>
+</body>
+</html>

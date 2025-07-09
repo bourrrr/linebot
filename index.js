@@ -9,6 +9,7 @@ const healthCard = require('./OCR_modules/healthFlex');
 const serviceAccount = require('/etc/secrets/firebaseKey.json');
 const saveImage = require("./OCR_modules/saveImage"); // 儲存圖片
 const runOCR = require("./OCR_modules/ocr"); 
+const madmapflex = require('./OCR_modules/madmapFlex');
 
 console.log('📦 saveImage 模組載入成功');
 
@@ -85,6 +86,18 @@ async function handleEvent(event, client) {
       };
       return client.replyMessage(event.replyToken, flexMessage);
     }
+	if (msg === '藥局地圖') {
+  const flexMessage = madmapflex(); // 呼叫模組並取得 Flex 卡片物件
+   return client.replyMessage(event.replyToken, [
+    {
+      type: 'text',
+      text: '📡 已收到您的指令，請點擊下方地圖開啟藥局搜尋功能 👇'
+    },
+    flexMessage
+  ]);
+}
+
+
 	if (msg === "紀錄數據") {
   return client.replyMessage(event.replyToken, {
     type: 'text',
