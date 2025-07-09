@@ -9,6 +9,7 @@ const serviceAccount = require('/etc/secrets/firebaseKey.json');
 const saveImage = require("./OCR_modules/saveImage"); // 儲存圖片
 const runOCR = require("./OCR_modules/ocr"); 
 const healthCard = require("./OCR_modules/flex/healthCard.js"); 
+const saveImage = require('./OCR_modules/saveImage');
 console.log('📦 saveImage 模組載入成功');
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -52,12 +53,8 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
 async function handleEvent(event, client) {
   // 1. Flex 功能卡片
   
-  if (msg === '健康紀錄') {
-  return client.replyMessage(event.replyToken, healthflex);
-}
-
-  if (event.type === "message" && event.message.type === "text") {
-    const msg = event.message.text.trim();
+if (event.type === "message" && event.message.type === "text") {
+    const msg = event.message.text.trim(); // ✅ 宣告 msg
 
     // --- 血壓地圖 ---
     if (msg === '血壓地圖') {
@@ -104,52 +101,43 @@ async function handleEvent(event, client) {
       return client.replyMessage(event.replyToken, flexMessage);
     }
 
-    // --- 飲食推薦 ---
+    // 🟡 其他文字訊息也可以加在這裡，如：
     if (msg === '飲食推薦') {
-      try {
-        const recipe = await getRandomRecipe();
-        if (!recipe) {
-          return client.replyMessage(event.replyToken, {
-            type: 'text',
-            text: '目前沒有食譜資料喔～'
-          });
-        }
-        const flex = generateRecipeFlex(recipe);
-        return client.replyMessage(event.replyToken, flex);
-      } catch (err) {
-        console.error('❌ 食譜錯誤：', err);
-        return client.replyMessage(event.replyToken, {
-          type: 'text',
-          text: '推薦失敗，請稍後再試！'
-        });
+      // 你的食譜推薦處理邏輯
+    }
+
+    // 最後 fallback 預設 quick reply
+    return client.replyMessage(event.replyToken, {
+      type: "text",
+      text: "請選擇你要的功能 👇",
+      quickReply: {
+        items: [
+          { type: "action", action: { type: "message", label: "吃藥提醒", text: "我要吃藥" } },
+          { type: "action", action: { type: "message", label: "運動提醒", text: "我要運動" } },
+          { type: "action", action: { type: "message", label: "其他", text: "我要其他服務" } }
+        ]
       }
-    }
+    });
+  }
 
-
-    // --- 健康紀錄 Flex 卡片 ---
-    if (msg === "紀錄數據") {
-      return client.replyMessage(event.replyToken, healthCard);
-    }
-
-    // --- 點新增紀錄 Quick Reply ---
-    if (msg === "我要新增紀錄") {
+  // 📌 處理圖片訊息（用於 OCR）
+  if (event.type === "message" && event.message.type === "image") {
+    const msgId = event.message.id;
+    try {
+      const imagePath = await saveImage(msgId, client);
+      const ocrText = await runOCR(imagePath);
       return client.replyMessage(event.replyToken, {
         type: "text",
-        text: "請拍照或上傳您的處方箋圖片：",
-        quickReply: {
-          items: [
-            {
-              type: "action",
-              action: { type: "camera", label: "打開相機" }
-            },
-            {
-              type: "action",
-              action: { type: "cameraRoll", label: "從相簿選擇" }
-            }
-          ]
-        }
+        text: `🧾 OCR 辨識結果：\n${ocrText}`,
+      });
+    } catch (err) {
+      console.error("處理失敗：", err);
+      return client.replyMessage(event.replyToken, {
+        type: "text",
+        text: "⚠️ 系統處理圖片時發生錯誤。",
       });
     }
+  }
 
     // --- 預設 quick reply ---
     return client.replyMessage(event.replyToken, {
@@ -165,6 +153,7 @@ async function handleEvent(event, client) {
     });
   }
 
+  // 2. 圖片訊息事件（OCR 辨識）
   
 
   // 3. 其他事件先不處理

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>健康數據新增</title>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCCUzxpn1quR9PPSBeZBGG17XVh8vPzjY",
+      authDomain: "medwell-test1.firebaseapp.com",
+      projectId: "medwell-test1",
+      storageBucket: "medwell-test1.appspot.com",
+      messagingSenderId: "860851688843",
+      appId: "1:860851688843:web:622eb8feccad45ce640b8e",
+      measurementId: "G-9FGX9SG7XB"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.addEventListener("DOMContentLoaded", () => {
+      // 自動設定日期
+      const dateText = document.getElementById("date");
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const formattedDate = `${yyyy}/${mm}/${dd}`;
+      dateText.textContent = `日期：${formattedDate}`;
+
+      document.querySelector(".confirm-btn").addEventListener("click", async () => {
+        const pressure = document.getElementById("pressure").value.trim();
+        const sugar = document.getElementById("sugar").value.trim();
+        const pulse = document.getElementById("pulse").value.trim();
+
+        if (!pressure || !sugar || !pulse) {
+          alert("❗請填寫所有欄位");
+          return;
+        }
+
+        try {
+          await addDoc(collection(db, "health_records"), {
+            data: formattedDate,
+            pressure,
+            sugar,
+            pulse,
+            timestamp: new Date()
+          });
+          alert("✅ 資料成功上傳到 Firebase！");
+		  window.location.href = "健康數據1.html"; // <-- 這一行新增
+        } catch (err) {
+          console.error(err);
+          alert("❌ 上傳失敗，請查看 Console");
+        }
+      });
+    });
+  </script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #e0e7ff, #f7f9fc);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .container {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      transform: scale(1.15);
+    }
+
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      text-align: right;
+      padding-right: 12px;
+    }
+
+    .brand-text h3 {
+      font-size: 28px;
+      margin: 0;
+      color: #0f172a;
+    }
+
+    .brand-text p {
+      margin-top: 6px;
+      font-size: 18px;
+      color: #475569;
+    }
+
+    .input-card {
+      background: white;
+      border-radius: 28px;
+      box-shadow: 0 12px 36px rgba(100, 116, 139, 0.2);
+      padding: 40px 50px;
+      width: 390px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .input-card h1 {
+      font-size: 26px;
+      color: #1e293b;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .input-card h2 {
+      font-size: 18px;
+      color: #4f46e5;
+      text-align: center;
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
+
+    label {
+      font-size: 16px;
+      color: #475569;
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    input {
+      border: none;
+      border-radius: 14px;
+      background-color: #f1f5f9;
+      padding: 14px 18px;
+      font-size: 16px;
+      outline: none;
+      transition: background 0.2s ease;
+      width: 100%;
+    }
+
+    input:focus {
+      background-color: #e0e7ff;
+    }
+
+    .button-group {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      margin-top: 12px;
+    }
+
+    .photo-btn,
+    .confirm-btn {
+      flex: 1;
+      border-radius: 14px;
+      padding: 12px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .photo-btn {
+      background-color: white;
+      border: 2px solid #334155;
+      color: #334155;
+    }
+
+    .photo-btn:hover {
+      background-color: #e2e8f0;
+    }
+
+    .confirm-btn {
+      background-color: #4f46e5;
+      color: white;
+      border: none;
+    }
+
+    .confirm-btn:hover {
+      background-color: #4338ca;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 左邊：品牌 -->
+    <div class="brand-text">
+      <h3>MakeWell</h3>
+      <p>慢理歲月 樂活永悅</p>
+    </div>
+
+    <!-- 右邊：表單 -->
+    <div class="input-card">
+      <h1>健康數據新增</h1>
+      <h2 id="date">日期：--/--</h2>
+
+      <div>
+        <label for="pressure">血壓：</label>
+        <input id="pressure" type="text" placeholder="例如：120/80 mmHg">
+      </div>
+
+      <div>
+        <label for="sugar">血糖：</label>
+        <input id="sugar" type="text" placeholder="例如：98mg/dL">
+      </div>
+
+      <div>
+        <label for="pulse">脈搏：</label>
+        <input id="pulse" type="text" placeholder="例如：76/min">
+      </div>
+
+      <div class="button-group">
+        <button class="photo-btn">📷 拍照上傳</button>
+        <button class="confirm-btn">確認</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
