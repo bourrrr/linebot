@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>健康數據新增</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
 
   <!-- Firebase SDK -->
   <script type="module">
@@ -59,49 +58,6 @@
           alert("❌ 上傳失敗，請查看 Console");
         }
       });
-
-      // OCR 功能
-      const photoBtn = document.querySelector(".photo-btn");
-      const fileInput = document.getElementById("fileInput");
-      const preview = document.getElementById("preview");
-      const ocrStatus = document.getElementById("ocrStatus");
-
-      photoBtn.addEventListener("click", () => fileInput.click());
-
-      fileInput.addEventListener("change", async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = async () => {
-          preview.src = reader.result;
-          preview.classList.remove("hidden");
-
-          ocrStatus.textContent = "🔍 辨識中...";
-          const result = await Tesseract.recognize(reader.result, 'eng+chi_tra', {
-            logger: m => console.log(m)
-          });
-
-          const text = result.data.text;
-          ocrStatus.textContent = "✅ 辨識完成";
-          console.log("辨識結果：", text);
-
-          // 嘗試自動填入常見欄位（可根據你實際處方樣式再調）
-          if (text.includes("血壓")) {
-            const match = text.match(/血壓[:：]?\s*(\d{2,3}\/\d{2,3})/);
-            if (match) document.getElementById("pressure").value = match[1];
-          }
-          if (text.includes("血糖")) {
-            const match = text.match(/血糖[:：]?\s*(\d+)/);
-            if (match) document.getElementById("sugar").value = match[1];
-          }
-          if (text.includes("脈搏")) {
-            const match = text.match(/脈搏[:：]?\s*(\d+)/);
-            if (match) document.getElementById("pulse").value = match[1];
-          }
-        };
-        reader.readAsDataURL(file);
-      });
     });
   </script>
 </head>
@@ -112,11 +68,6 @@
     <div class="w-full max-w-md">
       <h1 class="text-3xl font-bold text-gray-800 text-center mb-1">健康數據新增</h1>
       <h2 id="date" class="text-center text-indigo-600 text-lg mb-6">日期：--/--</h2>
-
-      <div>
-        <img id="preview" class="w-full max-h-64 rounded-xl mb-4 hidden object-contain border" />
-        <p id="ocrStatus" class="text-sm text-gray-500 mb-4 text-center"></p>
-      </div>
 
       <div class="space-y-4">
         <div>
@@ -134,8 +85,7 @@
       </div>
 
       <div class="flex gap-4 mt-6">
-        <input type="file" accept="image/*" capture="environment" id="fileInput" class="hidden" />
-        <button type="button" class="photo-btn flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl border hover:bg-gray-200 transition">📷 拍照上傳</button>
+        <button class="photo-btn flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl border hover:bg-gray-200 transition">📷 拍照上傳</button>
         <button class="confirm-btn flex-1 px-4 py-3 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition">確認</button>
       </div>
     </div>
