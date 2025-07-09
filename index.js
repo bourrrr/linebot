@@ -86,7 +86,9 @@ async function handleEvent(event, client) {
       return client.replyMessage(event.replyToken, flexMessage);
     }
 	if (msg === "紀錄數據") {
-      return client.replyMessage(event.replyToken, healthflex);
+      console.log("✅ 收到紀錄數據指令"); // ← 新增這行
+  return client.replyMessage(event.replyToken, healthCard);
+}
 	}
     if (msg === '飲食推薦') {
       try {
