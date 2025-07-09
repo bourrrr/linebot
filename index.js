@@ -89,7 +89,7 @@ async function handleEvent(event, client) {
       console.log("✅ 收到紀錄數據指令"); // ← 新增這行
   return client.replyMessage(event.replyToken, healthCard);
 }
-	}
+	
     if (msg === '飲食推薦') {
       try {
         const recipe = await getRandomRecipe();
