@@ -9,7 +9,7 @@ const healthCard = require('./OCR_modules/healthFlex');
 const serviceAccount = require('/etc/secrets/firebaseKey.json');
 const saveImage = require("./OCR_modules/saveImage"); // 儲存圖片
 const runOCR = require("./OCR_modules/ocr"); 
-const madmapflex = require('./OCR_modules/madmapFlex');
+const madmapflex = require('./OCR_modules/flex/madmapFlex');
 
 console.log('📦 saveImage 模組載入成功');
 
