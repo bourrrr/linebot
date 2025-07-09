@@ -165,25 +165,7 @@ async function handleEvent(event, client) {
     });
   }
 
-  // 2. 圖片訊息事件（OCR 辨識）
-  if (event.type === "message" && event.message.type === "image") {
-    const msgId = event.message.id;
-    try {
-      const imagePath = await saveImage(msgId, client);
-      const ocrText = await runOCR(imagePath);
-
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: 🧾 OCR 辨識結果：\n${ocrText},
-      });
-    } catch (err) {
-      console.error("處理失敗：", err);
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: "⚠️ 系統處理圖片時發生錯誤。",
-      });
-    }
-  }
+  
 
   // 3. 其他事件先不處理
   return Promise.resolve(null);
