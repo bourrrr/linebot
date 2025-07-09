@@ -42,8 +42,9 @@ const healthCard = {
           style: 'primary',
           action: {
             type: 'uri',
-            label: '查看紀錄',
-            uri: 'uri: https://medwell-test1.web.app/ocr_data1.html'
+            label: '查看紀錄', 
+			uri: 'https://medwell-test1.web.app/ocr_data1.html?ts=20250710'
+
           }
         }
       ]
