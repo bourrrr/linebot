@@ -22,7 +22,7 @@ if (!admin.apps.length) {
 // 建立 Express app
 const app = express();
 app.use(express.static('public'));
-app.use(express.json());
+
 
 // LINE Bot 設定
 const config = {
@@ -163,7 +163,7 @@ function sendReminder(message) {
   .then(() => console.log('✅ 成功發送提醒訊息'))
   .catch(err => console.error('❌ 推播錯誤：', err));
 }
-
+app.use(express.json());
 // 啟動伺服器
 app.listen(3000, () => {
   console.log('伺服器啟動，監聽在 3000 port！');
