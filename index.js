@@ -9,7 +9,7 @@ const healthflex = require('./OCR_modules/healthFlex');
 const serviceAccount = require('/etc/secrets/firebaseKey.json');
 const saveImage = require("./OCR_modules/saveImage"); // 儲存圖片
 const runOCR = require("./OCR_modules/ocr"); 
-const healthCard = require("./OCR_modules/flex/healthCard.js"); 
+
 console.log('📦 saveImage 模組載入成功');
 
 // 初始化 Firebase
@@ -85,6 +85,12 @@ async function handleEvent(event, client) {
       };
       return client.replyMessage(event.replyToken, flexMessage);
     }
+	if (msg === "紀錄數據") {
+  return client.replyMessage(event.replyToken, {
+    type: 'text',
+    text: '✅ 你輸入了紀錄數據'
+  });
+}
 	if (msg === "紀錄數據") {
       console.log("✅ 收到紀錄數據指令"); // ← 新增這行
   return client.replyMessage(event.replyToken, healthCard);
