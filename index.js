@@ -10,7 +10,7 @@ const saveImage = require("./OCR_modules/saveImage"); // 儲存圖片
 const runOCR = require("./OCR_modules/ocr"); 
 const healthCard = require("./OCR_modules/flex/healthCard.js"); 
 console.log('📦 saveImage 模組載入成功');
-
+const healthflex = require('./OCR_modules/flex/healthFlex');
 // 初始化 Firebase
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -84,7 +84,9 @@ async function handleEvent(event, client) {
       };
       return client.replyMessage(event.replyToken, flexMessage);
     }
-
+	if (msg === '健康紀錄') {
+	  return client.replyMessage(event.replyToken, healthflex);
+	}
     if (msg === '飲食推薦') {
       try {
         const recipe = await getRandomRecipe();
