@@ -1,6 +1,6 @@
-// OCR_modules/flex/healthFlex.js
 
-const healthflex = {
+
+const healthCard = {
   type: 'flex',
   altText: '健康數據紀錄',
   contents: {
@@ -53,4 +53,4 @@ const healthflex = {
   }
 };
 
-module.exports = healthflex;
+module.exports = healthCard;
