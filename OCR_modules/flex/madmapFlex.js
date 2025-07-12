@@ -53,3 +53,4 @@ module.exports = function madmapFlex() {
     }
   };
 };
+module.exports = madmapflex;
