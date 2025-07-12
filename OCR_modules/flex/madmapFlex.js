@@ -1,7 +1,7 @@
 // madmapFlex.js
 // madmapFlex.js
-module.exports = function madmapFlex() {
-  return {
+const madmapflex = {
+
     type: 'flex',
     altText: '藥局搜尋地圖',
     contents: {
@@ -52,7 +52,7 @@ module.exports = function madmapFlex() {
         ]
       }
     }
-  };
+  
 };
 
 module.exports = madmapflex;
