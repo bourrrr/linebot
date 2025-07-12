@@ -1,5 +1,6 @@
 // madmapFlex.js
-function madmapFlex() {
+// madmapFlex.js
+module.exports = function madmapFlex() {
   return {
     type: 'flex',
     altText: '藥局搜尋地圖',
@@ -13,7 +14,7 @@ function madmapFlex() {
         aspectMode: 'cover',
         action: {
           type: 'uri',
-          uri: 'https://medwell-test1.web.app/madmap.html'
+          uri: 'https://medwell-test1.web.app/madmap.html' // ← 替換為你的實際網址
         }
       },
       body: {
@@ -44,7 +45,7 @@ function madmapFlex() {
             action: {
               type: 'uri',
               label: '查看地圖',
-              uri: 'https://medwell-test1.web.app/madmap.html'
+              uri: 'https://medwell-test1.web.app/madmap.html' // ← 同上，確認網址無誤
             },
             style: 'primary'
           }
@@ -52,6 +53,6 @@ function madmapFlex() {
       }
     }
   };
-}
+};
 
 module.exports = madmapflex;
