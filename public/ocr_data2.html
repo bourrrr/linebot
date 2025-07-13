@@ -33,6 +33,7 @@
       const formattedDate = `${yyyy}/${mm}/${dd}`;
       dateText.textContent = `日期：${formattedDate}`;
 
+      // 確認上傳按鈕
       document.querySelector(".confirm-btn").addEventListener("click", async () => {
         const pressure = document.getElementById("pressure").value.trim();
         const sugar = document.getElementById("sugar").value.trim();
@@ -58,10 +59,49 @@
           alert("❌ 上傳失敗，請查看 Console");
         }
       });
+
+      // 拍照按鈕點擊事件
+      const photoInput = document.getElementById("photoInput");
+      document.querySelector(".photo-btn").addEventListener("click", () => {
+        photoInput.click();
+      });
+
+      // 選擇照片後觸發 OCR 上傳
+      photoInput.addEventListener("change", async () => {
+        const file = photoInput.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append("image", file);
+
+        try {
+          const res = await fetch("https://你的伺服器網址/upload", {
+            method: "POST",
+            body: formData,
+          });
+
+          const result = await res.json();
+          alert("📋 OCR 辨識結果：\n" + result.ocrText);
+
+          // 自動填入欄位
+          if (result.pressure) document.getElementById("pressure").value = result.pressure;
+          if (result.sugar) document.getElementById("sugar").value = result.sugar;
+
+        } catch (err) {
+          console.error(err);
+          alert("❌ 上傳或辨識失敗！");
+        }
+      });
     });
   </script>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-indigo-100 to-blue-50 flex items-center justify-center px-4 py-8">
+<!-- 左上角返回按鈕 -->
+<a href="https://medwell-test1.web.app/ocr_data1.html"
+   class="fixed top-4 left-4 px-4 py-2 bg-gray-200 text-gray-800 rounded-xl shadow hover:bg-gray-300 transition z-50">
+  ← 返回
+</a>
+
   <div class="max-w-4xl w-full bg-white rounded-3xl shadow-2xl p-6 md:p-10 flex flex-col-reverse md:flex-row items-center gap-10">
     
     <!-- 表單 -->
@@ -88,6 +128,9 @@
         <button class="photo-btn flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl border hover:bg-gray-200 transition">📷 拍照上傳</button>
         <button class="confirm-btn flex-1 px-4 py-3 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition">確認</button>
       </div>
+
+      <!-- 拍照輸入框（隱藏） -->
+      <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
     </div>
 
     <!-- 品牌文字 -->
