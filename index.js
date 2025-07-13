@@ -165,9 +165,7 @@ function sendReminder(message) {
   .then(() => console.log('✅ 成功發送提醒訊息'))
   .catch(err => console.error('❌ 推播錯誤：', err));
 }
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+
 
 // 設定圖片儲存位置與檔名
 const storage = multer.diskStorage({
