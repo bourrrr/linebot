@@ -10,6 +10,7 @@ const serviceAccount = require('/etc/secrets/firebaseKey.json');
 const saveImage = require("./OCR_modules/saveImage"); // 儲存圖片
 const runOCR = require("./OCR_modules/ocr"); 
 const madmapflex = require('./OCR_modules/flex/madmapFlex');
+const bpMapFlex = require('./OCR_modules/flex/bpMapFlex');
 
 console.log('📦 saveImage 模組載入成功');
 
@@ -50,64 +51,34 @@ async function handleEvent(event, client) {
   if (event.type === "message" && event.message.type === "text") {
     const msg = event.message.text.trim();
 
-    if (msg === '血壓地圖') {
-      const flexMessage = {
-        type: 'flex',
-        altText: '台灣血壓站地圖',
-        contents: {
-          type: 'bubble',
-          hero: {
-            type: 'image',
-            url: 'https://www.hpa.gov.tw/images/logo.svg',
-            size: 'full',
-            aspectRatio: '20:13',
-            aspectMode: 'cover',
-            action: { type: 'uri', uri: 'https://linebot-o8nr.onrender.com/bp_map.html' }
-          },
-          body: {
-            type: 'box',
-            layout: 'vertical',
-            contents: [
-              { type: 'text', text: '台灣血壓站地圖', weight: 'bold', size: 'lg' },
-              { type: 'text', text: '點我查看全台血壓站位置地圖！', size: 'sm', wrap: true, color: '#666666' }
-            ]
-          },
-          footer: {
-            type: 'box',
-            layout: 'vertical',
-            contents: [
-              {
-                type: 'button',
-                action: { type: 'uri', label: '開啟地圖', uri: 'https://linebot-o8nr.onrender.com/bp_map.html' }
-              }
-            ]
-          }
-        }
-      };
-      return client.replyMessage(event.replyToken, flexMessage);
-    }
 	if (msg === '藥局地圖') {
-  const flexMessage = madmapflex(); // 呼叫模組並取得 Flex 卡片物件
-   return client.replyMessage(event.replyToken, [
-    {
-      type: 'text',
-      text: '📡 已收到您的指令，請點擊下方地圖開啟藥局搜尋功能 👇'
-    },
-    flexMessage
-  ]);
-}
+	  const flexMessage = madmapflex(); // 呼叫模組並取得 Flex 卡片物件
+	   return client.replyMessage(event.replyToken, [
+		{
+		  type: 'text',
+		  text: '📡 已收到您的指令，請點擊下方地圖開啟藥局搜尋功能 👇'
+		},
+		flexMessage
+	  ]);
+	}
 
+	if (msg === '血壓地圖') {
+	  return client.replyMessage(event.replyToken, bpMapFlex);
+	}
 
-	if (msg === "紀錄數據") {
-  return client.replyMessage(event.replyToken, {
-    type: 'text',
-    text: '✅ 你輸入了紀錄數據'
-  });
-}
-	if (msg === "健康數據紀錄") {
-      console.log("✅ 收到紀錄數據指令"); // ← 新增這行
-  return client.replyMessage(event.replyToken, healthCard);
-}
+	if (msg === "紀錄數據") 
+	{
+	  return client.replyMessage(event.replyToken, 
+	  {
+		type: 'text',
+		text: '✅ 你輸入了紀錄數據'
+	  });
+	}
+	if (msg === "健康數據紀錄") 
+	{
+		  console.log("✅ 收到紀錄數據指令"); // ← 新增這行
+	  return client.replyMessage(event.replyToken, healthCard);
+	}
 	
     if (msg === '飲食推薦') {
       try {
