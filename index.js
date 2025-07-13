@@ -34,10 +34,12 @@ app.use(express.static('public'));
 
 // LINE Bot 設定
 const config = {
-  channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
-  channelSecret: process.env.CHANNEL_SECRET
+  channelAccessToken: '94atJ6+sSP5pXt3wgHHUyNFaaq53Q+hs/nM79XLa4LO5A2LV0UGm7y1kUSLm+29qX16GkZAyOdE2BlxSaBfvl8BGeRLbHgUGQO+AUy8g6/LcdOB7Gdgd2bis2LH0HOuBQmKUVA52SpuTkr7+zFxrVgdB04t89/1O/w1cDnyilFU=',
+  channelSecret: '3da6c5c600c1ee5897209607a02b42d9'
 };
 const client = new line.Client(config);
+
+
 
 // webhook 事件處理
 app.post('/webhook', line.middleware(config), async (req, res) => {
