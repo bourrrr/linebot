@@ -2,8 +2,6 @@
 const express = require('express');
 const line = require('@line/bot-sdk');
 const cron = require('node-cron');
-const getRandomRecipe = require('./getRandomRecipe');
-const generateRecipeFlex = require('./generateRecipeFlex');
 const admin = require('firebase-admin');
 const healthCard = require('./OCR_modules/healthFlex');
 const serviceAccount = require('/etc/secrets/firebaseKey.json');
@@ -11,6 +9,7 @@ const saveImage = require("./OCR_modules/saveImage"); // 儲存圖片
 const runOCR = require("./OCR_modules/ocr"); 
 const madmapflex = require('./OCR_modules/flex/madmapFlex');
 const bpMapFlex = require('./OCR_modules/flex/bpMapFlex');
+const handleRecipeRecommendation = require('./OCR_modules/flex/recipeHandler');
 
 console.log('📦 saveImage 模組載入成功');
 
@@ -74,25 +73,17 @@ async function handleEvent(event, client) {
 		text: '✅ 你輸入了紀錄數據'
 	  });
 	}
+	
 	if (msg === "健康數據紀錄") 
 	{
 		  console.log("✅ 收到紀錄數據指令"); // ← 新增這行
 	  return client.replyMessage(event.replyToken, healthCard);
 	}
 	
-    if (msg === '飲食推薦') {
-      try {
-        const recipe = await getRandomRecipe();
-        if (!recipe) {
-          return client.replyMessage(event.replyToken, { type: 'text', text: '目前沒有食譜資料喔～' });
-        }
-        const flex = generateRecipeFlex(recipe);
-        return client.replyMessage(event.replyToken, flex);
-      } catch (err) {
-        console.error('❌ 食譜錯誤：', err);
-        return client.replyMessage(event.replyToken, { type: 'text', text: '推薦失敗，請稍後再試！' });
-      }
-    }
+	if (msg === '飲食推薦') {
+	  return handleRecipeRecommendation(event, client);
+	}
+
 
 
 
