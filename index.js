@@ -1,21 +1,21 @@
-// 引入需要的套件
 const express = require('express');
 const line = require('@line/bot-sdk');
 const cron = require('node-cron');
 const admin = require('firebase-admin');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
+
 const healthCard = require('./OCR_modules/healthFlex');
 const serviceAccount = require('/etc/secrets/firebaseKey.json');
-const saveImage = require("./OCR_modules/saveImage"); // 儲存圖片
-const runOCR = require("./OCR_modules/ocr"); 
+const saveImage = require('./OCR_modules/saveImage');
+const runOCR = require('./OCR_modules/ocr');
 const madmapflex = require('./OCR_modules/flex/madmapFlex');
 const bpMapFlex = require('./OCR_modules/flex/bpMapFlex');
 const handleRecipeRecommendation = require('./OCR_modules/flex/recipeHandler');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const generateHealthFlex = require('./OCR_modules/flex/healthDataCard');
 
-console.log('📦 saveImage 模組載入成功');
+console.log('📦 模組載入成功');
 
 // 初始化 Firebase
 if (!admin.apps.length) {
@@ -116,35 +116,24 @@ async function handleEvent(event, client) {
       }
     });
   }
-	if (msg === "紀錄數據") {
-	  const snapshot = await admin.firestore().collection('health_records')
-		.orderBy('timestamp', 'desc').limit(1).get();
+  
 
-	  if (snapshot.empty) {
-		return client.replyMessage(event.replyToken, {
-		  type: 'text',
-		  text: '目前沒有任何紀錄資料喔～'
-		});
-	  }
-
-	  const data = snapshot.docs[0].data();
-	  const flex = generateHealthFlex(data);
-	  return client.replyMessage(event.replyToken, flex);
-	}
-  if (event.type === "message" && event.message.type === "image") {
+  return Promise.resolve(null);
+}
+ if (event.type === "message" && event.message.type === "image") {
     const msgId = event.message.id;
     try {
       const imagePath = await saveImage(msgId, client);
       const ocrText = await runOCR(imagePath);
       return client.replyMessage(event.replyToken, {
         type: "text",
-        text: `🧾 OCR 辨識結果：\n${ocrText}`,
+        text: `🧾 OCR 辨識結果：\n${ocrText}`
       });
     } catch (err) {
-      console.error("處理失敗：", err);
+      console.error("❌ OCR 錯誤：", err);
       return client.replyMessage(event.replyToken, {
         type: "text",
-        text: "⚠️ 系統處理圖片時發生錯誤。",
+        text: "⚠️ 系統處理圖片時發生錯誤。"
       });
     }
   }
@@ -152,55 +141,33 @@ async function handleEvent(event, client) {
   return Promise.resolve(null);
 }
 
-// 🕗 每天定時提醒吃藥
+// 定時推播提醒
 cron.schedule('0 8 * * *', () => sendReminder('早安！記得吃早上的藥喔 💊'));
 cron.schedule('0 20 * * *', () => sendReminder('晚安前別忘了吃晚上的藥 💊'));
 
 function sendReminder(message) {
-  const userId = '你的 user id'; // ⚠️請換成你自己的 LINE User ID
+  const userId = '你的 LINE userId';
   client.pushMessage(userId, {
     type: 'text',
     text: message
-  })
-  .then(() => console.log('✅ 成功發送提醒訊息'))
-  .catch(err => console.error('❌ 推播錯誤：', err));
+  }).then(() => console.log('✅ 成功發送提醒訊息'))
+    .catch(err => console.error('❌ 推播錯誤：', err));
 }
 
+// ========== 上傳圖片 & 儲存 OCR 結果 ==========
+const uploadDir = "C:/Users/mexx0/linebot/OCR_modules";
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-// 設定圖片儲存位置與檔名
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "C:/Users/mexx0/linebot/OCR_modules"); // ← 這裡是你指定的資料夾
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `ocr_${Date.now()}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  }
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => cb(null, `ocr_${Date.now()}${path.extname(file.originalname)}`)
 });
 const upload = multer({ storage });
 
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// 圖片上傳設定
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = `ocr_${Date.now()}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  }
-});
-const upload = multer({ storage });
-
-// /upload API
 app.post('/upload', upload.single('image'), async (req, res) => {
   const filePath = req.file.path;
-
   try {
-    const text = await runOCR(filePath); // OCR 處理
+    const text = await runOCR(filePath);
 
     const bpMatch = text.match(/(\d{2,3})\/(\d{2,3})/);
     const sugarMatch = text.match(/血糖[:：]?\s*(\d{2,3})/);
@@ -208,7 +175,6 @@ app.post('/upload', upload.single('image'), async (req, res) => {
     const pressure = bpMatch ? bpMatch[0] : "";
     const sugar = sugarMatch ? sugarMatch[1] : "";
 
-    // 儲存成檔案（txt 或 json 都可以）
     const resultData = {
       timestamp: new Date().toISOString(),
       pressure,
@@ -220,20 +186,19 @@ app.post('/upload', upload.single('image'), async (req, res) => {
     const resultPath = path.join(uploadDir, resultFilename);
     fs.writeFileSync(resultPath, JSON.stringify(resultData, null, 2), "utf-8");
 
-    // 回傳給前端
     res.json({
       success: true,
       ocrText: text,
       pressure,
       sugar,
-      resultFile: resultFilename // 回傳檔案名稱給前端也可以
+      resultFile: resultFilename
     });
-
   } catch (err) {
     console.error("❌ OCR 錯誤：", err);
     res.status(500).json({ success: false, message: "OCR 失敗" });
   }
 });
+
 app.use(express.json());
 // 啟動伺服器
 app.listen(3000, () => {
