@@ -8,7 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const startReminderCron = require('./OCR_modules/services/reminderCron');
 
-startReminderCron(db, client);
+
 
 // 模組載入
 const healthCard = require('./OCR_modules/healthFlex');
@@ -34,6 +34,7 @@ if (!admin.apps.length) {
   });
 }
 
+startReminderCron(db, client);
 // 建立 Express app
 const app = express();
 app.use(express.static('public'));
