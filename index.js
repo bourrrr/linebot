@@ -6,6 +6,9 @@ const admin = require('firebase-admin');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const startReminderCron = require('./OCR_modules/services/reminderCron');
+
+startReminderCron(db, client);
 
 // 模組載入
 const healthCard = require('./OCR_modules/healthFlex');
@@ -16,6 +19,9 @@ const bpMapFlex = require('./OCR_modules/flex/bpMapFlex');
 const handleRecipeRecommendation = require('./OCR_modules/flex/recipeHandler');
 const generateHealthFlex = require('./OCR_modules/flex/healthDataCard');
 const reminderBubble = require('./OCR_modules/flex/reminderBubble');
+const { handleReminderPostback } = require('./OCR_modules/services/reminderService');
+const { handleCheckin } = require('./OCR_modules/services/checkinService');
+
 // 環境變數
 require('dotenv').config();
 
@@ -63,7 +69,9 @@ async function handleEvent(event, client) {
           madmapflex()
         ]);
       }
-
+	const reminderResult = await handleReminderPostback(event, reminderCache, db, client);
+	  if (reminderResult) return reminderResult;
+	  
       if (msg === '血壓地圖') {
         return client.replyMessage(event.replyToken, bpMapFlex);
       }
@@ -74,7 +82,8 @@ async function handleEvent(event, client) {
           text: '✅ 你輸入了紀錄數據'
         });
       }
-
+	  const checkinResult = await handleCheckin(event, db, client);
+	  if (checkinResult) return checkinResult;
       if (msg === '健康數據紀錄') {
         console.log("✅ 收到紀錄數據指令");
         return client.replyMessage(event.replyToken, healthCard);
@@ -84,13 +93,13 @@ async function handleEvent(event, client) {
         return handleRecipeRecommendation(event, client);
       }
 
-	 if (event.message.text === '用藥提醒') {
-		  return client.replyMessage(event.replyToken, {
-			type: 'flex',
-			altText: '用藥提醒設定',
-			contents: reminderBubble
-		  });
-		}
+	  if (msg === '用藥提醒') {
+      return client.replyMessage(event.replyToken, {
+        type: 'flex',
+        altText: '設定用藥提醒',
+        contents: reminderBubble
+      });
+    }
       if (msg === '我要新增紀錄') {
         return client.replyMessage(event.replyToken, {
           type: "text",
@@ -104,17 +113,7 @@ async function handleEvent(event, client) {
         });
       }
 
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: "請選擇你要的功能 👇",
-        quickReply: {
-          items: [
-            { type: "action", action: { type: "message", label: "吃藥提醒", text: "我要吃藥" } },
-            { type: "action", action: { type: "message", label: "運動提醒", text: "我要運動" } },
-            { type: "action", action: { type: "message", label: "其他", text: "我要其他服務" } }
-          ]
-        }
-      });
+
     }
   } catch (err) {
     console.error("❌ handleEvent 錯誤：", err);
