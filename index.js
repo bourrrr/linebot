@@ -15,7 +15,7 @@ const madmapflex = require('./OCR_modules/flex/madmapFlex');
 const bpMapFlex = require('./OCR_modules/flex/bpMapFlex');
 const handleRecipeRecommendation = require('./OCR_modules/flex/recipeHandler');
 const generateHealthFlex = require('./OCR_modules/flex/healthDataCard');
-
+const reminderBubble = require('./OCR_modules/flex/reminderBubble');
 // 環境變數
 require('dotenv').config();
 
@@ -84,6 +84,13 @@ async function handleEvent(event, client) {
         return handleRecipeRecommendation(event, client);
       }
 
+	 if (event.message.text === '用藥提醒') {
+		  return client.replyMessage(event.replyToken, {
+			type: 'flex',
+			altText: '用藥提醒設定',
+			contents: reminderBubble
+		  });
+		}
       if (msg === '我要新增紀錄') {
         return client.replyMessage(event.replyToken, {
           type: "text",
