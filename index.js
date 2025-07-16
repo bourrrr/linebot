@@ -70,7 +70,9 @@ async function handleEvent(event, client) {
           madmapflex()
         ]);
       }
-	const reminderResult = await handleReminderPostback(event, reminderCache, db, client);
+	  const checkinResult = await handleCheckin(event, db, client);
+	  if (checkinResult) return checkinResult;
+	const reminderResult = await handleReminderPostback(event, db, client);
 	  if (reminderResult) return reminderResult;
 	  
       if (msg === '血壓地圖') {
@@ -83,8 +85,7 @@ async function handleEvent(event, client) {
           text: '✅ 你輸入了紀錄數據'
         });
       }
-	  const checkinResult = await handleCheckin(event, db, client);
-	  if (checkinResult) return checkinResult;
+	  
       if (msg === '健康數據紀錄') {
         console.log("✅ 收到紀錄數據指令");
         return client.replyMessage(event.replyToken, healthCard);
