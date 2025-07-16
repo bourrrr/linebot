@@ -4,12 +4,16 @@ const admin = require('firebase-admin');
 function startReminderCron(db, client) {
   // 每分鐘執行一次
   cron.schedule('* * * * *', async () => {
+    // 計算台灣時間 nowTW
     const now = new Date();
-    const minBefore = new Date(now.getTime() - 60000);
-    const minAfter = new Date(now.getTime() + 60000);
+    const taipeiOffset = 8 * 60; // +8時區分鐘
+    const nowTW = new Date(now.getTime() + (taipeiOffset - now.getTimezoneOffset()) * 60000);
+
+    const minBefore = new Date(nowTW.getTime() - 60000);
+    const minAfter = new Date(nowTW.getTime() + 60000);
 
     // 每分鐘都印一次 cron 是否有在跑
-    console.log('[cron] 任務執行，現在時間:', now.toISOString());
+    console.log('[cron] 任務執行，現在時間(台灣):', nowTW.toISOString());
 
     try {
       const usersSnapshot = await db.collection('users').get();
@@ -66,3 +70,4 @@ function startReminderCron(db, client) {
 }
 
 module.exports = startReminderCron;
+
