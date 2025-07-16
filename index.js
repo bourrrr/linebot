@@ -61,6 +61,22 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
 // 處理個別事件
 async function handleEvent(event, client) {
   try {
+	   if (event.type === "postback") {
+      // 加 log 看有沒有收到 postback
+      console.log('收到 postback:', JSON.stringify(event, null, 2));
+
+      // 先處理 checkin
+      const checkinResult = await handleCheckin(event, db, client);
+      if (checkinResult) return checkinResult;
+
+      // 再處理用藥提醒
+      const reminderResult = await handleReminderPostback(event, db, client);
+      if (reminderResult) return reminderResult;
+
+      // 其他 postback 可以加更多分支
+      return;
+    }
+
     if (event.type === "message" && event.message.type === "text") {
       const msg = event.message.text.trim();
 
