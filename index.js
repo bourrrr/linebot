@@ -19,7 +19,7 @@ const bpMapFlex = require('./OCR_modules/flex/bpMapFlex');
 const handleRecipeRecommendation = require('./OCR_modules/flex/recipeHandler');
 const generateHealthFlex = require('./OCR_modules/flex/healthDataCard');
 const reminderBubble = require('./OCR_modules/flex/reminderBubble');
-const { handleReminderPostback } = require('./OCR_modules/services/reminderService');
+const { handleReminderPostback, reminderCache } = require('./OCR_modules/services/reminderService');
 const { handleCheckin } = require('./OCR_modules/services/checkinService');
 
 // 環境變數

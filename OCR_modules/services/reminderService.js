@@ -1,7 +1,9 @@
-// OCR_modules/services/reminderService.js
 const { Timestamp } = require('firebase-admin/firestore');
 
-async function handleReminderPostback(event, reminderCache, db, client) {
+// 宣告全域快取物件
+let reminderCache = {};
+
+async function handleReminderPostback(event, db, client) {
   const userId = event.source.userId;
 
   // 處理選擇提醒時間
@@ -43,4 +45,5 @@ async function handleReminderPostback(event, reminderCache, db, client) {
   return null;
 }
 
-module.exports = { handleReminderPostback };
+// 匯出 reminderCache 讓其他檔案可以用
+module.exports = { handleReminderPostback, reminderCache };
