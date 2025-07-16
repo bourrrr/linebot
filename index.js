@@ -21,6 +21,7 @@ const generateHealthFlex = require('./OCR_modules/flex/healthDataCard');
 const reminderBubble = require('./OCR_modules/flex/reminderBubble');
 const { handleReminderPostback, reminderCache } = require('./OCR_modules/services/reminderService');
 const { handleCheckin } = require('./OCR_modules/services/checkinService');
+const { handleCheckin } = require('./OCR_modules/services/checkinService');
 
 // 環境變數
 require('dotenv').config();
@@ -83,6 +84,8 @@ async function handleEvent(event, client) {
           text: '✅ 你輸入了紀錄數據'
         });
       }
+	  const checkinResult = await handleCheckin(event, db, client);
+	  if (checkinResult) return checkinResult;
 	  const checkinResult = await handleCheckin(event, db, client);
 	  if (checkinResult) return checkinResult;
       if (msg === '健康數據紀錄') {
