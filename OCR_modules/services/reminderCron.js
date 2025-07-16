@@ -23,7 +23,7 @@ function startReminderCron(db, client) {
 
         snapshot.forEach(async (doc) => {
           const data = doc.data();
-
+		console.log('推播用藥提醒:', userId, data.medicine, doc.id, data.datetime && data.datetime.toDate && data.datetime.toDate());
           // 發送提醒訊息
           await client.pushMessage(userId, {
             type: 'template',
