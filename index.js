@@ -79,7 +79,12 @@ async function handleEvent(event, client) {
 
     if (event.type === "message" && event.message.type === "text") {
       const msg = event.message.text.trim();
-
+	if (!["藥局地圖", "血壓地圖", "紀錄數據", "健康數據紀錄", "飲食推薦", "用藥提醒", "我要新增紀錄"].includes(msg)) {
+			const userId = event.source.userId;
+			if (!reminderCache[userId]) reminderCache[userId] = {};
+			reminderCache[userId].medicine = msg;
+			console.log('藥名輸入後 reminderCache:', reminderCache[userId]);
+		  }
       if (msg === '藥局地圖') {
         return client.replyMessage(event.replyToken, [
           { type: 'text', text: '📡 已收到您的指令，請點擊下方地圖開啟藥局搜尋功能 👇' },
