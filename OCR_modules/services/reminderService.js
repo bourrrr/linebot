@@ -10,6 +10,8 @@ async function handleReminderPostback(event, db, client) {
   if (event.type === 'postback' && event.postback.params?.datetime) {
     if (!reminderCache[userId]) reminderCache[userId] = {};
     reminderCache[userId].datetime = event.postback.params.datetime;
+    // Debug log
+    console.log(`【時間選擇】${userId} reminderCache:`, reminderCache[userId]);
 
     return client.replyMessage(event.replyToken, {
       type: 'text',
@@ -19,11 +21,13 @@ async function handleReminderPostback(event, db, client) {
 
   // 處理確認提醒
   if (event.type === 'postback' && event.postback.data === 'action=confirm_reminder') {
-    console.log('收到確認提醒:', reminderCache[userId]);
+    // Debug log
+    console.log(`【確認提醒】${userId} reminderCache:`, reminderCache[userId]);
     console.log('Firestore 寫入路徑:', `users/${userId}/reminders`);
 
     const reminder = reminderCache[userId];
     if (!reminder || !reminder.medicine || !reminder.datetime) {
+      // 這個訊息會發給用戶，提醒資料沒填齊
       return client.replyMessage(event.replyToken, {
         type: 'text',
         text: '⚠️ 請先輸入藥名並選擇提醒時間後再點確認'
@@ -38,6 +42,7 @@ async function handleReminderPostback(event, db, client) {
       done: false
     });
 
+    // 這個訊息會發給用戶，提醒已設定完成
     return client.replyMessage(event.replyToken, {
       type: 'text',
       text: `✅ 已設定提醒：\n藥品：${reminder.medicine}\n時間：${reminder.datetime}`
