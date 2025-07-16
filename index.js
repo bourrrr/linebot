@@ -33,7 +33,7 @@ if (!admin.apps.length) {
     databaseURL: "https://medwell-test1.firebaseio.com"
   });
 }
-
+const db = admin.firestore();
 startReminderCron(db, client);
 // 建立 Express app
 const app = express();
