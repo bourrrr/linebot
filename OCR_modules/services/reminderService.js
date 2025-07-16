@@ -19,7 +19,9 @@ async function handleReminderPostback(event, db, client) {
 
   // 處理確認提醒
   if (event.type === 'postback' && event.postback.data === 'action=confirm_reminder') {
-	   console.log('收到確認提醒:', reminderCache[userId]);
+    console.log('收到確認提醒:', reminderCache[userId]);
+    console.log('Firestore 寫入路徑:', `users/${userId}/reminders`);
+
     const reminder = reminderCache[userId];
     if (!reminder || !reminder.medicine || !reminder.datetime) {
       return client.replyMessage(event.replyToken, {
