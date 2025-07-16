@@ -27,27 +27,22 @@ async function handleReminderPostback(event, db, client) {
 
     const reminder = reminderCache[userId];
     if (!reminder || !reminder.medicine || !reminder.datetime) {
+      // 這個訊息會發給用戶，提醒資料沒填齊
       return client.replyMessage(event.replyToken, {
         type: 'text',
         text: '⚠️ 請先輸入藥名並選擇提醒時間後再點確認'
       });
     }
 
-    // 強制把提醒時間當作台灣時間（+08:00），存為 Timestamp
-    const datetimeStr = reminder.datetime.length === 16
-      ? reminder.datetime + ':00'
-      : reminder.datetime;
-    const datetimeTW = new Date(datetimeStr + '+08:00');
-    console.log('寫入 Firestore 的 timestamp:', datetimeTW.toISOString());
-
     // 寫入 Firebase
     const reminderRef = db.collection('users').doc(userId).collection('reminders');
     await reminderRef.add({
       medicine: reminder.medicine,
-      datetime: Timestamp.fromDate(datetimeTW), // 一定是 Timestamp 型態
+      datetime: Timestamp.fromDate(new Date(reminder.datetime)),
       done: false
     });
 
+    // 這個訊息會發給用戶，提醒已設定完成
     return client.replyMessage(event.replyToken, {
       type: 'text',
       text: `✅ 已設定提醒：\n藥品：${reminder.medicine}\n時間：${reminder.datetime}`
@@ -58,4 +53,5 @@ async function handleReminderPostback(event, db, client) {
   return null;
 }
 
+// 匯出 reminderCache 讓其他檔案可以用
 module.exports = { handleReminderPostback, reminderCache };
