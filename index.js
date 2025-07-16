@@ -34,7 +34,7 @@ if (!admin.apps.length) {
   });
 }
 const db = admin.firestore();
-startReminderCron(db, client);
+
 // 建立 Express app
 const app = express();
 app.use(express.static('public'));
@@ -46,7 +46,7 @@ const config = {
 };
 const client = new line.Client(config);
 
-
+startReminderCron(db, client);
 
 // webhook 事件處理
 app.post('/webhook', line.middleware(config), async (req, res) => {
