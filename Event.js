@@ -1,5 +1,5 @@
 // handleEvent.js
-module.exports = async function handleEvent(event, client, db) {
+module.exports = async function Event(event, client, db) {
   // 處理 LINE postback（簽到）
   if (event.type === 'postback') {
     console.log('收到 postback:', event.postback.data);
