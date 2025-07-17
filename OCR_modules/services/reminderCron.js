@@ -12,15 +12,13 @@ function startReminderCron(db, client) {
   // 每分鐘執行一次
   cron.schedule('* * * * *', async () => {
     // 取得現在台灣時間（精準！）
-    const nowTW = dayjs().tz('Asia/Taipei');
-    const minBefore = nowTW.subtract(1, 'minute').toDate();
-    const minAfter = nowTW.add(1, 'minute').toDate();
+   const nowTW = dayjs().tz('Asia/Taipei');
+	const minBefore = nowTW.subtract(1, 'minute');
+	const minAfter = nowTW.add(1, 'minute');
 
-    // Debug log
-    console.log('[cron] 現在台灣時間:', nowTW.format('YYYY-MM-DD HH:mm:ss Z'));
-    console.log('[cron] minBefore:', dayjs(minBefore).format('YYYY-MM-DD HH:mm:ss Z'));
-    console.log('[cron] minAfter:', dayjs(minAfter).format('YYYY-MM-DD HH:mm:ss Z'));
-
+	console.log('[cron] 現在台灣時間:', nowTW.format('YYYY-MM-DD HH:mm:ss Z'));
+	console.log('[cron] minBefore:', minBefore.format('YYYY-MM-DD HH:mm:ss Z'));
+	console.log('[cron] minAfter:', minAfter.format('YYYY-MM-DD HH:mm:ss Z'));
     try {
       const usersSnapshot = await db.collection('users').get();
       usersSnapshot.forEach(async (userDoc) => {
@@ -28,9 +26,9 @@ function startReminderCron(db, client) {
         const remindersRef = db.collection('users').doc(userId).collection('reminders');
         const snapshot = await remindersRef
           .where('done', '==', false)
-          .where('datetime', '>=', admin.firestore.Timestamp.fromDate(minBefore))
-          .where('datetime', '<=', admin.firestore.Timestamp.fromDate(minAfter))
-          .get();
+          ..where('datetime', '>=', admin.firestore.Timestamp.fromDate(minBefore.toDate()))
+.where('datetime', '<=', admin.firestore.Timestamp.fromDate(minAfter.toDate()))
+
 
         console.log(`[cron] userId: ${userId} snapshot.size: ${snapshot.size}`);
 
