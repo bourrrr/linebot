@@ -21,7 +21,7 @@ const generateHealthFlex = require('./OCR_modules/flex/healthDataCard');
 const reminderBubble = require('./OCR_modules/flex/reminderBubble');
 const { handleReminderPostback, reminderCache } = require('./OCR_modules/services/reminderService');
 const { handleCheckin } = require('./OCR_modules/services/checkinService');
-const handleEvent = require('./handleEvent');
+const handleEvent = require('./Event');
 
 // 環境變數
 require('dotenv').config();
