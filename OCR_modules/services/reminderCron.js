@@ -26,7 +26,7 @@ function startReminderCron(db, client) {
         const remindersRef = db.collection('users').doc(userId).collection('reminders');
         const snapshot = await remindersRef
           .where('done', '==', false)
-          ..where('datetime', '>=', admin.firestore.Timestamp.fromDate(minBefore.toDate()))
+          .where('datetime', '>=', admin.firestore.Timestamp.fromDate(minBefore.toDate()))
 .where('datetime', '<=', admin.firestore.Timestamp.fromDate(minAfter.toDate()))
 
 
