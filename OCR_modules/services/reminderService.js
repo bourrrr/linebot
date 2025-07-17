@@ -1,6 +1,10 @@
 const { Timestamp } = require('firebase-admin/firestore');
+const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
-// 宣告全域快取物件
 let reminderCache = {};
 
 async function handleReminderPostback(event, db, client) {
@@ -10,7 +14,6 @@ async function handleReminderPostback(event, db, client) {
   if (event.type === 'postback' && event.postback.params?.datetime) {
     if (!reminderCache[userId]) reminderCache[userId] = {};
     reminderCache[userId].datetime = event.postback.params.datetime;
-    // Debug log
     console.log(`【時間選擇】${userId} reminderCache:`, reminderCache[userId]);
 
     return client.replyMessage(event.replyToken, {
@@ -21,48 +24,33 @@ async function handleReminderPostback(event, db, client) {
 
   // 處理確認提醒
   if (event.type === 'postback' && event.postback.data === 'action=confirm_reminder') {
-    // Debug log
     console.log(`【確認提醒】${userId} reminderCache:`, reminderCache[userId]);
-    console.log('Firestore 寫入路徑:', `users/${userId}/reminders`);
-
     const reminder = reminderCache[userId];
     if (!reminder || !reminder.medicine || !reminder.datetime) {
-      // 這個訊息會發給用戶，提醒資料沒填齊
       return client.replyMessage(event.replyToken, {
         type: 'text',
         text: '⚠️ 請先輸入藥名並選擇提醒時間後再點確認'
       });
     }
 
-    // 寫入 Firebase
-    const { Timestamp } = require('firebase-admin/firestore');
+    const reminderRef = db.collection('users').doc(userId).collection('reminders');
+    // 用 dayjs 處理台灣時區（reminder.datetime 格式通常是 "YYYY-MM-DDTHH:mm"）
+    const twDate = dayjs(reminder.datetime).tz('Asia/Taipei');
+    console.log('寫入 Firestore 的台灣時間:', twDate.format('YYYY-MM-DD HH:mm:ss Z'));
 
-const reminderRef = db.collection('users').doc(userId).collection('reminders');
-const datetimeStr = reminder.datetime.length === 16
-  ? reminder.datetime + ':00'
-  : reminder.datetime;
-const datetimeTW = new Date(datetimeStr + '+08:00');
-console.log('寫入 Firestore 的 timestamp:', datetimeTW.toISOString());
+    await reminderRef.add({
+      datetime: Timestamp.fromDate(twDate.toDate()),
+      done: false,
+      medicine: reminder.medicine
+    });
 
-await reminderRef.add({
-  datetime: Timestamp.fromDate(datetimeTW),
-  done: false,
-  medicine: reminder.medicine
-});
-
-
-   
-
-    // 這個訊息會發給用戶，提醒已設定完成
     return client.replyMessage(event.replyToken, {
       type: 'text',
-      text: `✅ 已設定提醒：\n藥品：${reminder.medicine}\n時間：${reminder.datetime}`
+      text: `✅ 已設定提醒：\n藥品：${reminder.medicine}\n時間：${twDate.format('YYYY-MM-DD HH:mm')}`
     });
   }
 
-  // 不是這兩種情境就回 null
   return null;
 }
 
-// 匯出 reminderCache 讓其他檔案可以用
 module.exports = { handleReminderPostback, reminderCache };
