@@ -36,6 +36,12 @@ async function handleReminderPostback(event, db, client) {
 
     // 寫入 Firebase
     const reminderRef = db.collection('users').doc(userId).collection('reminders');
+	const datetimeStr = reminder.datetime.length === 16
+  ? reminder.datetime + ':00'
+  : reminder.datetime;
+const datetimeTW = new Date(datetimeStr + '+08:00');
+console.log('寫入 Firestore 的 timestamp:', datetimeTW.toISOString());
+
     await reminderRef.add({
       medicine: reminder.medicine,
       datetime: Timestamp.fromDate(new Date(reminder.datetime)),
