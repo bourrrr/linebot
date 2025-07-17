@@ -51,11 +51,7 @@ await reminderRef.add({
 });
 
 
-    await reminderRef.add({
-      medicine: reminder.medicine,
-      datetime: Timestamp.fromDate(new Date(reminder.datetime)),
-      done: false
-    });
+   
 
     // 這個訊息會發給用戶，提醒已設定完成
     return client.replyMessage(event.replyToken, {
