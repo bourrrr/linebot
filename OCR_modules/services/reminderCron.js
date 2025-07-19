@@ -5,20 +5,19 @@ const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
 dayjs.extend(utc);
 dayjs.extend(timezone);
-dayjs.extend(timezone);
-
 
 function startReminderCron(db, client) {
   // 每分鐘執行一次
   cron.schedule('* * * * *', async () => {
-    // 取得現在台灣時間（精準！）
-   const nowTW = dayjs().tz('Asia/Taipei');
-	const minBefore = nowTW.subtract(1, 'minute');
-	const minAfter = nowTW.add(1, 'minute');
+    // 取得現在台灣時間
+    const nowTW = dayjs().tz('Asia/Taipei');
+    const minBefore = nowTW.subtract(1, 'minute');
+    const minAfter = nowTW.add(1, 'minute');
 
-	console.log('[cron] 現在台灣時間:', nowTW.format('YYYY-MM-DD HH:mm:ss Z'));
-	console.log('[cron] minBefore:', minBefore.format('YYYY-MM-DD HH:mm:ss Z'));
-	console.log('[cron] minAfter:', minAfter.format('YYYY-MM-DD HH:mm:ss Z'));
+    console.log('[cron] 現在台灣時間:', nowTW.format('YYYY-MM-DD HH:mm:ss Z'));
+    console.log('[cron] minBefore:', minBefore.format('YYYY-MM-DD HH:mm:ss Z'));
+    console.log('[cron] minAfter:', minAfter.format('YYYY-MM-DD HH:mm:ss Z'));
+
     try {
       const usersSnapshot = await db.collection('users').get();
       usersSnapshot.forEach(async (userDoc) => {
@@ -27,8 +26,8 @@ function startReminderCron(db, client) {
         const snapshot = await remindersRef
           .where('done', '==', false)
           .where('datetime', '>=', admin.firestore.Timestamp.fromDate(minBefore.toDate()))
-		  .where('datetime', '<=', admin.firestore.Timestamp.fromDate(minAfter.toDate()))
-
+          .where('datetime', '<=', admin.firestore.Timestamp.fromDate(minAfter.toDate()))
+          .get();
 
         console.log(`[cron] userId: ${userId} snapshot.size: ${snapshot.size}`);
 
@@ -41,27 +40,31 @@ function startReminderCron(db, client) {
             datetime: data.datetime && data.datetime.toDate && data.datetime.toDate().toISOString()
           });
 
-          await client.pushMessage(userId, {
-            type: 'template',
-            altText: '用藥提醒',
-            template: {
-              type: 'buttons',
-              title: '💊 用藥提醒',
-              text: `請記得服用藥物：${data.medicine}`,
-              actions: [
-                {
-                  type: 'postback',
-                  label: '✅ 簽到',
-                  data: `action=checkin&reminderId=${doc.id}`
-                }
-              ]
-            }
-          });
+          try {
+            await client.pushMessage(userId, {
+              type: 'template',
+              altText: '用藥提醒',
+              template: {
+                type: 'buttons',
+                title: '💊 用藥提醒',
+                text: `請記得服用藥物：${data.medicine}`,
+                actions: [
+                  {
+                    type: 'postback',
+                    label: '✅ 簽到',
+                    data: `action=checkin&reminderId=${doc.id}`
+                  }
+                ]
+              }
+            });
+            console.log('[cron] 已推播給', userId, data.medicine);
+          } catch (err) {
+            console.error('[cron] 推播失敗:', err);
+          }
         });
       });
-    console.log('[cron] 已推播給', userId, data.medicine);
-  } catch (err) {
-    console.error('[cron] 推播失敗:', err);
+    } catch (err) {
+      console.error('[cron] 定時提醒錯誤:', err);
     }
   });
 }
