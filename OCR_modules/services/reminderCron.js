@@ -19,9 +19,15 @@ function startReminderCron(db, client) {
     console.log('[cron] minAfter:', minAfter.format('YYYY-MM-DD HH:mm:ss Z'));
 
     try {
+		const ONLY_USER_IDS = [
+  'gxiMh8K2K44nenbabWun',
+  'j52uSFcasLZwYd2tBxNc'
+];
       const usersSnapshot = await db.collection('users').get();
       usersSnapshot.forEach(async (userDoc) => {
         const userId = userDoc.id;
+		if (!ONLY_USER_IDS.includes(userId)) return; // 只處理你指定的 userId
+console.log('[cron] 目前只推播 userId:', userId);
         const remindersRef = db.collection('users').doc(userId).collection('reminders');
         const snapshot = await remindersRef
           .where('done', '==', false)
