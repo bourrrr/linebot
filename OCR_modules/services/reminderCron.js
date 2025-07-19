@@ -59,10 +59,10 @@ function startReminderCron(db, client) {
           });
         });
       });
-    } console.log('[cron] 已推播給', userId, data.medicine);
+    console.log('[cron] 已推播給', userId, data.medicine);
   } catch (err) {
     console.error('[cron] 推播失敗:', err);
-  }
+    }
   });
 }
 
