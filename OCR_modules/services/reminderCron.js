@@ -27,7 +27,7 @@ function startReminderCron(db, client) {
         const snapshot = await remindersRef
           .where('done', '==', false)
           .where('datetime', '>=', admin.firestore.Timestamp.fromDate(minBefore.toDate()))
-.where('datetime', '<=', admin.firestore.Timestamp.fromDate(minAfter.toDate()))
+		  .where('datetime', '<=', admin.firestore.Timestamp.fromDate(minAfter.toDate()))
 
 
         console.log(`[cron] userId: ${userId} snapshot.size: ${snapshot.size}`);
@@ -59,9 +59,10 @@ function startReminderCron(db, client) {
           });
         });
       });
-    } catch (err) {
-      console.error('❌ 定時提醒錯誤:', err);
-    }
+    } cconsole.log('[cron] 已推播給', userId, data.medicine);
+  } catch (err) {
+    console.error('[cron] 推播失敗:', err);
+  }
   });
 }
 
