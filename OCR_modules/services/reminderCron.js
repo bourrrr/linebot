@@ -20,7 +20,7 @@ function startReminderCron(db, client) {
 
     try {
 		const ONLY_USER_IDS = [
-		 'U4627fdb2f24e8784b75faac9d0ce178a'
+		 'U4627fdb2f24e8784b75faac9d0ce178a',
   'gxiMh8K2K44nenbabWun',
   'j52uSFcasLZwYd2tBxNc'
 ];
