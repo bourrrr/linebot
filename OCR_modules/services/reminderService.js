@@ -32,6 +32,16 @@ async function handleReminderPostback(event, db, client) {
         text: '⚠️ 請先輸入藥名並選擇提醒時間後再點確認'
       });
     }
+		const now = dayjs().tz('Asia/Taipei');
+	  const reminderTime = dayjs(reminder.datetime).tz('Asia/Taipei');
+
+	  // 檢查是不是過去時間
+	  if (reminderTime.isBefore(now, 'minute')) {
+		return client.replyMessage(event.replyToken, {
+		  type: 'text',
+		  text: '❌ 提醒時間不能設定在過去，請重新選擇！'
+		});
+	  }
 
     // 新版路徑：直接寫入 /time
     const timeRef = db.collection('time');

@@ -18,7 +18,7 @@ function startReminderCron(db, client) {
 
     try {
       const ONLY_USER_IDS = [
-        'U4627fdb2f24e8784b75faac9d0ce178a'
+        'time'
         // 其他 userId 也可以加在這
       ];
 
