@@ -31,7 +31,7 @@ const serviceAccount = require('/etc/secrets/firebaseKey.json');
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    databaseURL: "https://medwell-test1.firebaseio.com"
+    databaseURL: "https://medwell-test1.firebaseio.com",
 	storageBucket: "medwell-test1.appspot.com"
   });
 }
