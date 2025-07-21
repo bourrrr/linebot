@@ -1,4 +1,3 @@
-// OCR_modules/services/checkinService.js
 const { getStorage } = require('firebase-admin/storage');
 
 async function handleCheckin(event, db, client) {
@@ -14,12 +13,12 @@ async function handleCheckin(event, db, client) {
       });
     }
 
-    // 1. 更新該筆提醒為已完成
-    const reminderRef = db.collection('users').doc(userId).collection('reminders').doc(reminderId);
+    // 更新 /time 下對應的提醒
+    const reminderRef = db.collection('time').doc(reminderId);
     await reminderRef.update({ done: true });
 
-    // 2. 從 Firebase Storage 隨機抓一張圖片
-    const bucket = getStorage().bucket(); // 取得預設 bucket
+    // 後面都一樣
+    const bucket = getStorage().bucket();
     const [files] = await bucket.getFiles({ prefix: '長輩圖/' });
 
     const imageFiles = files.filter(file => file.name.endsWith('.jpg') || file.name.endsWith('.png'));
@@ -32,14 +31,11 @@ async function handleCheckin(event, db, client) {
     }
 
     const randomFile = imageFiles[Math.floor(Math.random() * imageFiles.length)];
-
-    // 取得下載 URL
     const [url] = await randomFile.getSignedUrl({
       action: 'read',
       expires: '2099-12-31'
     });
 
-    // 3. 傳送圖片與訊息
     return client.replyMessage(event.replyToken, [
       {
         type: 'image',
@@ -52,8 +48,6 @@ async function handleCheckin(event, db, client) {
       }
     ]);
   }
-
-  // 如果不是 checkin，回 null
   return null;
 }
 

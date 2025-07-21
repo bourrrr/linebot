@@ -33,12 +33,13 @@ async function handleReminderPostback(event, db, client) {
       });
     }
 
-    const reminderRef = db.collection('users').doc(userId).collection('reminders');
-    // 用 dayjs 處理台灣時區（reminder.datetime 格式通常是 "YYYY-MM-DDTHH:mm"）
+    // 新版路徑：直接寫入 /time
+    const timeRef = db.collection('time');
     const twDate = dayjs(reminder.datetime).tz('Asia/Taipei');
     console.log('寫入 Firestore 的台灣時間:', twDate.format('YYYY-MM-DD HH:mm:ss Z'));
 
-    await reminderRef.add({
+    await timeRef.add({
+      userId: userId,
       datetime: Timestamp.fromDate(twDate.toDate()),
       done: false,
       medicine: reminder.medicine
