@@ -35,6 +35,7 @@ if (!admin.apps.length) {
 	storageBucket: "medwell-test1.appspot.com"
   });
 }
+console.log('App options:', admin.app().options);
 console.log('Storage bucket set:', admin.app().options.storageBucket);
 const db = admin.firestore();
 
