@@ -34,6 +34,7 @@ if (!admin.apps.length) {
     credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://medwell-test1.firebaseio.com",
 	storageBucket:"medwell-test1.appspot.com"
+	console.log('BUCKET-TEST:', _bucket_test);
   });
 }
 console.log('⚡️ after admin.initializeApp');
