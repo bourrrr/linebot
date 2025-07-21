@@ -7,7 +7,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const startReminderCron = require('./OCR_modules/services/reminderCron');
-
+console.log('🔥 This is the REAL index.js 正在執行！');
 
 
 // 模組載入
