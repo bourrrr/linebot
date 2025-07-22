@@ -57,6 +57,9 @@ async function handleCheckin(event, client) {
       ]);
     } catch (err) {
       console.error('❌ [簽到處理] 發生錯誤：', err);
+	  console.error('📦 [錯誤詳細] 錯誤堆疊：', JSON.stringify(err, null, 2)); // ✅ 加上這行
+	   console.error('錯誤代碼：', err.code);       // 印出代碼
+  console.error('錯誤訊息：', err.message);    // 印出說明
       return client.replyMessage(event.replyToken, {
         type: 'text',
         text: '⚠️ 簽到時發生錯誤，請稍後再試'
