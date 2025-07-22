@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const startReminderCron = require('./OCR_modules/services/reminderCron');
 console.log('🔥 This is the REAL index.js 正在執行！');
+const { getStorage } = require('firebase-admin/storage'); // ✅ 引入 getStorage
 
 
 // 模組載入
@@ -37,6 +38,8 @@ if (!admin.apps.length) {
   });
 }
 console.log('✅ Firebase 初始化成功！目前 bucket:', admin.app().options.storageBucket);
+const bucket = getStorage().bucket(); // ← 不需要再手動指定名稱
+console.log('🧪 實際 getStorage().bucket().name:', bucket.name); // ✅ 應該顯示 medwell-test1.appspot.com
 const _bucket_test = admin.app().options.storageBucket;
 console.log('BUCKET-TEST:', _bucket_test);
 console.log('⚡️ after admin.initializeApp');
