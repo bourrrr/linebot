@@ -1,4 +1,5 @@
-const { bucket, db } = require('@firebase');
+const { bucket, db } = require('../../firebase');
+
 
 console.log('📦 嘗試載入 firebase 模組 from:', __dirname);
 
