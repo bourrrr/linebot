@@ -28,7 +28,7 @@ const Event = require('./Event');
 require('dotenv').config();
 
 // 初始化 Firebase
-const serviceAccount = require('/etc/secrets/firebaseKey.json');
+const serviceAccount = require('./secrets/firebaseKey.json');
 if (!admin.apps.length) {
   console.log('⚡ before admin.initializeApp');
   admin.initializeApp({
