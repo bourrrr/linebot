@@ -36,6 +36,7 @@ if (!admin.apps.length) {
     storageBucket: "medwell-test1.appspot.com"
   });
 }
+console.log('✅ Firebase 初始化成功！目前 bucket:', admin.app().options.storageBucket);
 const _bucket_test = admin.app().options.storageBucket;
 console.log('BUCKET-TEST:', _bucket_test);
 console.log('⚡️ after admin.initializeApp');

@@ -24,7 +24,7 @@ async function handleCheckin(event, db, client) {
       await reminderRef.update({ done: true });
       console.log('✅ [簽到處理] Firestore 已更新 done=true');
 
-      const bucket = getStorage().bucket();
+     const bucket = getStorage().bucket('medwell-test1.appspot.com'); 
       const [files] = await bucket.getFiles({ prefix: '長輩圖/' });
       const imageFiles = files.filter(file => file.name.endsWith('.jpg') || file.name.endsWith('.png'));
 
