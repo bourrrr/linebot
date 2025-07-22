@@ -1,6 +1,6 @@
 
-
-
+const { getStorage } = require('firebase-admin/storage');
+const admin = require('firebase-admin'); // 如果還需要
 async function handleCheckin(event, db, client) {
   if (event.type === 'postback' && event.postback.data.startsWith('action=checkin')) {
     console.log('🟢 [簽到觸發] 收到事件：', JSON.stringify(event, null, 2)); // ✅
