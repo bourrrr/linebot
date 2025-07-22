@@ -29,14 +29,14 @@ require('dotenv').config();
 
 // 初始化 Firebase
 const serviceAccount = require('/etc/secrets/firebaseKey.json');
-
+if (!admin.apps.length) {
   console.log('⚡ before admin.initializeApp');
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://medwell-test1.firebaseio.com",
     storageBucket: "medwell-test1.appspot.com"
   });
-
+}
 console.log('✅ Firebase 初始化成功！目前 bucket:', admin.app().options.storageBucket);
 const bucket = getStorage().bucket(); // ← 不需要再手動指定名稱
 console.log('🧪 實際 getStorage().bucket().name:', bucket.name); // ✅ 應該顯示 medwell-test1.appspot.com
