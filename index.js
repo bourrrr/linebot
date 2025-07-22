@@ -22,7 +22,7 @@ const reminderBubble = require('./OCR_modules/flex/reminderBubble');
 const { handleReminderPostback, reminderCache } = require('./OCR_modules/services/reminderService');
 const { handleCheckin } = require('./OCR_modules/services/checkinService');
 const Event = require('./Event');
-
+const { getStorage } = require('firebase-admin/storage');
 // 環境變數
 require('dotenv').config();
 
