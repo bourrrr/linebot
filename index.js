@@ -60,7 +60,8 @@ async function handleEvent(event, client) {
       console.log('收到 postback:', JSON.stringify(event, null, 2));
 
       // 先處理 checkin
-      const checkinResult = await handleCheckin(event, db, client);
+      const checkinResult = await handleCheckin(event, client); // ✅ 只傳 event 和 client
+
       if (checkinResult) return checkinResult;
 
       // 再處理用藥提醒

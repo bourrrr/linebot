@@ -1,14 +1,16 @@
-const { bucket } = require('../../../firebase'); // ⬅️ 路徑往上兩層
+const { bucket, db } = require('@firebase');
+
 console.log('📦 嘗試載入 firebase 模組 from:', __dirname);
-async function handleCheckin(event, db, client) {
+
+async function handleCheckin(event, client) {
   if (event.type === 'postback' && event.postback.data.startsWith('action=checkin')) {
-    console.log('🟢 [簽到觸發] 收到事件：', JSON.stringify(event, null, 2)); // ✅
+    console.log('🟢 [簽到觸發] 收到事件：', JSON.stringify(event, null, 2));
 
     const userId = event.source.userId;
     const params = new URLSearchParams(event.postback.data);
     const reminderId = params.get('reminderId');
 
-    console.log('🔍 [簽到處理] reminderId:', reminderId); // ✅
+    console.log('🔍 [簽到處理] reminderId:', reminderId);
 
     if (!reminderId) {
       return client.replyMessage(event.replyToken, {
@@ -18,14 +20,14 @@ async function handleCheckin(event, db, client) {
     }
 
     try {
-      // ✅ 加入 try-catch 包含整段處理
       const reminderRef = db.collection('time').doc(reminderId);
       await reminderRef.update({ done: true });
       console.log('✅ [簽到處理] Firestore 已更新 done=true');
 
- 
       const [files] = await bucket.getFiles({ prefix: '長輩圖/' });
-      const imageFiles = files.filter(file => file.name.endsWith('.jpg') || file.name.endsWith('.png'));
+      const imageFiles = files.filter(file =>
+        file.name.endsWith('.jpg') || file.name.endsWith('.png')
+      );
 
       if (imageFiles.length === 0) {
         return client.replyMessage(event.replyToken, {
@@ -40,7 +42,7 @@ async function handleCheckin(event, db, client) {
         expires: '2099-12-31'
       });
 
-      console.log('📸 [長輩圖] 發送圖片連結：', url); // ✅
+      console.log('📸 [長輩圖] 發送圖片連結：', url);
 
       return client.replyMessage(event.replyToken, [
         {
@@ -54,7 +56,7 @@ async function handleCheckin(event, db, client) {
         }
       ]);
     } catch (err) {
-      console.error('❌ [簽到處理] 發生錯誤：', err); // ✅
+      console.error('❌ [簽到處理] 發生錯誤：', err);
       return client.replyMessage(event.replyToken, {
         type: 'text',
         text: '⚠️ 簽到時發生錯誤，請稍後再試'
@@ -64,4 +66,5 @@ async function handleCheckin(event, db, client) {
 
   return null;
 }
+
 module.exports = { handleCheckin };
