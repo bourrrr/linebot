@@ -62,3 +62,4 @@ async function handleCheckin(event, db, client) {
 
   return null;
 }
+module.exports = { handleCheckin };
