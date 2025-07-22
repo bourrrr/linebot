@@ -26,7 +26,8 @@ const Event = require('./Event');
 // 環境變數
 require('dotenv').config();
 
-const { db } = require('./firebase'); // ✅ 引入即可
+const { db, bucket } = require('./firebase'); // ✅ 引入 bucket，會觸發 firebase.js 裡的 console.log
+
 
 
 // 建立 Express app
@@ -86,7 +87,7 @@ async function handleEvent(event, client) {
           madmapflex()
         ]);
       }
-	  const checkinResult = await handleCheckin(event, db, client);
+	  const checkinResult = await handleCheckin(event, client);
 	  if (checkinResult) return checkinResult;
 	const reminderResult = await handleReminderPostback(event, db, client);
 	  if (reminderResult) return reminderResult;
