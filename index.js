@@ -29,12 +29,11 @@ require('dotenv').config();
 // 初始化 Firebase
 const serviceAccount = require('/etc/secrets/firebaseKey.json');
 if (!admin.apps.length) {
-	console.log('⚡️ before admin.initializeApp');
+  console.log('⚡ before admin.initializeApp');
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://medwell-test1.firebaseio.com",
-	storageBucket:"medwell-test1.appspot.com"
-
+    storageBucket: "medwell-test1.appspot.com"
   });
 }
 const _bucket_test = admin.app().options.storageBucket;
