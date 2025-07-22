@@ -1,5 +1,5 @@
 const { bucket } = require('../../../firebase'); // ⬅️ 路徑往上兩層
-
+console.log('📦 嘗試載入 firebase 模組 from:', __dirname);
 async function handleCheckin(event, db, client) {
   if (event.type === 'postback' && event.postback.data.startsWith('action=checkin')) {
     console.log('🟢 [簽到觸發] 收到事件：', JSON.stringify(event, null, 2)); // ✅
