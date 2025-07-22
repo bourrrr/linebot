@@ -1,6 +1,5 @@
+const { bucket } = require('../../../firebase'); // ⬅️ 路徑往上兩層
 
-const { getStorage } = require('firebase-admin/storage');
-const admin = require('firebase-admin'); // 如果還需要
 async function handleCheckin(event, db, client) {
   if (event.type === 'postback' && event.postback.data.startsWith('action=checkin')) {
     console.log('🟢 [簽到觸發] 收到事件：', JSON.stringify(event, null, 2)); // ✅
@@ -24,7 +23,7 @@ async function handleCheckin(event, db, client) {
       await reminderRef.update({ done: true });
       console.log('✅ [簽到處理] Firestore 已更新 done=true');
 
-     const bucket = getStorage().bucket('medwell-test1.appspot.com'); 
+ 
       const [files] = await bucket.getFiles({ prefix: '長輩圖/' });
       const imageFiles = files.filter(file => file.name.endsWith('.jpg') || file.name.endsWith('.png'));
 
