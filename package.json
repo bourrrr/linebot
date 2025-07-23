@@ -17,8 +17,7 @@
     "node-cron": "^3.0.3",
     "tesseract.js": "^6.0.1"
   },
-  "_moduleAliases": {
-    "@firebase": "./firebase.js"
+ 
   },
   "repository": {
     "type": "git",
