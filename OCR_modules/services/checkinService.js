@@ -1,73 +1,60 @@
-const cron = require('node-cron');
-const admin = require('firebase-admin');
+// OCR_modules/services/checkinService.js
+const { getStorage } = require('firebase-admin/storage');
 
-function startReminderCron(db, client) {
-  // 每分鐘執行一次
-  cron.schedule('* * * * *', async () => {
-    // 計算台灣時間 nowTW
-    const now = new Date();
-    const taipeiOffset = 8 * 60; // +8時區分鐘
-    const nowTW = new Date(now.getTime() + (taipeiOffset - now.getTimezoneOffset()) * 60000);
+async function handleCheckin(event, db, client) {
+  if (event.type === 'postback' && event.postback.data.startsWith('action=checkin')) {
+    const userId = event.source.userId;
+    const params = new URLSearchParams(event.postback.data);
+    const reminderId = params.get('reminderId');
 
-    const minBefore = new Date(nowTW.getTime() - 60000);
-    const minAfter = new Date(nowTW.getTime() + 60000);
-
-    // 每分鐘都印一次 cron 是否有在跑
-    console.log('[cron] 任務執行，現在時間(台灣):', nowTW.toISOString());
-
-    try {
-      const usersSnapshot = await db.collection('users').get();
-      usersSnapshot.forEach(async (userDoc) => {
-        const userId = userDoc.id;
-        const remindersRef = db.collection('users').doc(userId).collection('reminders');
-        const snapshot = await remindersRef
-          .where('done', '==', false)
-          .where('datetime', '>=', admin.firestore.Timestamp.fromDate(minBefore))
-          .where('datetime', '<=', admin.firestore.Timestamp.fromDate(minAfter))
-          .get();
-
-        // 加一行 log 看這個 user 是否有 reminder 資料
-        console.log(`[cron] userId: ${userId} snapshot.size: ${snapshot.size}`);
-
-        if (snapshot.size === 0) {
-          // 沒有資料的情況也印出來方便 debug
-          console.log(`[cron] userId: ${userId} 這分鐘沒有需要推播的提醒`);
-        }
-
-        snapshot.forEach(async (doc) => {
-          const data = doc.data();
-          // 推播前詳細 log
-          console.log('[cron] 推播用藥提醒:', {
-            userId,
-            medicine: data.medicine,
-            docId: doc.id,
-            datetime: data.datetime && data.datetime.toDate && data.datetime.toDate()
-          });
-
-          // 發送提醒訊息
-          await client.pushMessage(userId, {
-            type: 'template',
-            altText: '用藥提醒',
-            template: {
-              type: 'buttons',
-              title: '💊 用藥提醒',
-              text: `請記得服用藥物：${data.medicine}`,
-              actions: [
-                {
-                  type: 'postback',
-                  label: '✅ 簽到',
-                  data: `action=checkin&reminderId=${doc.id}`
-                }
-              ]
-            }
-          });
-        });
+    if (!reminderId) {
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '⚠️ 無效的簽到資料'
       });
-    } catch (err) {
-      console.error('❌ 定時提醒錯誤:', err);
     }
-  });
+
+    // 1. 更新該筆提醒為已完成
+    const reminderRef = db.collection('users').doc(userId).collection('reminders').doc(reminderId);
+    await reminderRef.update({ done: true });
+
+    // 2. 從 Firebase Storage 隨機抓一張圖片
+    const bucket = getStorage().bucket(); // 取得預設 bucket
+    const [files] = await bucket.getFiles({ prefix: '長輩圖/' });
+
+    const imageFiles = files.filter(file => file.name.endsWith('.jpg') || file.name.endsWith('.png'));
+
+    if (imageFiles.length === 0) {
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '簽到成功 ✅，但找不到可用的長輩圖。'
+      });
+    }
+
+    const randomFile = imageFiles[Math.floor(Math.random() * imageFiles.length)];
+
+    // 取得下載 URL
+    const [url] = await randomFile.getSignedUrl({
+      action: 'read',
+      expires: '2099-12-31'
+    });
+
+    // 3. 傳送圖片與訊息
+    return client.replyMessage(event.replyToken, [
+      {
+        type: 'image',
+        originalContentUrl: url,
+        previewImageUrl: url
+      },
+      {
+        type: 'text',
+        text: '🎉 今日藥物已完成服用，繼續保持健康唷 💪'
+      }
+    ]);
+  }
+
+  // 如果不是 checkin，回 null
+  return null;
 }
 
-module.exports = startReminderCron;
-
+module.exports = { handleCheckin };
