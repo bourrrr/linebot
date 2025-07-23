@@ -7,7 +7,9 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 function startReminderCron(db, client) {
+  // 每分鐘執行一次
   cron.schedule('* * * * *', async () => {
+    // 取得現在台灣時間
     const nowTW = dayjs().tz('Asia/Taipei');
     const minBefore = nowTW.subtract(1, 'minute');
     const minAfter = nowTW.add(1, 'minute');
@@ -17,15 +19,17 @@ function startReminderCron(db, client) {
     console.log('[cron] minAfter:', minAfter.format('YYYY-MM-DD HH:mm:ss Z'));
 
     try {
-      const ONLY_USER_IDS = [
-        'U4627fdb2f24e8784b75faac9d0ce178a'
-        // 其他 userId 也可以加在這
-      ];
+		const ONLY_USER_IDS = [
+		 'U4627fdb2f24e8784b75faac9d0ce178a',
 
-      for (const userId of ONLY_USER_IDS) {
-        // 直接查 /time 集合，by userId
-        const snapshot = await db.collection('time')
-          .where('userId', '==', userId)
+];
+      const usersSnapshot = await db.collection('users').get();
+      usersSnapshot.forEach(async (userDoc) => {
+        const userId = userDoc.id;
+		if (!ONLY_USER_IDS.includes(userId)) return; // 只處理你指定的 userId
+console.log('[cron] 目前只推播 userId:', userId);
+        const remindersRef = db.collection('users').doc(userId).collection('reminders');
+        const snapshot = await remindersRef
           .where('done', '==', false)
           .where('datetime', '>=', admin.firestore.Timestamp.fromDate(minBefore.toDate()))
           .where('datetime', '<=', admin.firestore.Timestamp.fromDate(minAfter.toDate()))
@@ -64,7 +68,7 @@ function startReminderCron(db, client) {
             console.error('[cron] 推播失敗:', err);
           }
         });
-      }
+      });
     } catch (err) {
       console.error('[cron] 定時提醒錯誤:', err);
     }
