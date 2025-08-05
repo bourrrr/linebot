@@ -9,7 +9,7 @@ function generateRecipeFlex(recipe) {
       size: 'mega',
       hero: {
         type: 'image',
-        url: 'url: 'https://medwell-test1.web.app/food.png',
+        url: 'https://medwell-test1.web.app/food.png',
 ',
         size: 'full',
         aspectRatio: '20:13',
