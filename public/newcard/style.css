@@ -1,0 +1,85 @@
+
+body {
+  font-family: sans-serif;
+  background: #f0f4f8;
+  margin: 0;
+  padding: 0;
+}
+.container {
+  max-width: 960px;
+  margin: auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 16px;
+}
+.card {
+  display: inline-block;
+  width: 200px;
+  margin: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #fafafa;
+  text-align: center;
+  animation: fadeInUp 0.6s ease forwards;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: transform 0.5s;
+}
+.card:hover {
+  transform: scale(1.05);
+}
+.card-image {
+  width: 100%;
+  border-radius: 8px;
+}
+
+/* 稀有度顏色框線 */
+.card[data-rarity="普通"] { border: 2px solid #bbb; }
+.card[data-rarity="稀有"] { border: 2px solid #3f51b5; }
+.card[data-rarity="超稀有"] { border: 2px solid gold; }
+
+/* 按鈕樣式 */
+button {
+  padding: 10px 16px;
+  font-size: 16px;
+  border-radius: 8px;
+  background: #4caf50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+/* spinner 抽卡動畫 */
+.spinner {
+  border: 8px solid #f3f3f3;
+  border-top: 8px solid #4caf50;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  animation: spin 1s linear infinite;
+  margin: 20px auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 卡片動畫 */
+@keyframes fadeInUp {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* RWD 響應式 */
+@media (max-width: 768px) {
+  .card {
+    width: 45%;
+  }
+}
+@media (max-width: 480px) {
+  .card {
+    width: 100%;
+  }
+}

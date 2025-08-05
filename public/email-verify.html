@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>Email 驗證中...</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+  <div class="bg-white p-6 rounded shadow text-center">
+    <h2 class="text-xl font-bold mb-4">驗證信箱中...</h2>
+    <p id="message" class="text-sm text-gray-600">請稍候，我們正在確認您的信箱驗證狀態。</p>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, applyActionCode } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { firebaseConfig } from './firebase-config.js';
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mode');
+    const oobCode = params.get('oobCode');
+    const message = document.getElementById('message');
+
+    if (mode === 'verifyEmail' && oobCode) {
+      applyActionCode(auth, oobCode)
+        .then(() => {
+          message.textContent = "✅ 信箱驗證成功！即將導向登入頁...";
+          setTimeout(() => {
+            window.location.href = "login.html";
+          }, 2000);
+        })
+        .catch(err => {
+          console.error(err);
+          message.textContent = "❌ 驗證失敗：" + err.message;
+        });
+    } else {
+      message.textContent = "⚠️ 無效的驗證連結。";
+    }
+  </script>
+</body>
+</html>

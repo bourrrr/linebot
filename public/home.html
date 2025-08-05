@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>患者首頁</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { firebaseConfig } from './firebase-config.js';
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    onAuthStateChanged(auth, user => {
+      if (!user) {
+        window.location.href = "login.html";
+      }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await signOut(auth);
+      window.location.href = "login.html";
+    });
+  </script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-6">
+  <div class="bg-white shadow-xl rounded-2xl flex flex-col md:flex-row w-full max-w-6xl overflow-hidden">
+
+    <!-- 左側 Logo -->
+    <div class="md:w-1/3 w-full flex items-center justify-center p-6">
+      <img src="MakeWell.jpg" alt="MakeWell Logo" class="max-h-60 w-full max-w-[300px] object-contain" />
+    </div>
+
+    <!-- 右側 功能選單 -->
+    <div class="md:w-2/3 w-full p-8">
+      <!-- Header -->
+      <div class="flex flex-col items-center mb-6 relative">
+        <h1 class="text-3xl font-bold text-gray-800 text-center">🧑‍⚕️ 個人健康首頁</h1>
+        <button id="logoutBtn" class="absolute right-0 top-0 text-sm text-blue-500 hover:underline">登出</button>
+      </div>
+
+      <!-- Card Layout -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <a href="publish.html" class="bg-blue-100 hover:bg-blue-200 rounded-xl p-6 transition shadow">
+          <h2 class="text-xl font-semibold mb-2">📝 協助請求</h2>
+          <p class="text-gray-700 text-sm">發布用藥或陪診等協助需求</p>
+        </a>
+        <a href="history.html" class="bg-yellow-100 hover:bg-yellow-200 rounded-xl p-6 transition shadow">
+          <h2 class="text-xl font-semibold mb-2">📜 歷史記錄</h2>
+          <p class="text-gray-700 text-sm">查看我過去的協助申請紀錄</p>
+        </a>
+        <a href="feedback.html" class="bg-purple-100 hover:bg-purple-200 rounded-xl p-6 transition shadow">
+          <h2 class="text-xl font-semibold mb-2">💬 回饋專區</h2>
+          <p class="text-gray-700 text-sm">查看志工服務的回饋與評價</p>
+        </a>
+        <a href="profile.html" class="bg-pink-100 hover:bg-pink-200 rounded-xl p-6 transition shadow">
+          <h2 class="text-xl font-semibold mb-2">🙍‍♀️ 個人資料</h2>
+          <p class="text-gray-700 text-sm">檢視與更新個人基本資料</p>
+        </a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

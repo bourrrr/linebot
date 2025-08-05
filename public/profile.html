@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>個人資訊</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, query, where, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { firebaseConfig } from './firebase-config.js';
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    const saveBtn = document.getElementById("saveBtn");
+    let userDocRef = null;
+
+    onAuthStateChanged(auth, async user => {
+      if (user) {
+        const q = query(collection(db, "users"), where("uid", "==", user.uid));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const docSnap = querySnapshot.docs[0];
+          const data = docSnap.data();
+          userDocRef = doc(db, "users", docSnap.id);
+
+          document.getElementById("name").value = data.name || "";
+          document.getElementById("phone").value = data.phone || "";
+          document.getElementById("emergencyName").value = data.emergencyName || "";
+          document.getElementById("emergencyPhone").value = data.emergencyPhone || "";
+
+          if (data.role === "patient") {
+            document.getElementById("address").value = `${data.city || ''}${data.district || ''}${data.road || ''}`;
+            document.getElementById("chronic").value = (data.chronic || []).join(", ");
+          } else if (data.role === "volunteer") {
+            document.getElementById("idCard").value = data.idCard || "";
+            document.getElementById("police").value = data.police || "";
+            document.getElementById("hours").value = data.hours || 0;
+          }
+        }
+      } else {
+        window.location.href = "login.html";
+      }
+    });
+
+    saveBtn.addEventListener("click", async () => {
+      const updates = {
+        name: document.getElementById("name").value,
+        phone: document.getElementById("phone").value,
+        emergencyName: document.getElementById("emergencyName").value,
+        emergencyPhone: document.getElementById("emergencyPhone").value
+      };
+
+      if (document.getElementById("address")) {
+        updates.road = document.getElementById("address").value;
+      }
+      if (document.getElementById("chronic")) {
+        updates.chronic = document.getElementById("chronic").value.split(",").map(c => c.trim());
+      }
+      if (document.getElementById("idCard")) {
+        updates.idCard = document.getElementById("idCard").value;
+        updates.police = document.getElementById("police").value;
+        updates.hours = Number(document.getElementById("hours").value);
+      }
+
+      if (userDocRef) {
+        await updateDoc(userDocRef, updates);
+        alert("✅ 資料已更新！");
+      }
+    });
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col items-center justify-center p-6">
+  <div class="bg-white p-6 rounded-2xl shadow-md w-full max-w-md">
+    <h2 class="text-2xl font-bold mb-4 text-center">編輯個人資訊</h2>
+    <div class="space-y-4 text-gray-800 mb-6">
+      <div>
+        <label class="block font-semibold mb-1">姓名</label>
+        <input id="name" class="w-full border p-2 rounded" type="text">
+      </div>
+      <div>
+        <label class="block font-semibold mb-1">手機號碼</label>
+        <input id="phone" class="w-full border p-2 rounded" type="text">
+      </div>
+      <div>
+        <label class="block font-semibold mb-1">緊急聯絡人姓名</label>
+        <input id="emergencyName" class="w-full border p-2 rounded" type="text">
+      </div>
+      <div>
+        <label class="block font-semibold mb-1">緊急聯絡人電話</label>
+        <input id="emergencyPhone" class="w-full border p-2 rounded" type="text">
+      </div>
+
+      <div id="patientFields">
+        <label class="block font-semibold mb-1 mt-2">慢性病史（用逗號分隔）</label>
+        <input id="chronic" class="w-full border p-2 rounded" type="text">
+        <label class="block font-semibold mb-1 mt-2">地址</label>
+        <input id="address" class="w-full border p-2 rounded" type="text">
+      </div>
+    </div>
+
+    <div class="text-center space-y-2">
+      <button id="saveBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">儲存變更</button><br>
+    </div>
+    <div class="text-center mt-4">
+      <a href="home.html" class="text-blue-500 hover:underline">← 回首頁</a>
+    </div>
+  </div>
+</body>
+</html>

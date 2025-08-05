@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>健康圖卡抽卡系統 - MakeWell</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://static.line-scdn.net/liff/edge/2.1/sdk.js"></script>
+</head>
+<body>
+  <div class="container">
+    <section>
+      <h1>🎴 健康簽到抽卡</h1>
+      <p>每日簽到抽出三張長輩圖卡片，激勵健康管理與參與感 🎯</p>
+    </section>
+    <hr>
+    <section>
+      <h2>🎲 抽卡區</h2>
+      <button id="drawButton">抽三張卡</button>
+      <div id="cardDisplay"></div>
+    </section>
+    <section>
+      <h2>📕 我的圖鑑</h2>
+      <div id="collectionDisplay"></div>
+    </section>
+    <footer style="margin-top: 40px;">
+      <p style="color: #999; font-size: 13px;">© 2025 MakeWell 抽卡系統 | 長輩圖收集計畫</p>
+    </footer>
+  </div>
+
+  <!-- LIFF 初始化與載入主程式 -->
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        await liff.init({ liffId: "2007870072-ZNeMmll2" }); // 🔁 ← 請改成你自己的 LIFF ID
+
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return;
+        }
+
+        const profile = await liff.getProfile();
+        window.lineProfile = profile;
+
+        // ✅ 載入主程式（含 firebase-config 與 script.js）
+        const f1 = document.createElement('script');
+        f1.src = 'firebase-config.js';
+        document.body.appendChild(f1);
+
+        const f2 = document.createElement('script');
+        f2.src = 'script.js';
+        document.body.appendChild(f2);
+      } catch (err) {
+        console.error("LIFF 初始化失敗：", err);
+      }
+    });
+  </script>
+</body>
+</html>

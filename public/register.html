@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>註冊 - MakeWell</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-5px); }
+  100% { transform: translateX(0); }
+}
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+</style>
+
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white shadow-lg rounded-2xl flex flex-col md:flex-row w-full max-w-6xl overflow-hidden">
+
+        <!-- 左側 Logo 區 -->
+    <div class="md:w-1/3 w-full flex items-center justify-center p-6">
+      <img src="MakeWell.jpg" alt="MakeWell Logo" class="max-h-72 w-full max-w-[400px] object-contain" />
+    </div>
+
+    <!-- 右側註冊表單 -->
+    <div class="md:w-2/3 w-full p-8 overflow-y-auto max-h-screen">
+      <h2 class="text-2xl font-bold mb-4 text-center">📝 註冊帳號</h2>
+
+      <div class="flex justify-between mb-4">
+        <button id="patientBtn" class="w-1/2 py-2 border rounded-l bg-green-500 text-white">患者</button>
+        <button id="volunteerBtn" class="w-1/2 py-2 border rounded-r">志工</button>
+      </div>
+
+      <input id="email" type="email" placeholder="Email" class="w-full mb-2 p-2 border rounded" />
+      <input id="password" type="password" placeholder="密碼" class="w-full mb-2 p-2 border rounded" />
+      <input id="name" type="text" placeholder="姓名" class="w-full mb-2 p-2 border rounded" />
+      <input id="phone" type="text" placeholder="手機號碼" class="w-full mb-2 p-2 border rounded" />
+      <input id="emergencyName" type="text" placeholder="緊急聯絡人姓名" class="w-full mb-2 p-2 border rounded" />
+      <input id="emergencyPhone" type="text" placeholder="緊急聯絡人電話" class="w-full mb-4 p-2 border rounded" />
+
+      <div id="patientFields">
+        <label class="block font-semibold mb-1">慢性病史（可複選）</label>
+        <div class="grid grid-cols-2 gap-1 mb-2">
+          <label><input type="checkbox" value="高血壓" name="chronic" class="mr-1">高血壓</label>
+          <label><input type="checkbox" value="糖尿病" name="chronic" class="mr-1">糖尿病</label>
+          <label><input type="checkbox" value="高血脂" name="chronic" class="mr-1">高血脂</label>
+          <label><input type="checkbox" value="心臟病" name="chronic" class="mr-1">心臟病</label>
+          <label><input type="checkbox" value="慢性腎病" name="chronic" class="mr-1">慢性腎病</label>
+          <label><input type="checkbox" value="氣喘" name="chronic" class="mr-1">氣喘</label>
+        </div>
+        <div class="flex items-center gap-2 mb-2">
+          <label><input type="checkbox" value="其他" name="chronic" class="mr-1">其他：</label>
+          <input type="text" id="chronicOther" name="chronicOther" placeholder="請輸入" class="flex-1 p-1 border rounded" />
+        </div>
+        <label for="disability" class="block font-semibold mb-1">是否為身心障礙者</label>
+        <select id="disability" class="w-full mb-4 p-2 border rounded">
+          <option value="">請選擇</option>
+          <option value="無">無</option>
+          <option value="輕度">輕度</option>
+          <option value="中度">中度</option>
+          <option value="重度">重度</option>
+        </select>
+        <label for="disability" class="block font-semibold mb-1">居住地址</label>
+        <select id="city" required class="w-full p-2 border rounded mb-2">
+          <option value="">請選擇縣市</option>
+          <option value="基隆市">基隆市</option>
+          <option value="臺北市">臺北市</option>
+          <option value="新北市">新北市</option>
+          <option value="桃園市">桃園市</option>
+          <option value="新竹市">新竹市</option>
+          <option value="新竹縣">新竹縣</option>
+          <option value="苗栗縣">苗栗縣</option>
+          <option value="臺中市">臺中市</option>
+          <option value="彰化縣">彰化縣</option>
+          <option value="南投縣">南投縣</option>
+          <option value="雲林縣">雲林縣</option>
+          <option value="嘉義市">嘉義市</option>
+          <option value="嘉義縣">嘉義縣</option>
+          <option value="臺南市">臺南市</option>
+          <option value="高雄市">高雄市</option>
+          <option value="屏東縣">屏東縣</option>
+          <option value="宜蘭縣">宜蘭縣</option>
+          <option value="花蓮縣">花蓮縣</option>
+          <option value="臺東縣">臺東縣</option>
+          <option value="澎湖縣">澎湖縣</option>
+          <option value="金門縣">金門縣</option>
+          <option value="連江縣">連江縣</option>
+        </select>
+        <select id="district" required class="w-full mb-2 p-2 border rounded" disabled>
+          <option value="">請選擇行政區</option>
+        </select>
+        <input id="road" type="text" placeholder="請輸入詳細地址 (如 XX路100號)" class="w-full mb-4 p-2 border rounded" />
+      </div>
+
+      <div id="volunteerFields" class="hidden">
+        <input id="idCard" type="text" placeholder="身分證號" class="w-full mb-2 p-2 border rounded" />
+        <label for="hasCert" class="block font-semibold mb-1">是否有志工專業執照</label>
+        <select id="hasCert" class="w-full mb-2 p-2 border rounded">
+          <option value="">請選擇</option>
+          <option value="無">無</option>
+          <option value="有">有</option>
+        </select>
+        <label for="disability" class="block font-semibold mb-1">良民證資料</label>
+        <input id="police" type="text" placeholder="良民證編號" class="w-full mb-2 p-2 border rounded" />
+        <input id="certFile" type="file" accept="image/*" class="w-full mb-2 p-2 border rounded" />
+        <label for="disability" class="block font-semibold mb-1">居住地區</label>
+        <select id="volCity" required class="w-full p-2 border rounded mb-2">
+          <option value="">請選擇縣市</option>
+          <option value="基隆市">基隆市</option>
+          <option value="臺北市">臺北市</option>
+          <option value="新北市">新北市</option>
+          <option value="桃園市">桃園市</option>
+          <option value="新竹市">新竹市</option>
+          <option value="新竹縣">新竹縣</option>
+          <option value="苗栗縣">苗栗縣</option>
+          <option value="臺中市">臺中市</option>
+          <option value="彰化縣">彰化縣</option>
+          <option value="南投縣">南投縣</option>
+          <option value="雲林縣">雲林縣</option>
+          <option value="嘉義市">嘉義市</option>
+          <option value="嘉義縣">嘉義縣</option>
+          <option value="臺南市">臺南市</option>
+          <option value="高雄市">高雄市</option>
+          <option value="屏東縣">屏東縣</option>
+          <option value="宜蘭縣">宜蘭縣</option>
+          <option value="花蓮縣">花蓮縣</option>
+          <option value="臺東縣">臺東縣</option>
+          <option value="澎湖縣">澎湖縣</option>
+          <option value="金門縣">金門縣</option>
+          <option value="連江縣">連江縣</option>
+        </select>
+        <select id="volDistrict" required class="w-full mb-2 p-2 border rounded" disabled>
+          <option value="">請選擇行政區</option>
+        </select>
+        <input id="hours" type="number" placeholder="志工時數 (選填)" class="w-full mb-4 p-2 border rounded" />
+      </div>
+      <button id="registerBtn" class="bg-green-500 text-white w-full py-2 rounded hover:bg-green-600">完成註冊</button>
+    <div class="flex justify-between items-center mb-4">
+      <a href="home.html" class="text-blue-500 hover:underline">← 回首頁</a>
+    </div>
+    </div>
+  </div>
+
+  <script type="module" src="register-script.js"></script>
+</body>
+</html>

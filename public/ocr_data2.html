@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>健康數據新增</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-indigo-100 to-blue-50 flex items-center justify-center px-4 py-8">
+<!-- 左上角返回按鈕 -->
+<a href="ocr_data1.html"
+   class="fixed top-4 left-4 px-4 py-2 bg-gray-200 text-gray-800 rounded-xl shadow hover:bg-gray-300 transition z-50">
+  ← 返回
+</a>
+
+<div class="max-w-4xl w-full bg-white rounded-3xl shadow-2xl p-6 md:p-10 flex flex-col-reverse md:flex-row items-center gap-10">
+  <!-- 表單 -->
+  <div class="w-full max-w-md">
+    <h1 class="text-3xl font-bold text-gray-800 text-center mb-1">健康數據新增</h1>
+    <h2 id="date" class="text-center text-indigo-600 text-lg mb-6">日期：--/--</h2>
+
+    <div id="dynamic-fields" class="my-4"></div>
+
+    <div class="flex gap-4 mt-6">
+      <button class="photo-btn flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl border hover:bg-gray-200 transition">📷 拍照上傳</button>
+      <button class="confirm-btn flex-1 px-4 py-3 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition">確認</button>
+    </div>
+    <input type="file" id="photoInput" accept="image/*" hidden>
+  </div>
+  <!-- 品牌文字 -->
+  <div class="text-center md:text-right">
+    <h3 class="text-3xl font-bold text-indigo-800 mb-1">MakeWell</h3>
+    <p class="text-lg text-slate-600">慢理歲月，樂活永悅</p>
+  </div>
+</div>
+
+<script>
+  // 初始化 Firebase
+  const firebaseConfig = {
+    apiKey: "AIzaSyCCUzxpn1quR9PPSBeZBGG17XVh8vPzjY",
+    authDomain: "medwell-test1.firebaseapp.com",
+    projectId: "medwell-test1",
+    storageBucket: "medwell-test1.appspot.com",
+    messagingSenderId: "860851688843",
+    appId: "1:860851688843:web:622eb8feccad45ce640b8e",
+    measurementId: "G-9FGX9SG7XB"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  // OCR 解析: 支援「任意欄位」，過濾英文
+  function parseOCRResultFlexible(text) {
+    const data = {};
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+    for (let i = 0; i < lines.length; i++) {
+      if (/^[\u4e00-\u9fa5A-Za-z\s]+$/.test(lines[i]) && !lines[i].includes(':') && !lines[i].includes('：')) continue;
+      if (/^[\u4e00-\u9fa5a-zA-Z0-9]+[：:]$/.test(lines[i]) && i + 1 < lines.length) {
+        const key = lines[i].replace(/[：:]/, "").trim();
+        const value = lines[i + 1].trim();
+        if (/[a-zA-Z]/.test(key) || /[a-zA-Z]/.test(value)) {
+          i++;
+          continue;
+        }
+        if (!/^[\u4e00-\u9fa5a-zA-Z0-9]+[：:]$/.test(value)) {
+          data[key] = value;
+          i++;
+        }
+        continue;
+      }
+      let m = lines[i].match(/^([\u4e00-\u9fa5a-zA-Z0-9]+)[：:]\s*(.+)$/);
+      if (m) {
+        if (/[a-zA-Z]/.test(m[1]) || /[a-zA-Z]/.test(m[2])) continue;
+        data[m[1].trim()] = m[2].trim();
+        continue;
+      }
+    }
+
+    if (Object.keys(data).length === 0 && text.trim() && !/[a-zA-Z]/.test(text)) {
+      data["原始內容"] = text.trim();
+    }
+    return data;
+  }
+
+  function renderFields(data) {
+    const fieldsDiv = document.getElementById("dynamic-fields");
+    if (!data || Object.keys(data).length === 0) {
+      fieldsDiv.innerHTML = "";
+      return;
+    }
+    fieldsDiv.innerHTML = "";
+    Object.entries(data).forEach(([k, v]) => {
+      const row = document.createElement("div");
+      row.className = "flex gap-2 items-center mb-2";
+      row.innerHTML = `
+        <label class="w-20 text-gray-700 font-medium">${k}：</label>
+        <input type="text" data-key="${k}" value="${v}" class="flex-1 bg-indigo-50 rounded-xl px-4 py-2 text-gray-800" />
+        <button type="button" class="del-btn text-red-500 text-xl px-2" title="刪除欄位">×</button>
+      `;
+      row.querySelector('.del-btn').onclick = function() {
+        row.remove();
+      };
+      fieldsDiv.appendChild(row);
+    });
+    const addRow = document.createElement("div");
+    addRow.className = "flex gap-2 items-center mb-2";
+    addRow.innerHTML = `
+      <input id="add-key" type="text" placeholder="新增欄位名稱" class="w-20 bg-indigo-50 rounded-xl px-2 py-2 text-gray-800" />
+      <input id="add-value" type="text" placeholder="新增數值" class="flex-1 bg-indigo-50 rounded-xl px-2 py-2 text-gray-800" />
+      <button type="button" class="add-btn text-green-600 text-xl px-2" title="新增">＋</button>
+    `;
+    addRow.querySelector('.add-btn').onclick = function() {
+      const key = addRow.querySelector("#add-key").value.trim();
+      const val = addRow.querySelector("#add-value").value.trim();
+      if(key && val) {
+        data[key] = val;
+        renderFields(data);
+      }
+    };
+    fieldsDiv.appendChild(addRow);
+  }
+
+  window.addEventListener("DOMContentLoaded", async () => {
+    const dateText = document.getElementById("date");
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const formattedDate = `${yyyy}/${mm}/${dd}`;
+    dateText.textContent = `日期：${formattedDate}`;
+
+    let dynamicData = {};
+    let editId = null;
+
+    // 檢查 URL 是否有 id (編輯模式)
+    const params = new URLSearchParams(window.location.search);
+    editId = params.get('id');
+    if (editId && localStorage.getItem('edit_data')) {
+      const saved = JSON.parse(localStorage.getItem('edit_data'));
+      dynamicData = saved.data || {};
+      renderFields(dynamicData);
+      localStorage.removeItem('edit_data');
+    }
+
+    // 拍照按鈕
+    document.querySelector(".photo-btn").addEventListener("click", () => {
+      document.getElementById("photoInput").click();
+    });
+
+    document.getElementById("photoInput").addEventListener("change", async () => {
+      const file = photoInput.files[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append("image", file, "image.jpg");
+      const res = await fetch("https://linebot-o8nr.onrender.com/api/ocr", {
+        method: "POST",
+        body: formData
+      });
+      const result = await res.json();
+      const text = result.text || "";
+      if (!text) {
+        alert("❌ 無法辨識圖片，請重試或更換照片");
+        return;
+      }
+      alert("📋 OCR 辨識結果：\n" + text);
+      dynamicData = parseOCRResultFlexible(text);
+      if (Object.keys(dynamicData).length === 0) {
+        dynamicData = {};
+      }
+      renderFields(dynamicData);
+    });
+
+    // 確認上傳
+    document.querySelector(".confirm-btn").addEventListener("click", async () => {
+      const inputs = document.querySelectorAll("#dynamic-fields input[data-key]");
+      const dataToSave = {};
+      inputs.forEach(input => {
+        const key = input.getAttribute("data-key");
+        dataToSave[key] = input.value.trim();
+      });
+
+      try {
+        if (editId) {
+          // 編輯狀態，更新現有資料
+          await db.collection("health_records").doc(editId).update({
+            date: formattedDate,
+            data: dataToSave,
+            timestamp: new Date()
+          });
+          alert("✅ 資料已成功更新！");
+        } else {
+          // 新增
+          await db.collection("health_records").add({
+            date: formattedDate,
+            data: dataToSave,
+            timestamp: new Date()
+          });
+          alert("✅ 資料成功上傳到 Firebase！");
+        }
+        window.location.href = "ocr_data1.html";
+      } catch (err) {
+        console.error(err);
+        alert("❌ 上傳失敗，請查看 Console");
+      }
+    });
+  });
+</script>
+</body>
+</html>

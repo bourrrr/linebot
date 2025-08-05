@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>任務回報記錄</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-4">
+  <div class="max-w-3xl mx-auto space-y-4">
+    <h1 class="text-2xl font-bold text-center mb-4">📋 任務回報記錄</h1>
+    <div id="historyContainer" class="space-y-4"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      query,
+      where,
+      getDocs
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { firebaseConfig } from './firebase-config.js';
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    const container = document.getElementById("historyContainer");
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        alert("請先登入");
+        window.location.href = "login.html";
+        return;
+      }
+
+      const q = query(
+        collection(db, "requests"),
+        where("volunteerId", "==", user.uid),
+        where("status", "==", "completed")
+      );
+
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        container.innerHTML = "<p class='text-center text-gray-500'>目前尚無任務回報記錄。</p>";
+        return;
+      }
+
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const card = document.createElement("div");
+        card.className = "bg-white p-4 rounded-xl shadow space-y-2";
+
+        card.innerHTML = `
+          <h2 class="text-lg font-bold">📍 ${data.city}${data.district}${data.road}</h2>
+          <p>類型：${data.type}</p>
+          <p>時間：${new Date(data.time).toLocaleString()}</p>
+          <p>備註：${data.note || '無'}</p>
+          ${data.photoURL ? `<img src="${data.photoURL}" class="w-48 rounded border" />` : '<p class="text-red-500">無照片</p>'}
+          <p class="text-sm text-gray-500 mt-1">完成時間：${data.updatedAt ? new Date(data.updatedAt.seconds * 1000).toLocaleString() : '未知'}</p>
+        `;
+
+        container.appendChild(card);
+      });
+    });
+  </script>
+      <div class="text-center mt-8">
+      <a href="volunteer.html" class="text-blue-500 hover:underline">← 回首頁</a>
+    </div>
+</body>
+</html>
