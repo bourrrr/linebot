@@ -8,6 +8,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
 </head>
 <body class="min-h-screen bg-gradient-to-br from-indigo-100 to-blue-50 flex items-center justify-center px-4 py-8">
 <!-- 左上角返回按鈕 -->
@@ -38,6 +40,26 @@
 </div>
 
 <script>
+let currentUserId = null;
+
+// LIFF 初始化，請填入你自己的 liffId
+window.onload = function() {
+  liff.init({ liffId: "2007877199-xXoPD8mD" }) // <<< 這裡改成你的 LIFF ID
+    .then(() => {
+      if (!liff.isLoggedIn()) {
+        liff.login();
+      } else {
+        liff.getProfile().then(profile => {
+          currentUserId = profile.userId;
+          console.log("自動取得 userId：", currentUserId);
+        });
+      }
+    })
+    .catch(err => {
+      alert("LIFF 初始化失敗：" + err);
+    });
+};
+
   // 初始化 Firebase
   const firebaseConfig = {
     apiKey: "AIzaSyCCUzxpn1quR9PPSBeZBGG17XVh8vPzjY",
@@ -181,11 +203,15 @@
         const key = input.getAttribute("data-key");
         dataToSave[key] = input.value.trim();
       });
-
+		 if (!currentUserId) {
+    alert("userId 尚未取得，請稍後再試或重新登入");
+    return;
+  }
       try {
         if (editId) {
           // 編輯狀態，更新現有資料
           await db.collection("health_records").doc(editId).update({
+		   userId: currentUserId, 
             date: formattedDate,
             data: dataToSave,
             timestamp: new Date()
@@ -194,6 +220,7 @@
         } else {
           // 新增
           await db.collection("health_records").add({
+		   userId: currentUserId,
             date: formattedDate,
             data: dataToSave,
             timestamp: new Date()
