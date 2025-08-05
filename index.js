@@ -33,7 +33,7 @@ const medicineReminderFlex = require('./OCR_modules/flex/timeflex'); // 或 './O
 const cardflex = require('./OCR_modules/flex/cardflex');
 // 環境變數
 require('dotenv').config();
-const dietFlex = await getDietFlexByType(dietType);
+
 
 const { db, bucket } = require('./firebase'); // ✅ 引入 bucket，會觸發 firebase.js 裡的 console.log
 
