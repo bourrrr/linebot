@@ -91,12 +91,19 @@ async function analyzeHealthData(record) {
   return response.choices[0].message.content;
 }
 async function getDietFlexByType(type) {
-  if (!type) return require('./OCR_modules/flex/diet_balanced');
-  if (type.includes('高纖')) return require('./OCR_modules/flex/diet_high_fiber');
-  if (type.includes('低鹽')) return require('./OCR_modules/flex/diet_low_salt');
-  if (type.includes('低糖')) return require('./OCR_modules/flex/diet_low_sugar');
-  // 預設
-  return require('./OCR_modules/flex/diet_balanced');
+  if (!type) return { type: "text", text: "暫時沒有推薦的食譜。" };
+  // 直接用 AI 回傳的 type 當食譜名稱查詢
+  let snapshot = await db.collection('recipes').where('name', '==', type).limit(1).get();
+
+  // 查不到就隨機給一筆預設
+  if (snapshot.empty) {
+    const all = await db.collection('recipes').get();
+    if (all.empty) return { type: "text", text: "資料庫沒有任何食譜！" };
+    const fallback = all.docs[Math.floor(Math.random() * all.size)].data();
+    return generateRecipeFlex(fallback);
+  }
+  const recipe = snapshot.docs[0].data();
+  return generateRecipeFlex(recipe);
 }
 // 3. Flex推薦組合
 async function replyHealthWithDiet(event, client, userId) {
