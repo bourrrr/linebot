@@ -90,7 +90,14 @@ async function analyzeHealthData(record) {
   });
   return response.choices[0].message.content;
 }
-
+async function getDietFlexByType(type) {
+  if (!type) return require('./OCR_modules/flex/diet_balanced');
+  if (type.includes('高纖')) return require('./OCR_modules/flex/diet_high_fiber');
+  if (type.includes('低鹽')) return require('./OCR_modules/flex/diet_low_salt');
+  if (type.includes('低糖')) return require('./OCR_modules/flex/diet_low_sugar');
+  // 預設
+  return require('./OCR_modules/flex/diet_balanced');
+}
 // 3. Flex推薦組合
 async function replyHealthWithDiet(event, client, userId) {
   const record = await getLatestHealthRecord(userId);
