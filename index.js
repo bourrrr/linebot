@@ -30,6 +30,8 @@ const loginFlex = require('./OCR_modules/flex/loginFlex');
 const googleVisionOCR = require('./visionOCR/visionOCR');
 const upload = multer({ dest: 'uploads/' });
 const medicineReminderFlex = require('./OCR_modules/flex/timeflex'); // 或 './OCR_modules/flex.js'
+const generateRecipeFlex = require('./generateRecipeFlex');
+
 const cardflex = require('./OCR_modules/flex/cardflex');
 // 環境變數
 require('dotenv').config();
