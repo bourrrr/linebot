@@ -124,7 +124,7 @@ async function replyHealthWithDiet(event, client, userId) {
 
   dietFlex.contents.body.contents.push({
     type: "text",
-    text: "AI建議：" + aiResult.split("飲食方向")[0].replace("建議：", "").trim(),
+    text: "MakeWell建議：" + aiResult.split("飲食方向")[0].replace("建議：", "").trim(),
     wrap: true,
     size: "sm",
     color: "#433e7c",
@@ -196,11 +196,31 @@ async function handleEvent(event, client) {
         return client.replyMessage(event.replyToken, healthCard);
       }
 
-      if (msg === '飲食推薦') {
+      if (msg === '飲食推薦') 
+	  {
         return handleRecipeRecommendation(event, client);
       }
-	  if (msg === '簽到') {
-  return client.replyMessage(event.replyToken, cardflex());
+	  if (msg === '簽到') 
+		{
+			return client.replyMessage(event.replyToken, cardflex());
+		}
+	if (msg.startsWith('步驟 ')) {
+	  const recipeName = msg.replace('步驟 ', '').trim();
+	  // 查 Firestore
+	  const snapshot = await db.collection('recipes').where('name', '==', recipeName).limit(1).get();
+	  if (snapshot.empty) {
+		return client.replyMessage(event.replyToken, {
+		  type: "text",
+		  text: `查無「${recipeName}」的步驟！`
+		});
+	  }
+	  const data = snapshot.docs[0].data();
+	  const steps = data.steps || [];
+	  const stepMsg = steps.map((s, idx) => `步驟${idx + 1}：${s}`).join('\n');
+	  return client.replyMessage(event.replyToken, {
+		type: "text",
+		text: stepMsg
+	  });
 	}
 
 
