@@ -1,4 +1,5 @@
 {
+  "type": "commonjs",
   "name": "linebot",
   "version": "1.0.0",
   "description": "Linebot project",
