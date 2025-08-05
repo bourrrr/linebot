@@ -167,7 +167,7 @@ async function handleEvent(event, client) {
 		  }
       if (msg === '藥局地圖') {
         return client.replyMessage(event.replyToken, [
-          { type: 'text', text: '📡 已收到您的指令，請點擊下方地圖開啟藥局搜尋功能 👇' },
+         
           madmapflex
         ]);
       }
