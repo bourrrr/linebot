@@ -8,7 +8,7 @@ const madmapflex = {
       type: 'bubble',
       hero: {
         type: 'image',
-        url: 'https://cdn-icons-png.flaticon.com/512/2972/2972615.png',
+        url: 'https://medwell-test1.web.app/med.png',
         size: 'full',
         aspectRatio: '20:13',
         aspectMode: 'cover',
