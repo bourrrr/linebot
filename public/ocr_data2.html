@@ -165,7 +165,10 @@ window.onload = function() {
       dynamicData = saved.data || {};
       renderFields(dynamicData);
       localStorage.removeItem('edit_data');
-    }
+    }else {
+  // 預設顯示一組空白欄位
+  renderFields({ "欄位1": "" });
+}
 
     // 拍照按鈕
     document.querySelector(".photo-btn").addEventListener("click", () => {
