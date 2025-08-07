@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>個人資訊</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <script src="https://cdn.tailwindcss.com"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -37,61 +38,54 @@
       }
     });
 
-  onAuthStateChanged(auth, async user => {
-    if (user) {
-      const q = query(collection(db, "users"), where("uid", "==", user.uid));
-      const querySnapshot = await getDocs(q);
-      if (!querySnapshot.empty) {
-        const docSnap = querySnapshot.docs[0];
-        const data = docSnap.data();
-        userDocRef = doc(db, "users", docSnap.id);
+    onAuthStateChanged(auth, async user => {
+      if (user) {
+        const q = query(collection(db, "users"), where("uid", "==", user.uid));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const docSnap = querySnapshot.docs[0];
+          const data = docSnap.data();
+          userDocRef = doc(db, "users", docSnap.id);
 
-        document.getElementById("name").value = data.name || "";
-        document.getElementById("phone").value = data.phone || "";
-        document.getElementById("emergencyName").value = data.emergencyName || "";
-        document.getElementById("emergencyPhone").value = data.emergencyPhone || "";
+          document.getElementById("name").value = data.name || "";
+          document.getElementById("phone").value = data.phone || "";
+          document.getElementById("emergencyName").value = data.emergencyName || "";
+          document.getElementById("emergencyPhone").value = data.emergencyPhone || "";
 
-        if (data.role === "volunteer") {
-          document.getElementById("idCard").value = data.idCard || "";
-          document.getElementById("police").value = data.police || "";
-          document.getElementById("hours").value = data.hours || 0;
+          if (data.role === "volunteer") {
+            document.getElementById("idCard").value = data.idCard || "";
+            document.getElementById("police").value = data.police || "";
+            document.getElementById("hours").value = data.hours || 0;
+            citySelect.value = data.city || "";
+            citySelect.dispatchEvent(new Event("change"));
 
-          // 設定城市
-          citySelect.value = data.city || "";
-          citySelect.dispatchEvent(new Event("change"));
-
-          // 等待行政區選項載入後再設定
-          const waitForDistrictOptions = () => {
-            if (districtSelect.options.length > 1) {
-              districtSelect.value = data.district || "";
-            } else {
-              setTimeout(waitForDistrictOptions, 50);
-            }
-          };
-          waitForDistrictOptions();
+            const waitForDistrictOptions = () => {
+              if (districtSelect.options.length > 1) {
+                districtSelect.value = data.district || "";
+              } else {
+                setTimeout(waitForDistrictOptions, 50);
+              }
+            };
+            waitForDistrictOptions();
+          }
         }
+      } else {
+        window.location.href = "login.html";
       }
-    } else {
-      window.location.href = "login.html";
-    }
-  });
-
+    });
 
     saveBtn.addEventListener("click", async () => {
       const updates = {
         name: document.getElementById("name").value,
         phone: document.getElementById("phone").value,
         emergencyName: document.getElementById("emergencyName").value,
-        emergencyPhone: document.getElementById("emergencyPhone").value
+        emergencyPhone: document.getElementById("emergencyPhone").value,
+        idCard: document.getElementById("idCard").value,
+        police: document.getElementById("police").value,
+        hours: Number(document.getElementById("hours").value),
+        city: document.getElementById("city").value,
+        district: document.getElementById("district").value
       };
-
-      if (document.getElementById("idCard")) {
-        updates.idCard = document.getElementById("idCard").value;
-        updates.police = document.getElementById("police").value;
-        updates.hours = Number(document.getElementById("hours").value);
-        updates.city = document.getElementById("city").value;
-        updates.district = document.getElementById("district").value;
-      }
 
       if (userDocRef) {
         await updateDoc(userDocRef, updates);
@@ -100,9 +94,9 @@
     });
   </script>
 </head>
-<body class="bg-gray-50 min-h-screen flex flex-col items-center justify-center p-6">
+<body class="bg-gray-50 min-h-screen flex flex-col items-center justify-center p-4 sm:p-6">
   <div class="bg-white p-6 rounded-2xl shadow-md w-full max-w-md">
-    <h2 class="text-2xl font-bold mb-4 text-center">編輯個人資訊</h2>
+    <h2 class="text-xl sm:text-2xl font-bold mb-4 text-center">編輯個人資訊</h2>
     <div class="space-y-4 text-gray-800 mb-6">
       <div>
         <label class="block font-semibold mb-1">姓名</label>
@@ -147,8 +141,8 @@
           <option value="澎湖縣">澎湖縣</option>
           <option value="金門縣">金門縣</option>
           <option value="連江縣">連江縣</option>
-      </select>
         </select>
+
         <label class="block font-semibold mb-1">行政區</label>
         <select id="district" class="w-full border p-2 rounded mb-2" disabled>
           <option value="">請選擇行政區</option>

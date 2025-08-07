@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, collection, addDoc, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
-  getAuth,
+  getAuth, 
   createUserWithEmailAndPassword,
   sendEmailVerification
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -44,6 +44,20 @@ volunteerBtn.addEventListener("click", () => {
   volunteerBtn.classList.add("bg-green-500", "text-white");
   patientBtn.classList.remove("bg-green-500", "text-white");
 });
+
+// 顯示或隱藏志工證明上傳欄位
+const hasCertSelect = document.getElementById("hasCert");
+const certUploadSection = document.getElementById("certUploadSection");
+
+if (hasCertSelect && certUploadSection) {
+  hasCertSelect.addEventListener("change", () => {
+    if (hasCertSelect.value === "有") {
+      certUploadSection.classList.remove("hidden");
+    } else {
+      certUploadSection.classList.add("hidden");
+    }
+  });
+}
 
 // 城市與行政區聯動 - 患者
 const city = document.getElementById("city");
@@ -88,6 +102,7 @@ if (volCity && volDistrict) {
 }
 
 // 註冊送出
+
 document.getElementById("registerBtn").addEventListener("click", async () => {
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
@@ -124,18 +139,37 @@ document.getElementById("registerBtn").addEventListener("click", async () => {
     } else if (userRole === "volunteer") {
       const idCard = document.getElementById("idCard").value;
       const police = document.getElementById("police").value;
-      const hours = document.getElementById("hours").value;
-      const city = document.getElementById("volCity").value;
-      const district = document.getElementById("volDistrict").value;
+      const hours = document.getElementById("hours")?.value;
+      const city = document.getElementById("volCity")?.value || "";
+      const district = document.getElementById("volDistrict")?.value || "";
       const hasCert = document.getElementById("hasCert").value;
-      Object.assign(userData, { idCard, police, city, district, hours: hours ? Number(hours) : 0, hasCert});
+      Object.assign(userData, { idCard, police, city, district, hasCert });
 
-      const certFile = document.getElementById("certFile").files[0];
-      if (certFile) {
-        const storageRef = ref(storage, `certificates/${user.uid}/${certFile.name}`);
-        const snapshot = await uploadBytes(storageRef, certFile);
-        const downloadURL = await getDownloadURL(snapshot.ref);
-        userData.certUrl = downloadURL;
+      if (hasCert === "有") {
+        const certFileInput = document.getElementById("certFile");
+        if (certFileInput && certFileInput.files.length > 0) {
+          const certFile = certFileInput.files[0];
+          const storageRef = ref(storage, `volunteer_certificates/${user.uid}/${certFile.name}`);
+          const snapshot = await uploadBytes(storageRef, certFile);
+          const downloadURL = await getDownloadURL(snapshot.ref);
+          userData.certUrl = downloadURL;
+        }
+      }
+
+      const policeFile = document.getElementById("policeFile").files[0];
+      if (policeFile) {
+        const policeRef = ref(storage, `police_certificates/${user.uid}/${policeFile.name}`);
+        const policeSnap = await uploadBytes(policeRef, policeFile);
+        const policeURL = await getDownloadURL(policeSnap.ref);
+        userData.policeUrl = policeURL;
+      }
+
+      const licenseFile = document.getElementById("licenseFile").files[0];
+      if (licenseFile) {
+        const licenseRef = ref(storage, `licenses/${user.uid}/${licenseFile.name}`);
+        const licenseSnap = await uploadBytes(licenseRef, licenseFile);
+        const licenseURL = await getDownloadURL(licenseSnap.ref);
+        userData.licenseUrl = licenseURL;
       }
     }
 
@@ -148,7 +182,7 @@ document.getElementById("registerBtn").addEventListener("click", async () => {
     setTimeout(() => {
       window.location.href = "login.html";
     }, 1200);
-    
+
   } catch (err) {
     console.error("❌ 註冊失敗", err);
     document.body.classList.add("bg-red-50");

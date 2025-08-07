@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>台灣各港近年吞吐量折線圖</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { background: #f1f5f9; font-family: 'Noto Sans TC', Arial, sans-serif; }
+    .container { max-width: 900px; margin: 40px auto 30px auto; background: #fff; border-radius: 20px; box-shadow: 0 4px 32px #60a5fa22; padding: 36px 32px 26px 32px; }
+    h2 { text-align: center; margin-bottom: 32px; font-size: 2em; letter-spacing:1px;}
+    .port-row { margin-bottom: 26px; text-align:center; }
+    .port-row select { font-size: 1.1em; padding: 7px 18px 7px 12px; border-radius: 12px; border: 1.1px solid #60a5fa; background: #f1f5f9; margin-left: 7px; }
+    .chart-wrap { background: #f8fafc; border-radius: 22px; padding: 28px 18px 18px 18px; box-shadow: 0 2px 16px #bae6fd11; max-width: 820px; margin:0 auto;}
+    @media (max-width: 900px) {.container{max-width:98vw; padding:10vw 2vw;}.chart-wrap{padding:12px 2vw 12px 2vw;}}
+  
+  .return-btn {
+  display: block;
+  background: linear-gradient(90deg, #38bdf8 60%, #2563eb 100%);
+  color: #fff;
+  padding: 12px 38px;
+  border-radius: 99px;
+  font-weight: 600;
+  font-size: 1.12em;
+  text-decoration: none;
+  margin: 32px auto 0 auto;
+  box-shadow: 0 2px 10px #2563eb25;
+  transition: background .16s, transform .10s;
+  letter-spacing: 1.3px;
+  text-align: center;
+  width: fit-content;
+}
+.return-btn:hover {
+  background: linear-gradient(90deg, #2563eb 60%, #38bdf8 100%);
+  color: #fff;
+  transform: translateY(-2px) scale(1.04);
+}
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>台灣各港近五年吞吐量（TEU）</h2>
+    <div class="port-row">
+      <label for="portSel">選擇港口：</label>
+      <select id="portSel"></select>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="mainChart" width="820" height="420"></canvas>
+      <a href="港.html" class="return-btn">← 返回港口資訊頁</a>
+    </div>
+  </div>
+  <script>
+    let allData = [];
+    let chart = null;
+
+    fetch('吞吐量.json')
+  .then(res => res.json())
+  .then(json => {
+    allData = json;
+    const portSel = document.getElementById('portSel');
+
+    // 讀取網址參數
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlPort = urlParams.get('port');
+
+    // 正規化函式，處理 台/臺、括號等差異
+    function normalize(str) {
+      return str.replace(/台/g, '臺').replace(/[()]/g, '').trim();
+    }
+
+    // 決定預設要選哪一個港口（若網址有提供就找最接近的）
+    let defaultPort = allData[0]['港口別'];
+    if (urlPort) {
+      const match = allData.find(d => normalize(d['港口別']) === normalize(urlPort));
+      if (match) defaultPort = match['港口別'];
+    }
+
+    // 建立下拉選單並選中預設港口
+    allData.forEach(item => {
+      if (item['港口別']) {
+        const opt = document.createElement('option');
+        opt.value = item['港口別'];
+        opt.textContent = item['港口別'];
+        if (item['港口別'] === defaultPort) {
+          opt.selected = true;
+        }
+        portSel.appendChild(opt);
+      }
+    });
+
+    // 顯示圖表
+    drawChart(defaultPort);
+  });
+
+
+    function drawChart(portKey) {
+     const data = allData.find(x => 
+    x['港口別'] === portKey ||
+    x['港口別'].replace('台','臺') === portKey.replace('台','臺') ||
+    x['港口別'].replace('臺','台') === portKey.replace('臺','台')
+    );
+      if (!data) return;
+      const years = ["109年","110年","111年","112年","113年"];
+      const totals = years.map(y => data[`${y}_總計`] || 0);
+      const inouts = years.map(y => data[`${y}_進出港貨`] || 0);
+      const locals = years.map(y => data[`${y}_國內貨`] || 0);
+
+      const ctx = document.getElementById('mainChart').getContext('2d');
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: years,
+          datasets: [
+            {
+              label: '總吞吐量',
+              data: totals,
+              borderColor: '#2563eb',
+              backgroundColor: '#93c5fd99',
+              borderWidth: 3,
+              pointRadius: 6,
+              pointBackgroundColor: '#2563eb',
+              tension: 0.18
+            },
+            {
+              label: '進出港貨',
+              data: inouts,
+              borderColor: '#22c55e',
+              backgroundColor: '#bbf7d0cc',
+              borderWidth: 2.2,
+              pointRadius: 5,
+              pointBackgroundColor: '#22c55e',
+              tension: 0.18
+            },
+            {
+              label: '國內貨',
+              data: locals,
+              borderColor: '#fbbf24',
+              backgroundColor: '#fef08acc',
+              borderWidth: 2.2,
+              pointRadius: 5,
+              pointBackgroundColor: '#fbbf24',
+              tension: 0.18
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'top' } },
+          scales: {
+            x: { title: { display: true, text: '年度' } },
+            y: { title: { display: true, text: 'TEU' }, beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    document.getElementById('portSel').onchange = function(){
+      drawChart(this.value);
+    };
+  </script>
+</body>
+</html>

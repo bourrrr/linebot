@@ -8,7 +8,7 @@ const madmapflex = {
       type: 'bubble',
       hero: {
         type: 'image',
-        url: 'https://medwell-test1.web.app/med.png',
+        url: 'https://medwell-test1.web.app/photo/med.png',
         size: 'full',
         aspectRatio: '20:13',
         aspectMode: 'cover',

@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>回饋專區</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     .stars {
       display: flex;
       gap: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
     }
     .star-label {
       font-size: 2rem;
@@ -23,8 +26,8 @@
     }
   </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-6">
-  <div class="max-w-xl mx-auto bg-white p-6 rounded-xl shadow-md">
+<body class="bg-gray-100 min-h-screen p-4">
+  <div class="max-w-xl mx-auto bg-white p-6 rounded-xl shadow-md w-full">
     <h1 class="text-2xl font-bold text-center mb-4">📝 回饋專區</h1>
 
     <form id="feedbackForm" class="space-y-4">
@@ -33,16 +36,12 @@
         <div id="starContainer" class="stars">
           <input type="radio" id="star1" name="rating" value="1" required hidden>
           <label for="star1" class="star-label" data-value="1">☆</label>
-
           <input type="radio" id="star2" name="rating" value="2" hidden>
           <label for="star2" class="star-label" data-value="2">☆</label>
-
           <input type="radio" id="star3" name="rating" value="3" hidden>
           <label for="star3" class="star-label" data-value="3">☆</label>
-
           <input type="radio" id="star4" name="rating" value="4" hidden>
           <label for="star4" class="star-label" data-value="4">☆</label>
-
           <input type="radio" id="star5" name="rating" value="5" hidden>
           <label for="star5" class="star-label" data-value="5">☆</label>
         </div>
@@ -78,7 +77,6 @@
 
     form.addEventListener("submit", (e) => {
       e.preventDefault();
-
       const rating = form.rating.value;
       const comment = document.getElementById("comment").value;
 

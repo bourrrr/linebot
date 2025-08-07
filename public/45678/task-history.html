@@ -3,12 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <title>任務回報記錄</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 min-h-screen p-4">
+<body class="bg-gray-100 min-h-screen p-4 sm:p-6">
   <div class="max-w-3xl mx-auto space-y-4">
-    <h1 class="text-2xl font-bold text-center mb-4">📋 任務回報記錄</h1>
+    <h1 class="text-xl sm:text-2xl font-bold text-center mb-4">📋 任務回報記錄</h1>
     <div id="historyContainer" class="space-y-4"></div>
+  </div>
+
+  <div class="text-center mt-8">
+    <a href="volunteer.html" class="text-blue-500 hover:underline">← 回首頁</a>
   </div>
 
   <script type="module">
@@ -55,11 +60,13 @@
         card.className = "bg-white p-4 rounded-xl shadow space-y-2";
 
         card.innerHTML = `
-          <h2 class="text-lg font-bold">📍 ${data.city}${data.district}${data.road}</h2>
-          <p>類型：${data.type}</p>
-          <p>時間：${new Date(data.time).toLocaleString()}</p>
+          <h2 class="text-lg font-bold">📍 ${data.city || ''}${data.district || ''}${data.road || ''}</h2>
+          <p>類型：${data.type || '未知'}</p>
+          <p>時間：${data.time ? new Date(data.time).toLocaleString() : '無時間'}</p>
           <p>備註：${data.note || '無'}</p>
-          ${data.photoURL ? `<img src="${data.photoURL}" class="w-48 rounded border" />` : '<p class="text-red-500">無照片</p>'}
+          ${data.photoURL
+            ? `<img src="${data.photoURL}" class="w-full max-w-xs rounded border" />`
+            : '<p class="text-red-500">無照片</p>'}
           <p class="text-sm text-gray-500 mt-1">完成時間：${data.updatedAt ? new Date(data.updatedAt.seconds * 1000).toLocaleString() : '未知'}</p>
         `;
 
@@ -67,8 +74,5 @@
       });
     });
   </script>
-      <div class="text-center mt-8">
-      <a href="volunteer.html" class="text-blue-500 hover:underline">← 回首頁</a>
-    </div>
 </body>
 </html>

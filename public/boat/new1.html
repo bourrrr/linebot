@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>港務國際新聞更新</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+  <h1 class="text-2xl font-bold mb-4">🌍 港務相關國際趨勢</h1>
+  <ul id="newsList" class="space-y-3"></ul>
+
+  <script>
+    fetch('news.json')  // 或是改為 Firebase API Endpoint
+      .then(res => res.json())
+      .then(data => {
+        const list = document.getElementById('newsList');
+        data.forEach(item => {
+          const li = document.createElement('li');
+          li.innerHTML = `
+            <a href="${item.url}" class="block bg-white p-4 rounded shadow hover:bg-blue-50">
+              <h2 class="font-semibold">${item.title}</h2>
+              <p class="text-sm text-gray-500">${item.date}</p>
+            </a>`;
+          list.appendChild(li);
+        });
+      });
+  </script>
+</body>
+</html>

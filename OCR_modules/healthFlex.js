@@ -5,7 +5,7 @@ const healthCard = {
     type: 'bubble',
     hero: {
       type: 'image',
-      url: 'https://medwell-test1.web.app/data.png',
+      url: 'https://medwell-test1.web.app/photo/data.png',
       size: 'full',
       aspectRatio: '20:13',
       aspectMode: 'cover',

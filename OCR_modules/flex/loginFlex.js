@@ -3,10 +3,17 @@
 function loginFlex() {
   return {
     type: "flex",
-    altText: "點擊登入 MakeWell 系統",
+    altText: "MakeWell 志工服務",
     contents: {
       type: "bubble",
       size: "mega",
+      hero: {
+        type: "image",
+        url: "https://medwell-test1.web.app/photo/volunteer.png",
+        size: "full",
+        aspectRatio: "20:13",
+        aspectMode: "cover"
+      },
       body: {
         type: "box",
         layout: "vertical",
@@ -14,14 +21,14 @@ function loginFlex() {
         contents: [
           {
             type: "text",
-            text: "🔐 請登入 MakeWell 系統",
+            text: "🤝 MakeWell 志工服務",
             weight: "bold",
             size: "xl",
             margin: "md"
           },
           {
             type: "text",
-            text: "點擊下方按鈕登入會員",
+            text: "請選擇您的角色進行登入",
             size: "sm",
             color: "#666666",
             wrap: true
@@ -30,17 +37,27 @@ function loginFlex() {
       },
       footer: {
         type: "box",
-        layout: "vertical",
+        layout: "horizontal",
         spacing: "sm",
         contents: [
           {
             type: "button",
-            style: "primary",
-            color: "#2d8cf0",
+            flex: 1,
+            style: "link",
             action: {
               type: "uri",
-              label: "登入",
-              uri: "https://medwell-test1.web.app/login.html" // 請填你部署後的公開網址
+              label: "我是患者",
+              uri: "https://medwell-test1.web.app/45678/login.html?role=patient"
+            }
+          },
+          {
+            type: "button",
+            flex: 1,
+            style: "link",
+            action: {
+              type: "uri",
+              label: "我是志工",
+              uri: "https://medwell-test1.web.app/45678/login.html?role=volunteer"
             }
           }
         ]

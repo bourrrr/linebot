@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SeaRisk Map 動態國家港口下拉選單</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+    body { background: #f3f4f6; }
+        .text-wrapper {
+      transition: transform 0.3s ease;
+      /* 初始状态下的文字大小 */
+      font-size: 16px;
+      /* 设置鼠标滑过后的文字大小 */
+      transform: scale(1.1);
+    }
+
+    .text-wrapper:hover {
+      /* 鼠标悬停时的文字大小 */
+      transform: scale(1.2);
+    }
+
+
+  </style>
+
+
+</head>
+<body class="text-gray-900">
+  <div class="flex flex-col md:flex-row h-screen">
+    <aside class="w-full md:w-1/4 p-4 bg-white shadow-md">
+      <h2 class="text-xl font-semibold mb-4">查詢條件</h2>
+      <label class="block mb-2">國家：</label>
+      <select id="country" class="w-full mb-4 p-2 border rounded"></select>
+      <label class="block mb-2">港口：</label>
+      <select id="port" class="w-full mb-4 p-2 border rounded"></select>
+      <label class="block mb-2">日期：</label>
+      <input id="date" type="date" class="w-full mb-4 p-2 border rounded" />
+      <button onclick="applyQuery()" class="w-full bg-blue-600 text-white p-2 rounded mb-4">查詢</button>
+    </aside>
+    <main class="flex-1 p-4 overflow-y-scroll">
+      <div class="flex items-center justify-between mb-4">
+        <h1 class="text-2xl font-bold">SeaRisk Map</h1>
+        <a id="toThroughputBtn" href="#" class="ml-2 px-5 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white shadow font-semibold text-lg transition-all">貨物吞吐量</a>
+      </div>
+      <div id="map" class="w-full h-[400px] rounded shadow mb-6"></div>
+      <div id="hotPorts" class="mb-6 hidden">
+        <h3 class="font-bold text-lg mb-2">港口活動熱點（風險較高港口）</h3>
+        <div id="hotPortCards" class="flex flex-row gap-4"></div>
+      </div>
+      <div id="situation" class="bg-blue-100 text-blue-900 p-4 rounded shadow mb-6 hidden flex items-center">
+        <h3 class="font-bold text-lg mr-4">近期國際局勢</h3>
+        <div class="overflow-hidden h-6 flex-1 relative">
+          <div id="situationText" class="transition-transform duration-500 ease-in-out text-base"></div>
+        </div>   
+      </div>
+      <div id="teuInfo" class="bg-white p-4 rounded shadow mb-6 flex flex-col items-start hidden">
+        <h3 class="font-bold text-lg mb-2">進口貨櫃量</h3>
+        <div id="teuValue" class="text-base"></div>
+      </div>
+      <div id="exportInfo" class="bg-white p-4 rounded shadow mb-6 flex flex-col items-start hidden">
+        <h3 class="font-bold text-lg mb-2">出口貨櫃量</h3>
+        <div id="exportValue" class="text-base text-wrapper"></div>
+      </div>
+
+      <div id="forecastRow" class="flex flex-row gap-4 mb-6 hidden">
+        <div class="flex-1 p-4 rounded-lg shadow bg-blue-50">
+          <h3 class="font-bold mb-2 text-blue-700">預測進口貨櫃量</h3>
+          <div id="forecastImportValue" class="text-2xl font-semibold text-blue-700"></div>
+        <div class="text-sm text-blue-400">2025/12</div>
+        </div>
+        <div class="flex-1 p-4 rounded-lg shadow bg-green-50">
+          <h3 class="font-bold mb-2 text-green-700">預測出口貨櫃量</h3>
+          <div id="forecastExportValue" class="text-2xl font-semibold text-green-700 "></div>
+          <div class="text-sm text-green-400">2025/12</div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+
+<script>
+
+let forecastImportData = {};
+let forecastExportData = {};
+
+fetch('預測進口TEU版.json')
+  .then(res => res.json())
+  .then(json => { forecastImportData = json; });
+
+fetch('預測出口TEU_所有目的港.json')
+  .then(res => res.json())
+  .then(json => { forecastExportData = json; });
+
+
+//出口JSON
+let exportData = [];
+fetch('出啂.json')
+  .then(res => res.json())
+  .then(json => {
+    exportData = json;
+  });  
+// 國際局勢資料
+let situations = {};
+fetch('situations.json')
+  .then(res => res.json())
+  .then(json => {
+    situations = json;
+    applyQuery();
+  });
+
+const portInfo = {
+  "高雄港": { coords: [22.615, 120.308], risk: 4.2 },
+  "基隆港": { coords: [25.1306, 121.7419], risk: 7.0 },
+  "台中港": { coords: [24.2513, 120.5078], risk: 5.1 },
+  "台北港": { coords: [25.1736, 121.4045], risk: 4.8 },
+  "海防港": { coords: [20.865, 106.683], risk: 3.5 },
+  "西貢港": { coords: [10.776, 106.7], risk: 4.0 },
+  "凱萊港": { coords: [10.629, 107.024], risk: 4.2 },
+  "洛杉磯港": { coords: [33.738, -118.271], risk: 5.9 },
+  "長灘港": { coords: [33.767, -118.195], risk: 5.5 },
+  "紐約新澤西港": { coords: [40.684, -74.041], risk: 4.7 },
+  "橫濱港": { coords: [35.45, 139.65], risk: 3.7 },
+  "東京港": { coords: [35.65, 139.8], risk: 5.3 },
+  "神戶港": { coords: [34.68, 135.19], risk: 3.8 },
+  "上海港": { coords: [31.23, 121.47], risk: 6.8 },
+  "寧波舟山港": { coords: [29.87, 121.55], risk: 6.5 },
+  "深圳港": { coords: [22.548, 114.073], risk: 5.9 },
+  "新加坡港": { coords: [1.264, 103.82], risk: 5.4 },
+  // 韓國 Korea
+  "釜山港": { coords: [35.104, 129.04], risk: 6.1 },
+  "仁川港": { coords: [37.451, 126.616], risk: 4.4 },
+  "光陽港": { coords: [34.904, 127.777], risk: 3.8 },
+  // 泰國 Thailand
+  "曼谷港": { coords: [13.703, 100.541], risk: 4.2 },
+  "林查班港": { coords: [13.090, 100.894], risk: 4.7 },
+  "宋卡港": { coords: [7.187, 100.597], risk: 3.5 }
+};
+
+let countryPorts = [];
+let availableCountries = [];
+
+let situationInterval = null;
+let situationIndex = 0;
+let currentSituationArr = [];
+
+fetch('country-code--ports.json')
+  .then(response => response.json())
+  .then(json => {
+    countryPorts = json;
+    availableCountries = countryPorts;
+    buildCountrySelect();
+    init();
+  });
+
+function buildCountrySelect() {
+  const countrySelect = document.getElementById('country');
+  countrySelect.innerHTML = '';
+  availableCountries.forEach((country, idx) => {
+    const opt = document.createElement('option');
+    opt.value = idx;
+    opt.textContent = country.cn;
+    countrySelect.appendChild(opt);
+  });
+  countrySelect.onchange = () => {
+    updatePortList();
+    applyQuery(); // 切換國家時同步切換情境
+  };
+}
+
+function updatePortList() {
+  const countrySelect = document.getElementById('country');
+  const portSelect = document.getElementById('port');
+  const country = availableCountries[parseInt(countrySelect.value)];
+  portSelect.innerHTML = '';
+  if (country && country.ports && country.ports.length > 0) {
+    country.ports.forEach(port => {
+      const opt = document.createElement('option');
+      opt.value = port.cn;
+      opt.textContent = port.cn;
+      portSelect.appendChild(opt);
+    });
+    portSelect.disabled = false;
+  } else {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = '查無資料';
+    portSelect.appendChild(opt);
+    portSelect.disabled = true;
+  }
+}
+
+// 地圖與港口顯示
+let map, markerLayer;
+
+function init() {
+  updatePortList();
+  // 日期預設今天，並限制為「今天前14天」到「今天後21天」
+  const dateInput = document.getElementById('date');
+  const today = new Date();
+  dateInput.value = today.toISOString().slice(0, 10);
+  const minDate = new Date(today);
+  minDate.setDate(today.getDate() - 14);
+  dateInput.min = minDate.toISOString().slice(0, 10);
+  const maxDate = new Date(today);
+  maxDate.setDate(today.getDate() + 21);
+  dateInput.max = maxDate.toISOString().slice(0, 10);
+
+  map = L.map('map').setView([23.7, 120.9], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 18}).addTo(map);
+  markerLayer = L.layerGroup().addTo(map);
+  setTimeout(applyQuery, 200);
+}
+
+// 還原查詢狀態（要等資料載入完後呼叫）
+window.addEventListener("DOMContentLoaded", function(){
+  setTimeout(function(){
+    const c = localStorage.getItem('search_country');
+    const p = localStorage.getItem('search_port');
+    const d = localStorage.getItem('search_date');
+    if (c !== null && document.getElementById('country')) {
+      document.getElementById('country').value = c;
+      updatePortList();
+      setTimeout(function() { // 等港口下拉產生
+        if (p !== null) document.getElementById('port').value = p;
+        if (d !== null) document.getElementById('date').value = d;
+        applyQuery();
+      }, 150);
+      // 如只想還原一次，下三行可取消註解
+      // localStorage.removeItem('search_country');
+      // localStorage.removeItem('search_port');
+      // localStorage.removeItem('search_date');
+    }
+  }, 400);
+});
+   
+let fourTeuData = {};
+
+fetch('four_ports_teu.json')
+  .then(res => res.json())
+  .then(json => {
+    fourTeuData = json;
+  });
+
+
+function applyQuery() {
+  if (!markerLayer) return;
+  markerLayer.clearLayers();
+  const countryIdx = parseInt(document.getElementById('country').value);
+  const portName = document.getElementById('port').value;
+  const country = availableCountries[countryIdx];
+
+  // --------- 國際局勢動畫區塊 ---------
+  clearInterval(situationInterval);
+  let situationArr = [];
+  if (country && country.cn && situations[country.cn]) {
+    situationArr = situations[country.cn];
+  }
+  const situationBox = document.getElementById('situation');
+  const situationText = document.getElementById('situationText');
+  if (situationArr.length > 0) {
+    situationBox.classList.remove('hidden');
+    situationIndex = 0;
+    situationText.textContent = situationArr[0];
+    if (situationArr.length > 1) {
+      situationInterval = setInterval(() => {
+        situationIndex = (situationIndex + 1) % situationArr.length;
+        // 淡出、更新、淡入動畫
+        situationText.style.opacity = 0;
+        setTimeout(() => {
+          situationText.textContent = situationArr[situationIndex];
+          situationText.style.opacity = 1;
+        }, 250);
+      }, 5000);
+    }
+  } else {
+    situationBox.classList.add('hidden');
+    situationText.textContent = "";
+  }
+  // --------------------------------------
+
+  if (!country || !country.ports || country.ports.length === 0 || !portName) {
+    document.getElementById('hotPortCards').innerHTML = '';
+    document.getElementById('hotPorts').classList.add('hidden');
+    return;
+  }
+
+  // Top 3 熱門港口（本簡化以風險值排序）
+  let portArr = [];
+  portArr = country.ports.map(p => ({
+    name: p.cn,
+    ...(portInfo[p.cn] || {})
+  })).filter(p => p.coords);
+
+  portArr.sort((a, b) => (b.risk||0) - (a.risk||0));
+  const top3 = portArr.slice(0, 3);
+
+  // 畫 marker
+  const hotPortCards = document.getElementById('hotPortCards');
+  hotPortCards.innerHTML = '';
+  top3.forEach(port => {
+    let color = "bg-green-100 text-green-800";
+    if (port.risk >= 7) color = "bg-red-100 text-red-800";
+    else if (port.risk >= 5) color = "bg-yellow-100 text-yellow-800";
+    const card = document.createElement('div');
+    card.className = `flex-1 min-w-[180px] ${color} rounded-xl shadow p-4 flex flex-col items-center`;
+    card.innerHTML = `<div class="text-lg font-bold mb-1">${port.name}</div>
+      <div class="text-base mb-2">風險指數：<span class="font-bold">${port.risk||'?'}</span></div>`;
+    hotPortCards.appendChild(card);
+    L.marker(port.coords).addTo(markerLayer).bindPopup(`${port.name}<br>風險 ${port.risk}`);
+  });
+  document.getElementById('hotPorts').classList.toggle('hidden', top3.length === 0);
+
+  // 聚焦選定港口
+  if (portInfo[portName]) {
+    map.setView(portInfo[portName].coords, 10);
+    L.marker(portInfo[portName].coords).addTo(markerLayer).bindPopup(`${portName}<br>風險 ${portInfo[portName].risk}`).openPopup();
+  } else if (top3.length > 0) {
+    map.setView(top3[0].coords, 7);
+  }
+
+  const teuInfoBox = document.getElementById('teuInfo');
+  const teuValueBox = document.getElementById('teuValue');
+  let foundPort = Object.keys(fourTeuData).find(k =>
+  k.includes(portName) ||
+  k.replace('台', '臺').includes(portName.replace('台', '臺')) ||
+  k.replace('臺', '台').includes(portName.replace('臺', '台'))
+);
+  if (foundPort) {
+    // 取最新一筆（依照年月排序）
+    let all = fourTeuData[foundPort];
+    let dates = Object.keys(all).sort();
+    let latest = dates[dates.length-1];
+    let latestValue = all[latest];
+    teuInfoBox.classList.remove('hidden');
+   teuValueBox.innerHTML = `
+  <div><span class="mr-2">港口：</span><b>${foundPort}</b></div>
+  <div><span class="mr-2">最新月份：</span>${latest}</div>
+  <div class="text-wrapper">
+    <span class="mr-2">進口TEU：</span>
+    <a href="新.html?port=${encodeURIComponent(foundPort)}" id="teuLink" class="text-blue-600 text-xl underline hover:text-blue-800" 
+      onclick="saveSearchState()" 
+      style="cursor:pointer;">${latestValue.toLocaleString()}</a>
+  </div>
+`;
+
+// === 出口TEU查詢（修正版） ===
+const exportInfoBox = document.getElementById('exportInfo');
+const exportValueBox = document.getElementById('exportValue');
+if (exportData.length > 0) {
+  let portData = exportData.filter(row =>
+    row["臺灣港"] && (
+      row["臺灣港"].includes(foundPort) ||
+      row["臺灣港"].replace('台','臺').includes(foundPort.replace('台','臺')) ||
+      row["臺灣港"].replace('臺','台').includes(foundPort.replace('臺','台'))
+    )
+  );
+  // 直接加總所有 TEU（因為沒有年月！）
+  let totalTEU = portData.reduce((sum, r) => sum + (parseInt(r["TEU"],10)||0), 0);
+
+  exportInfoBox.classList.remove('hidden');
+  exportValueBox.innerHTML = `
+    
+    <div>
+      <span class="mr-2">出口TEU：</span>
+      <a href="出.html?port=${encodeURIComponent(foundPort)}" id="exportTeuLink"
+        class="text-green-600 text-xl underline hover:text-green-800"
+        onclick="saveSearchState()" style="cursor:pointer;">
+        ${totalTEU.toLocaleString()}
+      </a>
+    </div>
+  `;
+} else {
+  exportInfoBox.classList.add('hidden');
+  exportValueBox.innerHTML = '';
+}
+
+// === 預測進出口卡片 ===
+const forecastRow = document.getElementById('forecastRow');
+const forecastImportValue = document.getElementById('forecastImportValue');
+const forecastExportValue = document.getElementById('forecastExportValue');
+
+// 找「完整港口名稱」（如 臺中港(TWTXG)）
+let portKeys = Object.keys(forecastImportData);
+let foundForecastPort = portKeys.find(k => k.includes(portName)) || portKeys.find(k => k.includes(foundPort)) || portName;
+
+// 預測進口
+let importVal = '';
+if (forecastImportData[foundForecastPort]) {
+  let monthKeys = Object.keys(forecastImportData[foundForecastPort]).filter(m => m.startsWith('2025/')).sort();
+  let lastMonth = monthKeys[monthKeys.length-1];
+  importVal = forecastImportData[foundForecastPort][lastMonth];
+  forecastImportValue.innerHTML = importVal
+  ? `<a href="預測進口.html?port=${encodeURIComponent(foundForecastPort)}"
+        class="text-2xl font-semibold text-blue-700 underline hover:text-blue-900 cursor-pointer"
+        title="點我看此港口預測進口圖表">
+        ${importVal.toLocaleString()}
+     </a>`
+  : '-';
+  forecastRow.querySelector('.text-blue-400').innerText = lastMonth || '';
+} else {
+  forecastImportValue.innerHTML = '-';
+}
+
+// 預測出口
+let exportVal = '';
+
+if (forecastExportData[foundForecastPort]) {
+  // 將所有目的港 TEU 相加（預測出口用的是分目的港）
+  exportVal = Object.values(forecastExportData[foundForecastPort]).reduce((a,b)=>a+b,0);
+  forecastExportValue.innerHTML = exportVal
+  ? `<a href="預測出口1.html?port=${encodeURIComponent(foundForecastPort)}"
+        class="text-2xl font-semibold text-green-700 underline hover:text-green-900 cursor-pointer"
+        title="點我看此港口預測出口圖表">
+        ${exportVal.toLocaleString()}
+     </a>`
+  : '-';
+  forecastRow.querySelector('.text-green-400').innerText = '2025/12';
+} else {
+  forecastExportValue.innerHTML = '-';
+}
+
+forecastRow.classList.remove('hidden');
+
+
+
+  } else {
+    teuInfoBox.classList.add('hidden');
+    teuValueBox.innerHTML = '';
+  }
+
+  document.getElementById('toThroughputBtn').onclick = function() {
+  const selectedPort = document.getElementById('port').value;
+  if (selectedPort) {
+    const url = `貨物吞吐.html?port=${encodeURIComponent(selectedPort)}`;
+    window.location.href = url;
+  }
+};
+
+}
+  
+function saveSearchState() {
+  localStorage.setItem('search_country', document.getElementById('country').value);
+  localStorage.setItem('search_port', document.getElementById('port').value);
+  localStorage.setItem('search_date', document.getElementById('date').value);
+}
+</script>
+
+
+
+</body>
+
+</html>

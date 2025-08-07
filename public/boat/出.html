@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>台灣四大港出口主要目的港 TEU 圖表</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { background: #f6f7fb; font-family: 'Noto Sans TC', Arial, sans-serif; }
+    .container { max-width: 900px; margin: 40px auto; background: #fff; border-radius: 16px; box-shadow: 0 4px 16px #0001; padding: 32px; }
+    h2 { margin-bottom: 24px; text-align: center; }
+    canvas { background: #f9fafc; border-radius: 12px; }
+    .btn-group { text-align:center; margin-bottom:24px; }
+    .btn {
+      display:inline-block; margin:0 8px; padding:8px 20px;
+      background:#e4e7ef; border:none; border-radius:16px;
+      font-weight:700; font-size:16px; cursor:pointer; transition:.2s;
+    }
+    .btn.active, .btn:hover { background:#4F8DFD; color:#fff; }
+
+    .my-return-btn {
+  display: block;
+  background: linear-gradient(90deg,#2563eb 40%,#60a5fa 100%);
+  color: #fff;
+  padding: 10px 40px;
+  border-radius: 99px;
+  font-weight: 600;
+  font-size: 1.1em;
+  text-decoration: none;
+  margin: 36px auto 0 auto;
+  box-shadow: 0 2px 10px #2563eb25;
+  transition: background .18s, transform .12s;
+  letter-spacing: 1.5px;
+  text-align: center;
+}
+.my-return-btn:hover {
+  background: linear-gradient(90deg,#1d4ed8 40%,#38bdf8 100%);
+  color: #fff;
+  transform: translateY(-2px) scale(1.06);
+}
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2 id="chartTitle">高雄港出口主要目的港 TEU 圖表</h2>
+    <div class="btn-group">
+      <button class="btn active" onclick="showPort('高雄港(TWKHH)')">高雄港</button>
+      <button class="btn" onclick="showPort('基隆港(TWKEL)')">基隆港</button>
+      <button class="btn" onclick="showPort('臺中港(TWTXG)')">臺中港</button>
+      <button class="btn" onclick="showPort('臺北港(TWTPE)')">臺北港</button>
+    </div>
+    <canvas id="portChart" width="800" height="400"></canvas>
+    <a href="港.html" class="my-return-btn">← 返回港口資訊頁</a>
+  </div>
+  <script>
+    let rawData = [];
+const portMap = {
+  "高雄港(TWKHH)": "高雄港",
+  "基隆港(TWKEL)": "基隆港",
+  "臺中港(TWTXG)": "臺中港",
+  "臺北港(TWTPE)": "臺北港"
+};
+let chart = null;
+
+// ✅ 預設港口是高雄港，除非網址帶了 ?port=...
+let currentPort = "高雄港(TWKHH)";
+const urlParams = new URLSearchParams(window.location.search);
+const urlPort = urlParams.get('port');
+if (urlPort && Object.keys(portMap).includes(urlPort)) {
+  currentPort = urlPort;
+}
+
+function sumPortData(taiwanPortKey) {
+  const portName = portMap[taiwanPortKey];
+  const byPort = {};
+
+  rawData.forEach(row => {
+    if (
+      row["臺灣港"] && (
+        row["臺灣港"].includes(taiwanPortKey) ||
+        row["臺灣港"].includes(portName) ||
+        row["臺灣港"].replace('台','臺').includes(portName) ||
+        row["臺灣港"].replace('臺','台').includes(portName.replace('臺','台'))
+      )
+    ) {
+      const target = row["目的港"];
+      byPort[target] = (byPort[target] || 0) + Number(row["TEU"]);
+    }
+  });
+
+  const sorted = Object.entries(byPort).sort((a, b) => b[1] - a[1]).slice(0, 12);
+  return {
+    labels: sorted.map(e => e[0]),
+    teus: sorted.map(e => e[1])
+  };
+}
+
+function showPort(portKey) {
+  currentPort = portKey;
+  document.querySelectorAll('.btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.btn').forEach(btn => {
+    if (btn.textContent === portMap[portKey]) btn.classList.add('active');
+  });
+  document.getElementById('chartTitle').innerText = portMap[portKey] + "出口主要目的港 TEU 圖表";
+  const data = sumPortData(portKey);
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById('portChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: data.labels,
+      datasets: [{
+        label: 'TEU',
+        data: data.teus,
+        backgroundColor: 'rgba(54, 162, 235, 0.7)'
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false }},
+      scales: {
+        x: { title: { display: true, text: '國外目的港' } },
+        y: { title: { display: true, text: 'TEU' } }
+      }
+    }
+  });
+}
+
+fetch('出啂.json')
+  .then(r => r.json())
+  .then(json => {
+    rawData = json;
+    showPort(currentPort); // ✅ 用網址指定的港口來初始化圖表
+  });
+
+  </script>
+</body>
+</html>
