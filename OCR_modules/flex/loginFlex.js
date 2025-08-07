@@ -47,7 +47,7 @@ function loginFlex() {
             action: {
               type: "uri",
               label: "我是患者",
-              uri: "https://medwell-test1.web.app/45678/login.html?role=patient"
+              uri: "https://medwell-test1.web.app/45678/login.html?role=患者"
             }
           },
           {
@@ -57,7 +57,7 @@ function loginFlex() {
             action: {
               type: "uri",
               label: "我是志工",
-              uri: "https://medwell-test1.web.app/45678/login.html?role=volunteerBtn"
+              uri: "https://medwell-test1.web.app/45678/login.html?role=志工"
             }
           }
         ]
