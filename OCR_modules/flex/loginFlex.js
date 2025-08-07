@@ -28,10 +28,11 @@ function loginFlex() {
           },
           {
             type: "text",
-            text: "請選擇您的角色進行登入",
+            text: "🠋 請選擇您的角色進行登入 🠋",
             size: "sm",
             color: "#666666",
-            wrap: true
+            wrap: true,
+			"align": "center"
           }
         ]
       },
