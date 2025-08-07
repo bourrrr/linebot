@@ -57,7 +57,7 @@ function loginFlex() {
             action: {
               type: "uri",
               label: "我是志工",
-              uri: "https://medwell-test1.web.app/45678/login.html?role=volunteer"
+              uri: "https://medwell-test1.web.app/45678/login.html?role=volunteerBtn"
             }
           }
         ]
