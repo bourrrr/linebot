@@ -102,8 +102,8 @@ function renderFields() {
   const addRow = document.createElement("div");
   addRow.className = "flex gap-2 items-center mt-3";
   addRow.innerHTML = `
-    <input id="add-key" type="text" placeholder="新增欄位名稱" class="w-24 bg-indigo-50 rounded-xl px-2 py-2 text-gray-800" />
-    <input id="add-value" type="text" placeholder="新增數值" class="flex-1 bg-indigo-50 rounded-xl px-2 py-2 text-gray-800" />
+    <input id="add-key" type="text" placeholder="症狀名稱" class="w-24 bg-indigo-50 rounded-xl px-2 py-2 text-gray-800" />
+    <input id="add-value" type="text" placeholder="輸入資料" class="flex-1 bg-indigo-50 rounded-xl px-2 py-2 text-gray-800" />
     <button type="button" class="add-btn text-green-600 text-xl px-2" title="新增">＋</button>
   `;
   addRow.querySelector(".add-btn").onclick = () => {

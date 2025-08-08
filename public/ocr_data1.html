@@ -94,15 +94,33 @@
       });
     }
 
-    function getRecordType(obj) {
-      const keys = Object.keys(obj);
-      if (keys.includes('血壓') || keys.includes('blood pressure')) return '血壓紀錄';
-      if (keys.includes('血糖') || keys.includes('glucose')) return '血糖紀錄';
-      if (keys.includes('脈搏') || keys.includes('pulse')) return '脈搏紀錄';
-      if (keys.includes('體重') || keys.includes('weight')) return '體重紀錄';
-      if (keys.includes('原始內容')) return '健康紀錄';
-      return keys[0] ? (keys[0] + '紀錄') : '健康紀錄';
-    }
+    // 取代原本的 getRecordType()
+function getRecordType(obj) {
+  if (!obj || typeof obj !== 'object') return '健康紀錄';
+
+  // 扁平化 keys/values 做關鍵字檢查
+  const keys = Object.keys(obj).map(String);
+  const values = Object.values(obj).flatMap(v =>
+    (v && typeof v === 'object') ? Object.values(v) : [v]
+  ).map(v => String(v ?? ''));
+
+  const hay = (keys.join(' ') + ' ' + values.join(' ')).toLowerCase();
+
+  // 1) 有血糖/血壓/脈搏 ⇒ 一律當「血壓紀錄」
+  const vitalsTokens = [
+    '血壓','收縮壓','舒張壓','脈搏','心跳','pulse','heart rate','hr','bp','sbp','dbp',
+    '血糖','glucose','hba1c','糖化','systolic','diastolic'
+  ];
+  if (vitalsTokens.some(t => hay.includes(t))) return '血壓紀錄';
+
+  // 2) 有疾病相關（含「XX病」） ⇒ 「疾病紀錄」
+  const diseaseTokens = ['疾病','病名','診斷','病史','disease','diagnosis','dx'];
+  const hasXxDisease = /[\u4e00-\u9fa5]{1,6}病/.test(hay); // 例：胃病、糖尿病、高血壓病
+  if (diseaseTokens.some(t => hay.includes(t)) || hasXxDisease) return '疾病紀錄';
+
+  // 3) 其餘 ⇒ 「健康紀錄」
+  return '健康紀錄';
+}
 
     function renderPage() {
       recordList.innerHTML = "";
