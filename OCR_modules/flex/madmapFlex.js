@@ -14,7 +14,7 @@ const madmapflex = {
         aspectMode: 'cover',
         action: {
           type: 'uri',
-          uri: 'https://medwell-test1.web.app/map/madmap.html' // ← 替換為你的實際網址
+          uri: 'https://medwell-test1.web.app/map/index.html' // ← 替換為你的實際網址
         }
       },
       body: {
