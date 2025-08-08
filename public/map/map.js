@@ -1,8 +1,18 @@
 //
-const map = L.map('map', { maxZoom: 17 , minZoom: 7}).setView([23.5, 121], 7.2);
+const customIcon = new L.Icon({
+  iconUrl: 'my-marker.svg', // 根據你的路徑修改
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  shadowSize: [41, 41]
+});
+
+const map = L.map('map', { maxZoom:17 , minZoom:7}).setView([23.5, 121], 7.2);
 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
   attribution: 'Tiles © Esri',
   maxZoom: 17
+  
 }).addTo(map);
 
 let allMarkers = [];
@@ -18,7 +28,9 @@ const dataSources = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  locateUser();
+  if (window.innerWidth > 700) {
+    locateUser();  // 只有寬度超過 700px 的才定位（桌面）
+  }
     // ✅ 自動收起 bottom-sheet 機制
   let lastZoom = map.getZoom();
 
@@ -65,6 +77,7 @@ map.on('zoomend', () => {
   });
 
 document.getElementById('locateBtn').addEventListener('click', () => {
+    if (window.innerWidth <= 700) return;
   if (!currentMode) {
     alert('⚠️ 請先選擇「就醫掛號」或「就近領藥」');
     return;
@@ -238,9 +251,10 @@ function initFilterOptions() {
     allMarkers.forEach(m => map.removeLayer(m));
     allMarkers = [];
     rawData = [];
-    currentMode = null;
-    updateModeButtonStyle();
-    map.setView([23.5, 121], 7.2);
+     activeMarker = null;
+  activePopup = null;
+  map.closePopup();
+  map.setView([23.5, 121], 7.2);
   });
 }
 
@@ -288,6 +302,29 @@ if (matched.length > 0) {
 
     document.getElementById('bottom-sheet').classList.remove('collapsed');
     currentMode === 'clinic' ? renderClinicResults(matched) : renderPharmacyResults(matched);
+     // 🔸 每次篩選後：捲回結果最上方
+  const list = document.getElementById('results-list');
+  list.scrollTo({ top: 0, behavior: 'auto' });
+
+  // 🔸 把第一筆設為 active 並聚焦地圖 + 開 popup
+  const first = matched[0];
+  // 先清掉之前的 active
+  document.querySelectorAll('.result-card').forEach(c => c.classList.remove('active'));
+
+  // 等 DOM 的卡片插進去後再設 active（0ms 即可）
+  setTimeout(() => {
+    if (first._cardElement) {
+      first._cardElement.classList.add('active');
+    }
+    // 更新全域的 activeMarker / activePopup，也避免舊 popup 影響
+    activeMarker = null;
+    activePopup = null;
+    map.closePopup();
+
+    // 聚焦第一個點（你原本的 focusMarker 會 pan + popup）
+    focusMarker(first);
+  }, 0);
+
   } else {
     alert(`找不到符合的${currentMode === 'pharmacy' ? '藥局' : '就醫地點'}`);
     document.getElementById('results-list').innerHTML = '<div class="no-result">查無資料</div>';
@@ -310,7 +347,7 @@ function renderClinicResults(markers) {
     const card = document.createElement('div');
     card.className = 'result-card clinic';
     card.innerHTML = `
-      <img src="hospital.png" alt="就醫地點">
+      <img src="4.png" alt="就醫地點">
 <div class="info">
   <strong>
     ${name} ${statusTag}
@@ -349,7 +386,7 @@ function renderPharmacyResults(markers) {
     const card = document.createElement('div');
     card.className = 'result-card pharmacy';
     card.innerHTML = `
-      <img src="2.png" alt="藥局">
+      <img src="5.png" alt="藥局">
       <div class="info">
         <strong>${name}${distance !== undefined ? `<span class="distance" style="font-weight:normal;font-size:12px;margin-left:8px;">(${distance.toFixed(2)} 公里)</span>` : ''}</strong><br>
         <span class="address">${address}</span><br>
@@ -397,7 +434,7 @@ function focusMarker(marker) {
   activePopup = marker.getPopup();
 
   // Step 1：先移動到該點（zoom 不變）
-  map.panTo(latlng, { animate: true });
+  map.panTo(latlng,13, { animate: true });
 
   // Step 2：延遲後打開 popup
   setTimeout(() => {
@@ -460,10 +497,13 @@ function loadData() {
         const dispense = props.dispense_method || [];
         const dispenseList = Array.isArray(dispense) ? dispense.join('、') : dispense;
 
-        const marker = L.marker([lat, lng]).bindPopup(
+        const marker = L.marker([lat, lng], {icon: customIcon}).bindPopup(
           `<div style="font-size:15px;">
-            <div style="margin-bottom:8px;"><strong>📍 ${name}</strong></div>
-
+  
+🚩
+<a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking"
+        target="_blank" style="font-size:16px;margin-bottom:8px;">${name}（導航）
+      </a><br>
           </div>`
         );
 
@@ -559,21 +599,21 @@ let mappedArr = regArr.map(item => {
 });
 regText = mappedArr.join('、');
 if (hasWebReg && meta.registration_url) {
-  regText += `<a href="${meta.registration_url}" target="_blank" style="color:#10b981;font-size:14px;text-decoration:underline;margin-left:8px;">(點我網路掛號)</a>`;
+  regText += `<a href="${meta.registration_url}" target="_blank" style="color:#659963de;font-size:14px;text-decoration:underline;margin-left:8px;">(點我網路掛號)</a>`;
 }
 
   let detailHtml = `
-    <div style="font-size:22px;font-weight:700;color:#1976d2;margin-bottom:13px;">
-      📍 ${meta.name} ${statusTag}
+    <div style="font-size:22px;font-weight:700;color:#588157;margin-bottom:13px;">
+      🚩 ${meta.name} ${statusTag}
     </div>
-    <div style="font-size:15px;line-height:2;">
+    <div style="font-size:16px;line-height:2;">
       ☎️ ${phone}
-      <a href="tel:${phone}" style="color:#10b981;font-size:14px;text-decoration:underline;margin-left:8px;">
+      <a href="tel:${phone}" style="color:#659963de;font-size:14px;text-decoration:underline;margin-left:8px;">
         (點我撥打)
       </a><br>
       🏠 ${address}
       <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking"
-        target="_blank" style="color:#10b981;font-size:14px;text-decoration:underline;margin-left:8px;">
+        target="_blank" style="color:#659963de;font-size:14px;text-decoration:underline;margin-left:8px;">
         (點我導航)
       </a><br>
   `;
@@ -610,6 +650,7 @@ function hideDetailModal() {
 function generatePeriodTable(periodString) {
   const days = ['一', '二', '三', '四', '五', '六', '日'];
   const slots = [
+    
     '上午<br><small>08:00–12:00</small>',
     '下午<br><small>15:00–18:00</small>',
     '晚上<br><small>18:45–20:45</small>'

@@ -9,6 +9,10 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    /* iOS 避免輸入框放大 */
+    @media (max-width:640px){ input,select,textarea{font-size:16px} }
+  </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-indigo-100 to-blue-50 flex items-center justify-center px-4 py-8">
   <a href="ocr_data1.html"
@@ -42,7 +46,7 @@
 <script>
 let currentUserId = null;
 
-// ✅ LIFF 初始化
+// ✅ LIFF 初始化（保留）
 window.onload = function() {
   liff.init({ liffId: "2007877199-xXoPD8mD" })
     .then(() => {
@@ -55,12 +59,10 @@ window.onload = function() {
         });
       }
     })
-    .catch(err => {
-      alert("LIFF 初始化失敗：" + err);
-    });
+    .catch(err => { alert("LIFF 初始化失敗：" + err); });
 };
 
-// ✅ Firebase
+// ✅ Firebase（保留）
 const firebaseConfig = {
   apiKey: "AIzaSyCCUzxpn1quR9PPSBeZBGG17XVh8vPzjY",
   authDomain: "medwell-test1.firebaseapp.com",
@@ -73,22 +75,22 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// ===== 核心狀態：用「物件」存欄位，key 固定為 label，value 可編輯 =====
-let dynamicData = {}; // 例如 { '收縮壓': '120', '脈搏': '75' }
+// ===== 動態欄位狀態 =====
+let dynamicData = {};
 let editId = null;
 
-// 以 dynamicData 重繪畫面（key = label，value = input）
+// 以 dynamicData 重繪畫面
 function renderFields() {
   const fieldsDiv = document.getElementById("dynamic-fields");
   fieldsDiv.innerHTML = "";
 
-  // 已有欄位：key 變成 label（固定），value 可改，支援刪除
+  // 已有欄位
   Object.entries(dynamicData).forEach(([k, v]) => {
     const row = document.createElement("div");
-    row.className = "flex gap-2 items-center mb-2";
+    row.className = "flex gap-2 items-center mb-2 min-w-0"; // ⭐ 新增 min-w-0 防止溢出
     row.innerHTML = `
       <label class="w-24 shrink-0 text-gray-700 font-medium truncate" title="${k}">${k}：</label>
-      <input type="text" data-key="${k}" value="${v ?? ''}" class="flex-1 bg-indigo-50 rounded-xl px-4 py-2 text-gray-800" />
+      <input type="text" data-key="${k}" value="${v ?? ''}" class="flex-1 min-w-0 bg-indigo-50 rounded-xl px-4 py-2 text-gray-800" />
       <button type="button" class="del-btn text-red-500 text-xl px-2" title="刪除欄位">×</button>
     `;
     row.querySelector('.del-btn').onclick = () => {
@@ -100,24 +102,20 @@ function renderFields() {
 
   // 新增一筆（data20807 風格）：欄位名稱 + 數值 + ＋
   const addRow = document.createElement("div");
-  addRow.className = "flex gap-2 items-center mt-3";
+  addRow.className = "flex flex-col sm:flex-row gap-2 items-stretch sm:items-center mt-3"; // ⭐ 手機直排
   addRow.innerHTML = `
-    <input id="add-key" type="text" placeholder="症狀名稱" class="w-24 bg-indigo-50 rounded-xl px-2 py-2 text-gray-800" />
-    <input id="add-value" type="text" placeholder="輸入資料" class="flex-1 bg-indigo-50 rounded-xl px-2 py-2 text-gray-800" />
-    <button type="button" class="add-btn text-green-600 text-xl px-2" title="新增">＋</button>
+    <input id="add-key" type="text" placeholder="症狀名稱" class="sm:w-24 bg-indigo-50 rounded-xl px-3 py-2 text-gray-800" />
+    <input id="add-value" type="text" placeholder="輸入資料" class="flex-1 bg-indigo-50 rounded-xl px-3 py-2 text-gray-800" />
+    <button type="button" class="add-btn text-green-700 text-xl px-2 sm:px-3 py-1.5 sm:py-0" title="新增">＋</button>
   `;
   addRow.querySelector(".add-btn").onclick = () => {
     const key = addRow.querySelector("#add-key").value.trim();
     const val = addRow.querySelector("#add-value").value.trim();
     if (!key || !val) return;
-    // 新增下一筆 -> 前一筆自然就固定（因為 key 都是 label）
     dynamicData[key] = val;
     renderFields();
   };
   fieldsDiv.appendChild(addRow);
-
-  // 若完全沒資料，給一個預設「欄位1」讓使用者開始輸入
-  
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
@@ -130,7 +128,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const formattedDate = `${yyyy}/${mm}/${dd}`;
   dateText.textContent = `日期：${formattedDate}`;
 
-  // 編輯模式（如有）
+  // 編輯模式（保留）
   const params = new URLSearchParams(window.location.search);
   editId = params.get('id');
   if (editId && localStorage.getItem('edit_data')) {
@@ -138,11 +136,11 @@ window.addEventListener("DOMContentLoaded", async () => {
     dynamicData = saved.data || {};
     localStorage.removeItem('edit_data');
   } else {
-    dynamicData = {}; // 由 renderFields 自動塞「欄位1」
+    dynamicData = {};
   }
   renderFields();
 
-  // 拍照 -> 送後端 OCR -> 將辨識結果「追加」進 dynamicData
+  // 拍照 -> OCR -> 追加欄位（保留）
   document.querySelector(".photo-btn").addEventListener("click", () => {
     document.getElementById("photoInput").click();
   });
@@ -155,19 +153,14 @@ window.addEventListener("DOMContentLoaded", async () => {
     formData.append("image", file, "image.jpg");
 
     try {
-      const res = await fetch("https://linebot-o8nr.onrender.com/api/ocr", {
-        method: "POST",
-        body: formData
-      });
+      const res = await fetch("https://linebot-o8nr.onrender.com/api/ocr", { method: "POST", body: formData });
       const result = await res.json();
       const text = result.text || "";
-      if (!text) {
-        alert("❌ 無法辨識圖片，請重試或更換照片");
-        return;
-      }
+      if (!text) { alert("❌ 無法辨識圖片，請重試或更換照片"); return; }
+
       const parsed = parseOCRResultFlexible(text);
 
-      // 追加：只有當原本沒有值或為空字串時才覆蓋
+      // 追加：原本沒有值才覆蓋
       Object.entries(parsed).forEach(([k, v]) => {
         if (!(k in dynamicData) || String(dynamicData[k] ?? "").trim() === "") {
           dynamicData[k] = v;
@@ -182,14 +175,10 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  // 確認儲存
+  // 確認儲存（保留）
   document.querySelector(".confirm-btn").addEventListener("click", async () => {
-    if (!currentUserId) {
-      alert("userId 尚未取得，請稍後再試或重新登入");
-      return;
-    }
+    if (!currentUserId) { alert("userId 尚未取得，請稍後再試或重新登入"); return; }
 
-    // 以畫面上的 input[data-key] 為準
     const inputs = Array.from(document.querySelectorAll('#dynamic-fields input[data-key]'));
     const dataToSave = {};
     inputs.forEach(input => {
@@ -224,7 +213,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
 });
 
-/* === 彈性 OCR 解析（保留、過濾英文） === */
+/* === 彈性 OCR 解析（保留） === */
 function parseOCRResultFlexible(text) {
   const data = {};
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);

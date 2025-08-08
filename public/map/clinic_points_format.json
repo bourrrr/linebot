@@ -18,8 +18,7 @@
         "cunli": "",
         "service_yn": "YYNYYNYYNYYNYYNNNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": " https://reg.ntuh.gov.tw/WebReg/WebReg/BranchIndex?vHospCode=T0",
         "description": [
@@ -232,8 +231,7 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "自動取藥櫃",
-          "LINE預約取藥"
+          "自動取藥櫃"
         ],
         "registration_url": "https://www.vghtc.gov.tw/",
         "description": [
@@ -510,8 +508,7 @@
         "cunli": "",
         "service_yn": "YYYYYYYYYYYYYYYYYNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "https://register.cgmh.org.tw/Register_WEEK/3",
         "description": [
@@ -545,8 +542,7 @@
         "cunli": "",
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "https://www1.cch.org.tw/opd/Service-e.aspx",
         "description": [
@@ -581,8 +577,7 @@
         "cunli": "",
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "https://medhub.chimei.org.tw/webopd/yk/scheSelDoc",
         "description": [
@@ -652,7 +647,6 @@
         "service_yn": "YYNYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "到府送藥"
         ],
         "registration_url": "https://webreg.edah.org.tw/Register/ChooseSpecialty",
@@ -828,8 +822,7 @@
         "cunli": "",
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "https://www.cmuh.cmu.edu.tw/Service/OnlineAppointment/",
         "description": [
@@ -864,8 +857,7 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "車來速",
-          "LINE預約取藥"
+          "車來速"
         ],
         "registration_url": "https://www.shh.org.tw/page/Shhreg.aspx?deptCode=04",
         "description": [
@@ -1075,8 +1067,7 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "自動取藥櫃",
-          "LINE預約取藥"
+          "自動取藥櫃"
         ],
         "registration_url": "https://register.mtth.org.tw/",
         "description": [
@@ -1111,7 +1102,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "到府送藥"
         ],
         "registration_url": "https://www03.taic.mohw.gov.tw/OINetReg.WebRwd//",
@@ -1634,7 +1624,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "車來速"
         ],
         "registration_url": "https://reg.ngh.com.tw/",
@@ -1704,8 +1693,7 @@
         "service_yn": "YYNYYNYYYYYNYYNYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "到府送藥",
-          "LINE預約取藥"
+          "到府送藥"
         ],
         "registration_url": "https://registration.aftygh.gov.tw/",
         "description": [
@@ -1982,7 +1970,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "到府送藥"
         ],
         "registration_url": "https://www.tcmg.com.tw/index.php/main/schedule",
@@ -2018,7 +2005,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "自動取藥櫃"
         ],
         "registration_url": "https://w3.tyh.com.tw/WebRegDept.aspx",
@@ -2054,7 +2040,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYYYYYY",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "車來速"
         ],
         "registration_url": "http://www.leehospital.com.tw/%E7%B6%B2%E8%B7%AF%E6%8E%9B%E8%99%9F/looktime.html",
@@ -2299,9 +2284,7 @@
         "cunli": "",
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
-        ],
+          "特約藥局領藥"        ],
        "registration_url": "https://register.cgmh.org.tw/",
         "description": [
           "現場掛號",
@@ -2404,8 +2387,7 @@
         "cunli": "",
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
        "registration_url": "https://www.cych.org.tw/service1.aspx",
         "description": [
@@ -2474,7 +2456,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "自動取藥櫃"
         ],
        "registration_url": "https://www.eck.org.tw/guide/outpatient/registered/%E6%88%91%E8%A6%81%E6%8E%9B%E8%99%9F/",
@@ -2580,8 +2561,7 @@
         "service_yn": "YYYYYYYYYYYYYYYYYNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "到府送藥",
-          "LINE預約取藥"
+          "到府送藥"
         ],
        "registration_url": "https://rms.sph.org.tw/Department.aspx?dpt=S",
         "description": [
@@ -2616,7 +2596,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "到府送藥"
         ],
        "registration_url": "https://www.pohai.org.tw/register.php",
@@ -2824,7 +2803,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "到府送藥"
         ],
         "registration_url": "https://www.pch.org.tw/fpage.php?id=1",
@@ -3132,8 +3110,7 @@
         "cunli": "",
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "https://reg.fy.org.tw/fyrg/opd/Service-e.aspx",
         "description": [
@@ -3309,8 +3286,7 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "到府送藥",
-          "LINE預約取藥"
+          "到府送藥"
         ],
         "registration_url": "https://www.kmsh.gov.tw/trenew/Login.aspx?Dir2=1",
         "description": [
@@ -3345,7 +3321,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "自動取藥櫃"
         ],
         "registration_url": "https://chyiwww001.chyi.mohw.gov.tw/OINetReg/OINetReg.Reg/Reg_NetReg.aspx/",
@@ -3487,8 +3462,7 @@
         "cunli": "",
         "service_yn": "YYNYYNYYNYYNYYNNNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "https://nreg.tnhosp.mohw.gov.tw/NEWREG/Department?hosp=2",
         "description": [
@@ -3523,7 +3497,6 @@
         "service_yn": "YYNYYYYYYYYYYYNYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "到府送藥"
         ],
         "registration_url": "https://w3.ccd.gov.tw/OINetReg.WebRwd/Reg/Dept",
@@ -3558,8 +3531,7 @@
         "cunli": "",
         "service_yn": "YYYYYYYYYYYNYYYYNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "https://newnetreg.chis.mohw.gov.tw/OINetReg.WebRwd/Reg/Dept",
         "description": [
@@ -3663,7 +3635,6 @@
         "service_yn": "YYNYYNYYNYYNYYNYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "車來速"
         ],
         "registration_url": "https://webreg.hwln.mohw.gov.tw/OINetReg.WebRwd/Reg/Dept",
@@ -3982,8 +3953,7 @@
         "service_yn": "YYNYYNYYNYYNYYNNNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "自動取藥櫃",
-          "LINE預約取藥"
+          "自動取藥櫃"
         ],
         "registration_url": "https://reg.ntuh.gov.tw/WebReg/WebReg/BranchIndex?vHospCode=T3",
         "description": [
@@ -4018,8 +3988,7 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "自動取藥櫃",
-          "LINE預約取藥"
+          "自動取藥櫃"
         ],
         "registration_url": "https://d6www.hosp.ncku.edu.tw/WebRegisterSite/DeptUI.aspx?Lang=",
         "description": [
@@ -4227,8 +4196,7 @@
         "cunli": "",
         "service_yn": "YYNYYNYYNYYNYYNNNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "https://netreg.afph.tsgh.ndmctsgh.edu.tw/",
         "description": [
@@ -4367,7 +4335,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "到府送藥"
         ],
         "registration_url": "http://register.vhyl.gov.tw/register//",
@@ -4403,8 +4370,7 @@
         "service_yn": "YYNYYNYYNYYNYYNYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "車來速",
-          "LINE預約取藥"
+          "車來速"
         ],
         "registration_url": "https://reg.vhwc.gov.tw//",
         "description": [
@@ -4438,8 +4404,7 @@
         "cunli": "",
         "service_yn": "YYYYYNYYYYYNYYNYNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "https://reg.vhyk.gov.tw/register/",
         "description": [
@@ -4474,8 +4439,7 @@
         "service_yn": "YYYYYNYYNYYNYYNYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "車來速",
-          "LINE預約取藥"
+          "車來速"
         ],
         "registration_url": "https://www8.ptvgh.gov.tw/RSMPT/static/#/onlineReg",
         "description": [
@@ -4613,8 +4577,7 @@
         "cunli": "",
         "service_yn": "YYNYYNYYNYYNYYNNNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "https://register.vhtt.gov.tw/register//",
         "description": [
@@ -4719,8 +4682,7 @@
         "service_yn": "YYYYYYYYYYYYYYYYYYYYY",
         "dispense_method": [
           "特約藥局領藥",
-          "車來速",
-          "LINE預約取藥"
+          "車來速"
         ],
         "registration_url": "https://wsvr.ihis.com.tw/hospital/0901180023/SCH_LST.php?DIV=06",
         "description": [
@@ -4788,8 +4750,7 @@
         "cunli": "",
         "service_yn": "YYYYYYYYYYYYYYYYNNYNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "https://booking.wlshosp.org.tw/OReg/RegisterPage",
         "description": [
@@ -4856,7 +4817,6 @@
         "service_yn": "YYNYYNYYYYYNYYNYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "自動取藥櫃"
         ],
         "registration_url": "https://www.jah.org.tw/JCHReg/Register/J",
@@ -4958,7 +4918,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYYNYNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "到府送藥"
         ],
         "registration_url": "http://61.219.153.248:8080/",
@@ -5026,7 +4985,6 @@
         "service_yn": "YYNYYNYYNYYNYYNYNNYNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "自動取藥櫃"
         ],
         "description": [
@@ -5092,7 +5050,6 @@
         "service_yn": "YYNYYNYYNYYNYYNNNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "到府送藥"
         ],
         "description": [
@@ -5226,7 +5183,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYYYNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "自動取藥櫃"
         ],
          "registration_url": "https://thcloudsrv.these.com.tw/OPDREGWEB_0931010016/Menu.aspx?hospitalID=0931010016",
@@ -5332,7 +5288,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYYYYYY",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "到府送藥"
         ],
         "description": [
@@ -5400,7 +5355,6 @@
         "service_yn": "YYNYYNYYNYYNYYNYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "車來速"
         ],
         "registration_url": "http://220.128.242.193/service/regist",
@@ -5915,7 +5869,6 @@
         "service_yn": "YYYYYNYYYYYYYYNYYNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "自動取藥櫃"
         ],
         "description": [
@@ -6221,7 +6174,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "到府送藥"
         ],
         "registration_url": "https://www.knh.org.tw/reg/index/div",
@@ -6671,8 +6623,7 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "自動取藥櫃",
-          "LINE預約取藥"
+          "自動取藥櫃"
         ],
         "description": [
           "現場掛號",
@@ -7321,7 +7272,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "車來速"
         ],
         "registration_url": "https://hnetreg.cthyh.org.tw/new_CthWebReg/frame05.html",
@@ -7632,9 +7582,7 @@
         "cunli": "",
         "service_yn": "YYYYYYYYYYYYYYYYYNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
-        ],
+          "特約藥局領藥"        ],
         "registration_url": "http://122.116.161.37:20001/Appointment/Choose?companiesCode=1&comp=1",
         "description": [
           "現場掛號",
@@ -7769,8 +7717,7 @@
         "cunli": "",
         "service_yn": "NNNNNNYNNNNNNNNNNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "https://www.scmh.org.tw/Register.aspx?Kind=2",
         "description": [
@@ -7806,7 +7753,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYYNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "到府送藥"
         ],
         "registration_url": "http://60.251.57.13:8080/Appointment/Choose?companiesCode=1&comp=1",
@@ -8012,7 +7958,6 @@
         "service_yn": "YYNYYNYYNYYNYYNYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "自動取藥櫃"
         ],
         "registration_url": "https://www.cchospital.org.tw/registered/",
@@ -8148,8 +8093,7 @@
         "service_yn": "YYYYYYYYYYYYYYYYYNYNN",
         "dispense_method": [
           "特約藥局領藥",
-          "到府送藥",
-          "LINE預約取藥"
+          "到府送藥"
         ],
         "description": [
           "現場掛號",
@@ -8251,8 +8195,7 @@
         "service_yn": "YYNYYNYYNYYNYYNYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "到府送藥",
-          "LINE預約取藥"
+          "到府送藥"
         ],
         "description": [
           "現場掛號",
@@ -8489,7 +8432,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYYNYNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "車來速"
         ],
         "description": [
@@ -8866,7 +8808,6 @@
         "service_yn": "YNNYYNYYYYYNYYNYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "車來速"
         ],
         "registration_url": "https://thcloudsrv.these.com.tw/OPDREGWEB/Menu.aspx?hospitalID=1511060040",
@@ -9071,8 +9012,7 @@
         "service_yn": "YYYYYYYYYYYYYYYYYNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "到府送藥",
-          "LINE預約取藥"
+          "到府送藥"
         ],
         "registration_url": "https://www.country.org.tw/Medguide/DoctorSchedule",
         "description": [
@@ -9275,8 +9215,7 @@
         "service_yn": "YYYYYYYYYYYYYYYYYNYNN",
         "dispense_method": [
           "特約藥局領藥",
-          "到府送藥",
-          "LINE預約取藥"
+          "到府送藥"
         ],
         "registration_url": "https://reurl.cc/Q63ak5/",
         "description": [
@@ -9377,7 +9316,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYYNYYN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "自動取藥櫃"
         ],
         "description": [
@@ -9684,8 +9622,7 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "到府送藥",
-          "LINE預約取藥"
+          "到府送藥"
         ],
         "registration_url": "https://thcloudsrv.these.com.tw/opdregweb/Menu.aspx?hospitalID=1531020122",
         "description": [
@@ -10164,8 +10101,7 @@
         "cunli": "",
         "service_yn": "YYNYYNYYNYYNYYNYNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "description": [
           "現場掛號",
@@ -10197,8 +10133,7 @@
         "cunli": "",
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "https://thcloudsrv.these.com.tw/opdregweb/Menu.aspx?hospitalID=1531131139",
         "description": [
@@ -10296,8 +10231,7 @@
         "cunli": "",
         "service_yn": "NNNNNNNNNNNNNNNNNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "https://www.tahsda.org.tw/Register/add_dept.php/",
         "description": [
@@ -10708,7 +10642,6 @@
         "service_yn": "YYNYYNYYNYYNYYNYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "到府送藥"
         ],
         "description": [
@@ -10847,7 +10780,6 @@
         "service_yn": "YYYYYYYYYYYYYYYNNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "自動取藥櫃"
         ],
         "registration_url": "https://www.ymhospital.com.tw:8443/NymWeb/ym/reg/RegDiv.jsp;jsessionid=6CA7FF7F60EA301BC8211EA62A20F6E9",
@@ -10983,8 +10915,7 @@
         "cunli": "",
         "service_yn": "YYYYYYYYYYYYYYYYNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "https://webreg.dachien.com.tw:8585/reg/WebRegISAPI.dll/VfNdFGtdZ0sPSPNAO9HNIW/$/",
         "description": [
@@ -11185,8 +11116,7 @@
         "cunli": "",
         "service_yn": "YNNYNNNNNYNNYNNNNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "description": [
           "現場掛號",
@@ -11452,7 +11382,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYNNYNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "到府送藥"
         ],
         "description": [
@@ -11485,8 +11414,7 @@
         "cunli": "",
         "service_yn": "YYYYYYYYYYYYYYYYYNYNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "http://59.125.65.192/default.aspx",
         "description": [
@@ -11588,8 +11516,7 @@
         "cunli": "",
         "service_yn": "YYYYYYYYYYYYYYYYYYYYY",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "description": [
           "現場掛號",
@@ -11657,8 +11584,7 @@
         "cunli": "",
         "service_yn": "NNNNNNNNNNNNNNNNNNNNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "https://thcloudsrv.these.com.tw/opdregweb/Menu.aspx?hospitalID=1537051309/",
         "description": [
@@ -11861,7 +11787,6 @@
         "service_yn": "YYNYYNYYYYYYYYNYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "車來速"
         ],
         "description": [
@@ -11895,7 +11820,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYYYYYN",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "到府送藥"
         ],
         "description": [
@@ -12260,7 +12184,6 @@
         "service_yn": "YYYYYYYYYYYYYYYYYYYYY",
         "dispense_method": [
           "特約藥局領藥",
-          "LINE預約取藥",
           "車來速"
         ],
         "description": [
@@ -12294,8 +12217,7 @@
         "service_yn": "YYYYYNYYYYYNYYNYNNNNN",
         "dispense_method": [
           "特約藥局領藥",
-          "車來速",
-          "LINE預約取藥"
+          "車來速"
         ],
         "description": [
           "現場掛號",
@@ -12665,8 +12587,7 @@
         "cunli": "",
         "service_yn": "YYYYYYYYYYYYYYYYYYYYY",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "http://59.120.254.79:88/OPDREGWEB/Menu.aspx",
         "description": [
@@ -12764,8 +12685,7 @@
         "cunli": "",
         "service_yn": "YYYYYYYYYYYYYYYYNNYNN",
         "dispense_method": [
-          "特約藥局領藥",
-          "LINE預約取藥"
+          "特約藥局領藥"
         ],
         "registration_url": "http://61.222.231.243:8080/webregi/",
         "description": [
