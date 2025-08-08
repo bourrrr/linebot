@@ -104,8 +104,8 @@ function renderFields() {
   const addRow = document.createElement("div");
   addRow.className = "flex flex-col sm:flex-row gap-2 items-stretch sm:items-center mt-3"; // ⭐ 手機直排
   addRow.innerHTML = `
-    <input id="add-key" type="text" placeholder="症狀名稱" class="sm:w-24 bg-indigo-50 rounded-xl px-3 py-2 text-gray-800" />
-    <input id="add-value" type="text" placeholder="輸入資料" class="flex-1 bg-indigo-50 rounded-xl px-3 py-2 text-gray-800" />
+    <input id="add-key" type="text" placeholder="記錄項目" class="sm:w-24 bg-indigo-50 rounded-xl px-3 py-2 text-gray-800" />
+    <input id="add-value" type="text" placeholder="內容或數值" class="flex-1 bg-indigo-50 rounded-xl px-3 py-2 text-gray-800" />
     <button type="button" class="add-btn text-green-700 text-xl px-2 sm:px-3 py-1.5 sm:py-0" title="新增">＋</button>
   `;
   addRow.querySelector(".add-btn").onclick = () => {
@@ -145,35 +145,42 @@ window.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("photoInput").click();
   });
 
-  document.getElementById("photoInput").addEventListener("change", async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+document.getElementById("photoInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    const formData = new FormData();
-    formData.append("image", file, "image.jpg");
+  const formData = new FormData();
+  formData.append("image", file, "image.jpg");
 
-    try {
-      const res = await fetch("https://linebot-o8nr.onrender.com/api/ocr", { method: "POST", body: formData });
-      const result = await res.json();
-      const text = result.text || "";
-      if (!text) { alert("❌ 無法辨識圖片，請重試或更換照片"); return; }
+  try {
+    const res = await fetch("https://linebot-o8nr.onrender.com/api/ocr", { method: "POST", body: formData });
+    const result = await res.json();
+    const text = result.text || "";
+    if (!text) { alert("❌ 無法辨識圖片，請重試或更換照片"); return; }
 
-      const parsed = parseOCRResultFlexible(text);
+    const parsed = parseOCRResultFlexible(text);
 
-      // 追加：原本沒有值才覆蓋
-      Object.entries(parsed).forEach(([k, v]) => {
-        if (!(k in dynamicData) || String(dynamicData[k] ?? "").trim() === "") {
-          dynamicData[k] = v;
-        }
-      });
+    const before = Object.keys(dynamicData).length;
+    Object.entries(parsed).forEach(([k, v]) => {
+      if (!(k in dynamicData) || String(dynamicData[k] ?? "").trim() === "") {
+        dynamicData[k] = v;
+      }
+    });
 
-      renderFields();
+    renderFields();
+    const after = Object.keys(dynamicData).length;
+
+    if (after > before) {
       alert("📋 OCR 已辨識並加入欄位！");
-    } catch (err) {
-      console.error(err);
-      alert("❌ OCR 失敗，請稍後再試");
+    } else {
+      alert("⚠️ 有辨識到文字，但沒有解析出『欄位：值』格式；已把全文放在「原始內容」。");
     }
-  });
+  } catch (err) {
+    console.error(err);
+    alert("❌ OCR 失敗，請稍後再試");
+  }
+});
+
 
   // 確認儲存（保留）
   document.querySelector(".confirm-btn").addEventListener("click", async () => {
@@ -216,26 +223,46 @@ window.addEventListener("DOMContentLoaded", async () => {
 /* === 彈性 OCR 解析（保留） === */
 function parseOCRResultFlexible(text) {
   const data = {};
-  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const lines = text
+    .split(/\r?\n/)
+    .map(l => l.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
 
   for (let i = 0; i < lines.length; i++) {
-    if (/^[\u4e00-\u9fa5A-Za-z\s]+$/.test(lines[i]) && !lines[i].includes(':') && !lines[i].includes('：')) continue;
-    if (/^[\u4e00-\u9fa5a-zA-Z0-9]+[：:]$/.test(lines[i]) && i + 1 < lines.length) {
-      const key = lines[i].replace(/[：:]/, "").trim();
-      const value = lines[i + 1].trim();
-      if (/[a-zA-Z]/.test(key) || /[a-zA-Z]/.test(value)) { i++; continue; }
-      if (!/^[\u4e00-\u9fa5a-zA-Z0-9]+[：:]$/.test(value)) { data[key] = value; i++; }
+    // 形如「欄位名：值」或「欄位名: 值」——允許中英數符號
+    let m = lines[i].match(/^([\u4e00-\u9fa5A-Za-z0-9（）()．\.\-／\/\s]+)[：:]\s*(.+)$/);
+    if (m) {
+      const key = m[1].trim().replace(/[．。]$/,'');
+      const val = m[2].trim();
+      if (key && val) data[key] = val;
       continue;
     }
-    let m = lines[i].match(/^([\u4e00-\u9fa5a-zA-Z0-9]+)[：:]\s*(.+)$/);
-    if (m) {
-      if (/[a-zA-Z]/.test(m[1]) || /[a-zA-Z]/.test(m[2])) continue;
-      data[m[1].trim()] = m[2].trim();
-      continue;
+    // 形如上一行是「欄位名：」，下一行是值
+    let m2 = lines[i].match(/^([\u4e00-\u9fa5A-Za-z0-9（）()．\.\-／\/\s]+)[：:]$/);
+    if (m2 && i + 1 < lines.length) {
+      const key = m2[1].trim().replace(/[．。]$/,'');
+      const val = lines[i + 1].trim();
+      if (key && val) data[key] = val;
+      i++;
     }
   }
-  if (Object.keys(data).length === 0 && text.trim() && !/[a-zA-Z]/.test(text)) {
-    data["原始內容"] = text.trim();
+
+  // 常見欄位名歸一（可按需要擴充）
+  const map = {
+    '藥名':'藥名','品名':'藥名','藥品名稱':'藥名',
+    '用法':'用法','服法':'用法',
+    '用量':'劑量','劑量':'劑量',
+    '天數':'天數','日數':'天數',
+    '日期':'日期','開立日期':'日期'
+  };
+  for (const k of Object.keys(data)) {
+    const nk = map[k] || k;
+    if (nk !== k && !(nk in data)) { data[nk] = data[k]; delete data[k]; }
+  }
+
+  // 解析不到任何鍵值 → 退而求其次：整段塞進「原始內容」
+  if (Object.keys(data).length === 0 && text.trim()) {
+    data['原始內容'] = text.trim();
   }
   return data;
 }

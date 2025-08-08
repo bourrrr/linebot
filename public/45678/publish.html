@@ -1,78 +1,106 @@
 <!DOCTYPE html>
-
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8"/>
-<title>發布協助請求</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/></head>
-<body class="p-4 flex justify-center min-h-screen items-center bg-gray-100">
-<div class="bg-white p-6 rounded-2xl shadow-md max-w-md w-full">
-<h2 class="text-xl font-bold mb-4 text-center">📢 發布協助請求</h2>
-<form class="space-y-4" id="publishForm">
-<select class="w-full p-2 border rounded" id="type" required="">
-<option value="">請選擇請求類型</option>
-<option value="領藥">💊領藥</option>
-<option value="陪診">🧑‍⚕️陪診</option>
-</select>
-<label class="block font-semibold text-gray-700 mb-1" for="city">會合地點</label>
-<select class="w-full p-2 border rounded" id="city" required="">
-<option value="">請選擇縣市</option>
-<option value="基隆市">基隆市</option>
-<option value="臺北市">臺北市</option>
-<option value="新北市">新北市</option>
-<option value="桃園市">桃園市</option>
-<option value="新竹市">新竹市</option>
-<option value="新竹縣">新竹縣</option>
-<option value="苗栗縣">苗栗縣</option>
-<option value="臺中市">臺中市</option>
-<option value="彰化縣">彰化縣</option>
-<option value="南投縣">南投縣</option>
-<option value="雲林縣">雲林縣</option>
-<option value="嘉義市">嘉義市</option>
-<option value="嘉義縣">嘉義縣</option>
-<option value="臺南市">臺南市</option>
-<option value="高雄市">高雄市</option>
-<option value="屏東縣">屏東縣</option>
-<option value="宜蘭縣">宜蘭縣</option>
-<option value="花蓮縣">花蓮縣</option>
-<option value="臺東縣">臺東縣</option>
-<option value="澎湖縣">澎湖縣</option>
-<option value="金門縣">金門縣</option>
-<option value="連江縣">連江縣</option>
-</select>
-<select class="w-full p-2 border rounded" disabled="" id="district" required="">
-<option value="">請選擇行政區</option>
-</select>
-<input class="w-full p-2 border rounded" id="road" placeholder="請輸入街道地址 (如 XX路100號)" required="" type="text"/>
-<p class="text-sm text-gray-500 mt-1">
-        🔒 為保護個人安全，建議填寫醫療院所或公共場所地址，避免揭露住家位置。
-      </p>
-<input class="w-full p-2 border rounded" id="hospital" placeholder="🏥 醫院名稱" required="" type="text"/>
-<input class="w-full p-2 border rounded" id="time" required="" type="datetime-local"/>
-<!-- 領藥專用欄位 -->
-<div class="hidden" id="prescriptionField">
-<label class="block text-sm font-semibold text-gray-700">📄 上傳處方簽（選填）</label>
-<input accept="image/*,application/pdf" class="w-full border p-2 rounded" id="prescription" type="file"/>
-</div>
-<!-- 陪診專用欄位 -->
-<div class="hidden" id="accompanyField">
-<label class="block text-sm font-semibold text-gray-700">🙋‍♂️ 是否陪同進診間</label>
-<select class="w-full border p-2 rounded" id="accompany">
-<option value="">請選擇</option>
-<option value="是">是</option>
-<option value="否">否</option>
-</select>
-</div>
-<textarea class="w-full p-2 border rounded" id="note" placeholder="📝 備註（選填）"></textarea>
-<button class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600" type="submit">發布</button>
-</form>
-<div class="text-center mt-4">
-<a class="text-blue-500 hover:underline" href="home.html">← 回首頁</a>
-</div>
-</div>
-<script type="module">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>發布協助請求</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex justify-center items-center p-4">
+  <div class="bg-white p-6 rounded-2xl shadow-md max-w-md w-full">
+    <h2 class="text-xl font-bold mb-4 text-center">📢 發布協助請求</h2>
+
+    <form id="publishForm" class="space-y-4">
+      <!-- 請求類型 -->
+      <label class="block font-semibold text-gray-700">請求類型</label>
+      <select id="type" required class="w-full p-2 border rounded">
+        <option value="">請選擇請求類型</option>
+        <option value="領藥">💊領藥</option>
+        <option value="陪診">🧑‍⚕️陪診</option>
+      </select>
+
+      <!-- 會合地點 -->
+      <label class="block font-semibold text-gray-700">會合地點</label>
+      <select id="city" required class="w-full p-2 border rounded">
+        <option value="">請選擇縣市</option>
+        <option value="基隆市">基隆市</option>
+        <option value="臺北市">臺北市</option>
+        <option value="新北市">新北市</option>
+        <option value="桃園市">桃園市</option>
+        <option value="新竹市">新竹市</option>
+        <option value="新竹縣">新竹縣</option>
+        <option value="苗栗縣">苗栗縣</option>
+        <option value="臺中市">臺中市</option>
+        <option value="彰化縣">彰化縣</option>
+        <option value="南投縣">南投縣</option>
+        <option value="雲林縣">雲林縣</option>
+        <option value="嘉義市">嘉義市</option>
+        <option value="嘉義縣">嘉義縣</option>
+        <option value="臺南市">臺南市</option>
+        <option value="高雄市">高雄市</option>
+        <option value="屏東縣">屏東縣</option>
+        <option value="宜蘭縣">宜蘭縣</option>
+        <option value="花蓮縣">花蓮縣</option>
+        <option value="臺東縣">臺東縣</option>
+        <option value="澎湖縣">澎湖縣</option>
+        <option value="金門縣">金門縣</option>
+        <option value="連江縣">連江縣</option>
+      </select>
+
+      <select id="district" required class="w-full p-2 border rounded" disabled>
+        <option value="">請選擇行政區</option>
+      </select>
+
+      <input id="road" type="text" required placeholder="請輸入街道地址 (如 XX路100號)" class="w-full p-2 border rounded" />
+      <p class="text-sm text-gray-500 mt-1">🔒 建議填寫醫療院所或公共場所地址，避免揭露住家位置。</p>
+
+      <!-- 醫療類型（領藥時顯示） -->
+      <div id="facilityTypeField" class="hidden">
+        <label class="block font-semibold text-gray-700">醫療類型</label>
+        <select id="facilityType" class="w-full p-2 border rounded">
+          <option value="hospital">醫院</option>
+          <option value="pharmacy">藥局</option>
+        </select>
+      </div>
+
+      <!-- 醫療院所清單 -->
+      <label class="block font-semibold text-gray-700">🏥 醫院／藥局</label>
+      <select id="hospital" required class="w-full p-2 border rounded">
+        <option value="">請選擇醫院／藥局</option>
+      </select>
+      <p id="hospitalCount" class="text-xs text-gray-500"></p>
+
+      <!-- 時間 -->
+      <label class="block font-semibold text-gray-700">會合時間</label>
+      <input id="time" type="datetime-local" required class="w-full p-2 border rounded" />
+
+      <!-- 領藥專用 -->
+      <div id="prescriptionField" class="hidden">
+        <label class="block text-sm font-semibold text-gray-700">📄 上傳處方簽（選填）</label>
+        <input type="file" id="prescription" class="w-full border p-2 rounded" accept="image/*,application/pdf" />
+      </div>
+
+      <!-- 陪診專用 -->
+      <div id="accompanyField" class="hidden">
+        <label class="block text-sm font-semibold text-gray-700">🙋‍♂️ 是否陪同進診間</label>
+        <select id="accompany" class="w-full border p-2 rounded">
+          <option value="">請選擇</option>
+          <option value="是">是</option>
+          <option value="否">否</option>
+        </select>
+      </div>
+
+      <!-- 備註 -->
+      <textarea id="note" placeholder="📝 備註（選填）" class="w-full p-2 border rounded"></textarea>
+
+      <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">發布</button>
+    </form>
+  </div>
+
+  <script type="module">
     import { cityDistricts } from './district-data.js';
+    import clinics from './clinics_name_address.js';
+    import pharmacies from './pharmacies_name_address.js';
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, collection, addDoc, Timestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -83,17 +111,39 @@
     const auth = getAuth(app);
 
     const typeSelect = document.getElementById("type");
+    const facilityTypeField = document.getElementById("facilityTypeField");
+    const facilityTypeSelect = document.getElementById("facilityType");
     const prescriptionField = document.getElementById("prescriptionField");
     const accompanyField = document.getElementById("accompanyField");
-
-    typeSelect.addEventListener("change", () => {
-      const value = typeSelect.value;
-      prescriptionField.classList.toggle("hidden", value !== "領藥");
-      accompanyField.classList.toggle("hidden", value !== "陪診");
-    });
-
     const citySelect = document.getElementById("city");
     const districtSelect = document.getElementById("district");
+    const hospitalSelect = document.getElementById("hospital");
+    const hospitalCount = document.getElementById("hospitalCount");
+
+    // 整理資料
+    const hospitals = clinics.filter(c => c.name.includes("醫院")).map(c => ({ ...c, type: "hospital" }));
+    const pharmacyList = pharmacies.map(p => ({ ...p, type: "pharmacy" }));
+
+    // 切換請求類型
+    typeSelect.addEventListener("change", () => {
+      const v = typeSelect.value;
+      if (v === "領藥") {
+        facilityTypeField.classList.remove("hidden");
+        prescriptionField.classList.remove("hidden");
+        accompanyField.classList.add("hidden");
+      } else if (v === "陪診") {
+        facilityTypeField.classList.add("hidden");
+        prescriptionField.classList.add("hidden");
+        accompanyField.classList.remove("hidden");
+      } else {
+        facilityTypeField.classList.add("hidden");
+        prescriptionField.classList.add("hidden");
+        accompanyField.classList.add("hidden");
+      }
+      renderHospitals();
+    });
+
+    // 行政區載入
     citySelect.addEventListener("change", () => {
       const selected = citySelect.value;
       districtSelect.innerHTML = '<option value="">請選擇行政區</option>';
@@ -108,30 +158,55 @@
       } else {
         districtSelect.disabled = true;
       }
+      renderHospitals();
     });
 
-    document.getElementById("publishForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
+    facilityTypeSelect.addEventListener("change", renderHospitals);
 
+    function renderHospitals() {
+      const city = citySelect.value.trim();
+      const requestType = typeSelect.value;
+      let list = [];
+
+      if (requestType === "領藥") {
+        const selectedType = facilityTypeSelect.value;
+        list = (selectedType === "hospital" ? hospitals : pharmacyList)
+          .filter(c => city ? c.address.startsWith(city) : true);
+      } else if (requestType === "陪診") {
+        list = hospitals.filter(c => city ? c.address.startsWith(city) : true);
+      }
+
+      hospitalSelect.innerHTML = '<option value="">請選擇醫院／藥局</option>';
+      list.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.name;
+        opt.textContent = `${c.name} - ${c.address}`;
+        hospitalSelect.appendChild(opt);
+      });
+
+      hospitalCount.textContent = list.length ? `可選：${list.length} 間` : '';
+    }
+
+    // 提交
+    document.getElementById("publishForm").addEventListener("submit", (e) => {
+      e.preventDefault();
       const type = typeSelect.value;
       const city = citySelect.value;
       const district = districtSelect.value;
       const road = document.getElementById("road").value;
-      const hospital = document.getElementById("hospital").value;
+      const hospital = hospitalSelect.value;
       const time = document.getElementById("time").value;
       const note = document.getElementById("note").value;
       const accompany = document.getElementById("accompany")?.value || "";
-      const prescriptionFile = document.getElementById("prescription")?.files[0] || null;
 
       onAuthStateChanged(auth, async (user) => {
         if (!user) {
           alert("請先登入");
           return;
         }
-
         try {
           const userDocSnap = await getDoc(doc(db, "users", user.uid));
-          const userName = userDocSnap.exists() ? userDocSnap.data().name || "匿名" : "匿名";
+          const userName = userDocSnap.exists() ? (userDocSnap.data().name || "匿名") : "匿名";
 
           const requestData = {
             userId: user.uid,

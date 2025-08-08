@@ -5,51 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>登入 - MakeWell</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    /* 淡入向上滑動 */
-    @keyframes fadeInUp { from { opacity:0; transform: translateY(20px);} to { opacity:1; transform: translateY(0);} }
-    .fade-in-up { animation: fadeInUp .8s ease-out; }
-
-    /* Logo 放大 */
-    @keyframes scaleIn { from { transform: scale(.8); opacity:0;} to { transform: scale(1); opacity:1;} }
-    .scale-in { animation: scaleIn .6s ease-out; }
-
-    /* 錯誤抖動 */
-    @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
-    .shake { animation: shake .4s ease-in-out; }
-
-    /* 正確的過渡屬性：transform */
-    #slider { transition: transform .3s ease; }
-  </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4 fade-in-up">
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
   <div class="bg-white shadow-lg rounded-2xl flex flex-col md:flex-row flex-wrap w-full max-w-5xl overflow-hidden">
-    <!-- 左側 Logo -->
+    <!-- 左側 Logo 區 -->
     <div class="md:w-1/3 w-full flex items-center justify-center p-6">
-      <img src="MakeWell.jpg" alt="MakeWell Logo" class="max-h-72 w-full max-w-[400px] object-contain scale-in" />
+      <img src="MakeWell.jpg" alt="MakeWell Logo" class="max-h-72 w-full max-w-[400px] object-contain" />
     </div>
 
-    <!-- 右側 登入 -->
+    <!-- 右側 登入表單 -->
     <div class="md:w-2/3 w-full p-8">
       <h2 class="text-2xl font-bold mb-4 text-center">🔐 登入系統</h2>
 
-      <!-- 角色切換 -->
-      <div class="relative w-full max-w-xs mx-auto mb-6">
-        <div class="bg-gray-200 rounded-full flex items-center px-1 py-1 relative overflow-hidden">
-          <div id="slider" class="absolute top-1 left-0 h-9 w-1/2 bg-green-500 rounded-full z-0"></div>
-          <button id="patientBtn" type="button" class="w-1/2 z-10 relative text-center text-sm font-medium py-2 rounded-full focus:outline-none">患者</button>
-          <button id="volunteerBtn" type="button" class="w-1/2 z-10 relative text-center text-sm font-medium py-2 rounded-full focus:outline-none">志工</button>
-        </div>
+      <div class="flex justify-between mb-4">
+        <button class="w-1/2 py-2 border rounded-l bg-green-500 text-white" id="patientBtn">患者</button>
+        <button class="w-1/2 py-2 border rounded-r" id="volunteerBtn">志工</button>
       </div>
       <input id="role" type="hidden" value="患者" />
 
       <input class="w-full mb-3 p-2 border rounded" id="email" placeholder="Email" type="email"/>
       <input class="w-full mb-4 p-2 border rounded" id="password" placeholder="密碼" type="password"/>
-      <button class="bg-blue-500 text-white w-full py-2 rounded disabled:opacity-60" id="loginBtn" type="button">登入</button>
+      <button class="bg-blue-500 text-white w-full py-2 rounded" id="loginBtn">登入</button>
 
       <div class="mt-4 p-4 bg-yellow-100 border border-yellow-300 rounded hidden" id="verifyNotice">
         <p class="text-yellow-800 text-sm mb-2">⚠️ 您尚未完成 Email 驗證，請先至信箱點擊驗證連結。</p>
-        <button class="text-sm text-blue-600 hover:underline" id="resendBtn" type="button">重新寄送驗證信</button>
+        <button class="text-sm text-blue-600 hover:underline" id="resendBtn">重新寄送驗證信</button>
       </div>
 
       <p class="mt-4 text-center text-sm">還沒有帳號？
@@ -57,93 +37,89 @@
       </p>
     </div>
   </div>
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const role = urlParams.get('role') || '患者';
 
-  <!-- 單一腳本：處理角色切換 + 登入 -->
-  <script type="module">
-    // 角色切換邏輯（單一真相來源）
     const patientBtn = document.getElementById('patientBtn');
     const volunteerBtn = document.getElementById('volunteerBtn');
     const roleInput = document.getElementById('role');
-    const slider = document.getElementById('slider');
 
-    function setActive(toVolunteer) {
-      // 移動綠色滑塊
-      slider.style.transform = toVolunteer ? 'translateX(100%)' : 'translateX(0%)';
-      roleInput.value = toVolunteer ? '志工' : '患者';
-      // 文字顏色：選中的白色，未選的深灰（不再給按鈕上背景色）
-      if (toVolunteer) {
-        volunteerBtn.classList.add('text-white');
-        volunteerBtn.classList.remove('text-gray-700');
-        patientBtn.classList.add('text-gray-700');
-        patientBtn.classList.remove('text-white');
-      } else {
-        patientBtn.classList.add('text-white');
-        patientBtn.classList.remove('text-gray-700');
-        volunteerBtn.classList.add('text-gray-700');
-        volunteerBtn.classList.remove('text-white');
-      }
+    if (role === '志工') {
+      volunteerBtn.classList.add('bg-green-500', 'text-white');
+      patientBtn.classList.remove('bg-green-500', 'text-white');
+      roleInput.value = '志工';
+    } else {
+      patientBtn.classList.add('bg-green-500', 'text-white');
+      volunteerBtn.classList.remove('bg-green-500', 'text-white');
+      roleInput.value = '患者';
     }
+  });
+</script>
 
-    // 初始：依 URL 參數決定預設角色
-    const initRole = new URLSearchParams(location.search).get('role') || '患者';
-    setActive(initRole === '志工');
+  <script type="module">
+    const patientBtn = document.getElementById('patientBtn');
+    const volunteerBtn = document.getElementById('volunteerBtn');
+    const roleInput = document.getElementById('role');
 
-    // 點擊切換
-    patientBtn.addEventListener('click', () => setActive(false));
-    volunteerBtn.addEventListener('click', () => setActive(true));
+    patientBtn.addEventListener('click', () => {
+      roleInput.value = '患者';
+      patientBtn.classList.add('bg-green-500', 'text-white');
+      volunteerBtn.classList.remove('bg-green-500', 'text-white');
+    });
 
-    // Firebase 登入
+    volunteerBtn.addEventListener('click', () => {
+      roleInput.value = '志工';
+      volunteerBtn.classList.add('bg-green-500', 'text-white');
+      patientBtn.classList.remove('bg-green-500', 'text-white');
+    });
+
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      getAuth,
+      signInWithEmailAndPassword,
+      sendEmailVerification
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import { firebaseConfig } from './firebase-config.js';
+
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
 
-    const emailEl = document.getElementById('email');
-    const passwordEl = document.getElementById('password');
     const loginBtn = document.getElementById('loginBtn');
     const verifyNotice = document.getElementById('verifyNotice');
     const resendBtn = document.getElementById('resendBtn');
 
-    async function doLogin() {
-      const email = emailEl.value.trim();
-      const password = passwordEl.value;
-      if (!email || !password) {
-        return alert('請輸入 Email 與密碼');
-      }
-      loginBtn.disabled = true;
+    loginBtn.addEventListener('click', async () => {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
       try {
-        const { user } = await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
         if (!user.emailVerified) {
           verifyNotice.classList.remove('hidden');
-          return;
+        } else {
+          const role = roleInput.value;
+          if (role === "患者") {
+            window.location.href = "home.html";
+          } else {
+            window.location.href = "volunteer.html";
+          }
         }
-        const role = roleInput.value;
-        location.href = role === '患者' ? 'home.html' : 'volunteer.html';
       } catch (err) {
-        document.body.classList.add('shake');
-        setTimeout(() => document.body.classList.remove('shake'), 400);
-        alert('❌ 登入失敗：' + err.message);
-      } finally {
-        loginBtn.disabled = false;
+        alert("❌ 登入失敗：" + err.message);
       }
-    }
+    });
 
-    loginBtn.addEventListener('click', doLogin);
-    // 按 Enter 也能登入
-    [emailEl, passwordEl].forEach(el => el.addEventListener('keydown', e => {
-      if (e.key === 'Enter') doLogin();
-    }));
-
-    // 重新寄送驗證信
     resendBtn.addEventListener('click', async () => {
       const user = auth.currentUser;
-      if (!user) return alert('請先登入帳號');
       try {
         await sendEmailVerification(user);
-        alert('✅ 驗證信已重新寄出，請至信箱查看。');
+        alert("✅ 驗證信已重新寄出，請至信箱查看。");
       } catch (err) {
-        alert('❌ 無法寄送驗證信：' + err.message);
+        alert("❌ 無法寄送驗證信：" + err.message);
       }
     });
   </script>
