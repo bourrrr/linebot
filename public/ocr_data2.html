@@ -10,8 +10,8 @@
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
-    /* iOS 避免輸入框放大 */
     @media (max-width:640px){ input,select,textarea{font-size:16px} }
+    .disabled{opacity:.5;pointer-events:none}
   </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-indigo-100 to-blue-50 flex items-center justify-center px-4 py-8">
@@ -24,14 +24,17 @@
     <!-- 表單 -->
     <div class="w-full max-w-md">
       <h1 class="text-3xl font-bold text-gray-800 text-center mb-1">健康數據新增</h1>
-      <h2 id="date" class="text-center text-indigo-600 text-lg mb-6">日期：--/--</h2>
+      <h2 id="date" class="text-center text-indigo-600 text-lg mb-2">日期：--/--</h2>
+
+      <!-- 狀態列 -->
+      <div id="status" class="text-center text-sm text-slate-500 mb-4">正在連線 LINE…</div>
 
       <div id="dynamic-fields" class="my-4"></div>
 
       <!-- 拍照與確認同一排 -->
       <div class="flex gap-4 mt-6">
         <button class="photo-btn flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl border hover:bg-gray-200 transition">📷 拍照上傳</button>
-        <button class="confirm-btn flex-1 px-4 py-3 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition">確認</button>
+        <button id="confirmBtn" class="confirm-btn disabled flex-1 px-4 py-3 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition">確認</button>
       </div>
       <input type="file" id="photoInput" accept="image/*" hidden>
     </div>
@@ -44,25 +47,11 @@
   </div>
 
 <script>
+/* ---------------- 基本變數 ---------------- */
 let currentUserId = null;
+const liffId = "2007877199-xXoPD8mD";
 
-// ✅ LIFF 初始化（保留）
-window.onload = function() {
-  liff.init({ liffId: "2007877199-xXoPD8mD" })
-    .then(() => {
-      if (!liff.isLoggedIn()) {
-        liff.login();
-      } else {
-        liff.getProfile().then(profile => {
-          currentUserId = profile.userId;
-          console.log("自動取得 userId：", currentUserId);
-        });
-      }
-    })
-    .catch(err => { alert("LIFF 初始化失敗：" + err); });
-};
-
-// ✅ Firebase（保留）
+/* ---------------- Firebase ---------------- */
 const firebaseConfig = {
   apiKey: "AIzaSyCCUzxpn1quR9PPSBeZBGG17XVh8vPzjY",
   authDomain: "medwell-test1.firebaseapp.com",
@@ -75,49 +64,52 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// ===== 動態欄位狀態 =====
-let dynamicData = {};
-let editId = null;
+/* ---------------- 取得 userId（強化版） ---------------- */
+async function resolveUserId() {
+  const $status = document.getElementById('status');
+  const $confirm = document.getElementById('confirmBtn');
 
-// 以 dynamicData 重繪畫面
-function renderFields() {
-  const fieldsDiv = document.getElementById("dynamic-fields");
-  fieldsDiv.innerHTML = "";
+  try {
+    await liff.init({ liffId });
 
-  // 已有欄位
-  Object.entries(dynamicData).forEach(([k, v]) => {
-    const row = document.createElement("div");
-    row.className = "flex gap-2 items-center mb-2 min-w-0"; // ⭐ 新增 min-w-0 防止溢出
-    row.innerHTML = `
-      <label class="w-24 shrink-0 text-gray-700 font-medium truncate" title="${k}">${k}：</label>
-      <input type="text" data-key="${k}" value="${v ?? ''}" class="flex-1 min-w-0 bg-indigo-50 rounded-xl px-4 py-2 text-gray-800" />
-      <button type="button" class="del-btn text-red-500 text-xl px-2" title="刪除欄位">×</button>
-    `;
-    row.querySelector('.del-btn').onclick = () => {
-      delete dynamicData[k];
-      renderFields();
-    };
-    fieldsDiv.appendChild(row);
-  });
+    // 若尚未登入，走 LINE Login，再回到本頁
+    if (!liff.isLoggedIn()) {
+      $status.textContent = "導向 LINE 登入中…";
+      liff.login({ redirectUri: location.href });
+      return;
+    }
 
-  // 新增一筆（data20807 風格）：欄位名稱 + 數值 + ＋
-  const addRow = document.createElement("div");
-  addRow.className = "flex flex-col sm:flex-row gap-2 items-stretch sm:items-center mt-3"; // ⭐ 手機直排
-  addRow.innerHTML = `
-    <input id="add-key" type="text" placeholder="記錄項目" class="sm:w-24 bg-indigo-50 rounded-xl px-3 py-2 text-gray-800" />
-    <input id="add-value" type="text" placeholder="內容或數值" class="flex-1 bg-indigo-50 rounded-xl px-3 py-2 text-gray-800" />
-    <button type="button" class="add-btn text-green-700 text-xl px-2 sm:px-3 py-1.5 sm:py-0" title="新增">＋</button>
-  `;
-  addRow.querySelector(".add-btn").onclick = () => {
-    const key = addRow.querySelector("#add-key").value.trim();
-    const val = addRow.querySelector("#add-value").value.trim();
-    if (!key || !val) return;
-    dynamicData[key] = val;
-    renderFields();
-  };
-  fieldsDiv.appendChild(addRow);
+    // 方案 A：用 getProfile() 拿 Messaging 用的 userId
+    try {
+      const profile = await liff.getProfile();
+      currentUserId = profile.userId || null;
+    } catch (e) {
+      // 方案 B：外部瀏覽器時，用 ID Token 的 sub 當識別
+      const decoded = liff.getDecodedIDToken();
+      currentUserId = decoded && decoded.sub ? decoded.sub : null;
+    }
+
+    if (currentUserId) {
+      $status.textContent = "已登入 ✓";
+      $confirm.classList.remove('disabled');
+    } else {
+      // 仍失敗 → 提示用 LINE 內開啟
+      $status.innerHTML = `
+        目前取不到使用者身分，請改用 <b>LINE 內</b> 開啟或點這裡重試。
+        <button id="retryBtn" class="ml-2 px-3 py-1 rounded bg-indigo-100 text-indigo-700">重試</button>
+        <button id="openInLine" class="ml-2 px-3 py-1 rounded bg-gray-100 text-gray-700">用 LINE 開啟</button>
+      `;
+      document.getElementById('retryBtn').onclick = resolveUserId;
+      document.getElementById('openInLine').onclick = () => {
+        liff.openWindow({ url: location.href, external: false });
+      };
+    }
+  } catch (err) {
+    document.getElementById('status').textContent = "LIFF 初始化失敗：" + err;
+  }
 }
 
+/* ---------------- 畫面初始化 ---------------- */
 window.addEventListener("DOMContentLoaded", async () => {
   // 日期顯示
   const dateText = document.getElementById("date");
@@ -128,7 +120,47 @@ window.addEventListener("DOMContentLoaded", async () => {
   const formattedDate = `${yyyy}/${mm}/${dd}`;
   dateText.textContent = `日期：${formattedDate}`;
 
-  // 編輯模式（保留）
+  // 先處理 LIFF / userId
+  resolveUserId();
+
+  // ====== 動態欄位 ======
+  let dynamicData = {};
+  let editId = null;
+
+  function renderFields() {
+    const fieldsDiv = document.getElementById("dynamic-fields");
+    fieldsDiv.innerHTML = "";
+
+    Object.entries(dynamicData).forEach(([k, v]) => {
+      const row = document.createElement("div");
+      row.className = "flex gap-2 items-center mb-2 min-w-0";
+      row.innerHTML = `
+        <label class="w-24 shrink-0 text-gray-700 font-medium truncate" title="${k}">${k}：</label>
+        <input type="text" data-key="${k}" value="${v ?? ''}" class="flex-1 min-w-0 bg-indigo-50 rounded-xl px-4 py-2 text-gray-800" />
+        <button type="button" class="del-btn text-red-500 text-xl px-2" title="刪除欄位">×</button>
+      `;
+      row.querySelector('.del-btn').onclick = () => { delete dynamicData[k]; renderFields(); };
+      fieldsDiv.appendChild(row);
+    });
+
+    const addRow = document.createElement("div");
+    addRow.className = "flex flex-col sm:flex-row gap-2 items-stretch sm:items-center mt-3";
+    addRow.innerHTML = `
+      <input id="add-key" type="text" placeholder="記錄項目" class="sm:w-24 bg-indigo-50 rounded-xl px-3 py-2 text-gray-800" />
+      <input id="add-value" type="text" placeholder="內容或數值" class="flex-1 bg-indigo-50 rounded-xl px-3 py-2 text-gray-800" />
+      <button type="button" class="add-btn text-green-700 text-xl px-2 sm:px-3 py-1.5 sm:py-0" title="新增">＋</button>
+    `;
+    addRow.querySelector(".add-btn").onclick = () => {
+      const key = addRow.querySelector("#add-key").value.trim();
+      const val = addRow.querySelector("#add-value").value.trim();
+      if (!key || !val) return;
+      dynamicData[key] = val;
+      renderFields();
+    };
+    fieldsDiv.appendChild(addRow);
+  }
+
+  // 編輯模式
   const params = new URLSearchParams(window.location.search);
   editId = params.get('id');
   if (editId && localStorage.getItem('edit_data')) {
@@ -140,51 +172,54 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
   renderFields();
 
-  // 拍照 -> OCR -> 追加欄位（保留）
+  // 拍照 → OCR
   document.querySelector(".photo-btn").addEventListener("click", () => {
     document.getElementById("photoInput").click();
   });
 
-document.getElementById("photoInput").addEventListener("change", async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+  document.getElementById("photoInput").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  const formData = new FormData();
-  formData.append("image", file, "image.jpg");
+    const formData = new FormData();
+    formData.append("image", file, "image.jpg");
 
-  try {
-    const res = await fetch("https://linebot-o8nr.onrender.com/api/ocr", { method: "POST", body: formData });
-    const result = await res.json();
-    const text = result.text || "";
-    if (!text) { alert("❌ 無法辨識圖片，請重試或更換照片"); return; }
+    try {
+      const res = await fetch("https://linebot-o8nr.onrender.com/api/ocr", { method: "POST", body: formData });
+      const result = await res.json();
+      const text = result.text || "";
+      if (!text) { alert("❌ 無法辨識圖片，請重試或更換照片"); return; }
 
-    const parsed = parseOCRResultFlexible(text);
+      const parsed = parseOCRResultFlexible(text);
 
-    const before = Object.keys(dynamicData).length;
-    Object.entries(parsed).forEach(([k, v]) => {
-      if (!(k in dynamicData) || String(dynamicData[k] ?? "").trim() === "") {
-        dynamicData[k] = v;
+      const before = Object.keys(dynamicData).length;
+      Object.entries(parsed).forEach(([k, v]) => {
+        if (!(k in dynamicData) || String(dynamicData[k] ?? "").trim() === "") {
+          dynamicData[k] = v;
+        }
+      });
+
+      renderFields();
+      const after = Object.keys(dynamicData).length;
+
+      if (after > before) {
+        alert("📋 OCR 已辨識並加入欄位！");
+      } else {
+        alert("⚠️ 有辨識到文字，但沒有解析出『欄位：值』格式；已把全文放在「原始內容」。");
       }
-    });
-
-    renderFields();
-    const after = Object.keys(dynamicData).length;
-
-    if (after > before) {
-      alert("📋 OCR 已辨識並加入欄位！");
-    } else {
-      alert("⚠️ 有辨識到文字，但沒有解析出『欄位：值』格式；已把全文放在「原始內容」。");
+    } catch (err) {
+      console.error(err);
+      alert("❌ OCR 失敗，請稍後再試");
     }
-  } catch (err) {
-    console.error(err);
-    alert("❌ OCR 失敗，請稍後再試");
-  }
-});
+  });
 
-
-  // 確認儲存（保留）
+  // 確認儲存
   document.querySelector(".confirm-btn").addEventListener("click", async () => {
-    if (!currentUserId) { alert("userId 尚未取得，請稍後再試或重新登入"); return; }
+    // 再保險：若 userId 還沒到，嘗試重取一次
+    if (!currentUserId) {
+      await resolveUserId();
+      if (!currentUserId) { alert("userId 尚未取得，請改用 LINE 內開啟或稍後再試"); return; }
+    }
 
     const inputs = Array.from(document.querySelectorAll('#dynamic-fields input[data-key]'));
     const dataToSave = {};
@@ -220,50 +255,23 @@ document.getElementById("photoInput").addEventListener("change", async (e) => {
   });
 });
 
-/* === 彈性 OCR 解析（保留） === */
+/* === 彈性 OCR 解析（原本就有，保留） === */
 function parseOCRResultFlexible(text) {
   const data = {};
   const lines = text
-    .split(/\r?\n/)
-    .map(l => l.replace(/\s+/g, ' ').trim())
-    .filter(Boolean);
+    .split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
 
   for (let i = 0; i < lines.length; i++) {
-    // 形如「欄位名：值」或「欄位名: 值」——允許中英數符號
     let m = lines[i].match(/^([\u4e00-\u9fa5A-Za-z0-9（）()．\.\-／\/\s]+)[：:]\s*(.+)$/);
-    if (m) {
-      const key = m[1].trim().replace(/[．。]$/,'');
-      const val = m[2].trim();
-      if (key && val) data[key] = val;
-      continue;
-    }
-    // 形如上一行是「欄位名：」，下一行是值
+    if (m) { const key = m[1].trim().replace(/[．。]$/,''); const val = m[2].trim(); if (key && val) data[key] = val; continue; }
     let m2 = lines[i].match(/^([\u4e00-\u9fa5A-Za-z0-9（）()．\.\-／\/\s]+)[：:]$/);
-    if (m2 && i + 1 < lines.length) {
-      const key = m2[1].trim().replace(/[．。]$/,'');
-      const val = lines[i + 1].trim();
-      if (key && val) data[key] = val;
-      i++;
-    }
+    if (m2 && i + 1 < lines.length) { const key = m2[1].trim().replace(/[．。]$/,''); const val = lines[i + 1].trim(); if (key && val) data[key] = val; i++; }
   }
 
-  // 常見欄位名歸一（可按需要擴充）
-  const map = {
-    '藥名':'藥名','品名':'藥名','藥品名稱':'藥名',
-    '用法':'用法','服法':'用法',
-    '用量':'劑量','劑量':'劑量',
-    '天數':'天數','日數':'天數',
-    '日期':'日期','開立日期':'日期'
-  };
-  for (const k of Object.keys(data)) {
-    const nk = map[k] || k;
-    if (nk !== k && !(nk in data)) { data[nk] = data[k]; delete data[k]; }
-  }
+  const map = { '藥名':'藥名','品名':'藥名','藥品名稱':'藥名','用法':'用法','服法':'用法','用量':'劑量','劑量':'劑量','天數':'天數','日數':'天數','日期':'日期','開立日期':'日期' };
+  for (const k of Object.keys(data)) { const nk = map[k] || k; if (nk !== k && !(nk in data)) { data[nk] = data[k]; delete data[k]; } }
 
-  // 解析不到任何鍵值 → 退而求其次：整段塞進「原始內容」
-  if (Object.keys(data).length === 0 && text.trim()) {
-    data['原始內容'] = text.trim();
-  }
+  if (Object.keys(data).length === 0 && text.trim()) data['原始內容'] = text.trim();
   return data;
 }
 </script>
