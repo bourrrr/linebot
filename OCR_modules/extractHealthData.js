@@ -75,7 +75,17 @@ function setField(obj, key, val) {
   if (obj[key] && obj[key] !== val) obj[key] = `${obj[key]} / ${val}`;
   else obj[key] = val;
 }
-
+function normalizeText(s) {
+  return toHalfWidth(s || '')
+    .replace(/[：]/g, ':')
+    .replace(/[／]/g, '/')
+    .replace(/℃/g, '°C')
+    // 合併被換行或多空格切斷的英文單字
+    .replace(/([A-Za-z])\s*\n\s*([A-Za-z])/g, '$1$2')
+    .replace(/([A-Za-z])\s+([A-Za-z])/g, '$1$2')
+    .replace(/\s+\n/g, '\n')
+    .trim();
+}
 function parseHealthMetrics(fullText) {
   const text = normalizeText(fullText);
   const lines = splitLines(text);

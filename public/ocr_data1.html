@@ -3,62 +3,120 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MakeWell 數據紀錄</title>
+  <title>MakeWell 數據紀錄（主頁）</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700;900&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body {
-      min-height: 100vh;
-      background: linear-gradient(120deg, #e0e7ff 0%, #f8fafc 70%);
+    :root{
+      --mw-green:#588157;        /* 重綠 */
+      --mw-green-light:#659963de;/* 淺綠(含透明) */
+      --mw-warm-gray:#dad7cd;    /* 奶灰 */
+      --mw-gray:#8e8e8cf2;       /* 灰 */
+      --mw-cream:#efede9;        /* 小奶黃 */
+      --mw-ink:#363636;          /* 不死黑 */
+      --mw-border:#cfcfc9;       /* 邊框淡灰 */
     }
-    @keyframes fadeInDown {
-      from { opacity: 0; transform: translateY(-40px);}
-      to   { opacity: 1; transform: translateY(0);}
+    html,body{ font-family:"Noto Sans TC", system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color:var(--mw-ink); }
+    body{
+      min-height:100vh;
+      background:
+        radial-gradient(1200px 600px at 20% -10%, rgba(239,237,233,.8), transparent 60%),
+        radial-gradient(800px 400px at 110% 10%, rgba(101,153,99,.12), transparent 55%),
+        linear-gradient(180deg, rgba(218,215,205,.65), rgba(218,215,205,.65));
     }
-    @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(40px);}
-      to   { opacity: 1; transform: translateY(0);}
+
+    /* Header */
+    .mw-header{
+      background: linear-gradient(135deg, var(--mw-green) 0%, rgba(101,153,99,.85) 60%, rgba(101,153,99,.65) 100%);
+      border-bottom:1px solid var(--mw-border);
+      box-shadow: 0 10px 30px rgba(54,54,54,.15);
     }
-    .animate-fadeInDown {
-      animation: fadeInDown 0.8s cubic-bezier(0.23,1,0.32,1);
+    .mw-title{ color:#fff; letter-spacing:.5px; text-shadow:0 2px 8px rgba(0,0,0,.15); }
+    .mw-sub{ color:var(--mw-cream); opacity:.95; }
+
+    /* Cards / chips / buttons */
+    .mw-card{ background:#fff; border:1px solid var(--mw-border); border-radius:22px; box-shadow:0 10px 30px rgba(0,0,0,.06); }
+    .mw-chip{ display:inline-block; background:var(--mw-green-light); color:#fff; padding:.3rem .7rem; border-radius:999px; font-size:.8rem; font-weight:800; letter-spacing:.5px; }
+    .mw-btn{ border-radius:14px; padding:.65rem 1rem; font-weight:800; }
+    .mw-btn-primary{ background:var(--mw-green); color:#fff; }
+    .mw-btn-primary:hover{ filter:brightness(.95); }
+    .mw-btn-ghost{ background:#fff; color:var(--mw-ink); border:1px solid var(--mw-border); }
+    .mw-btn-ghost:hover{ background:var(--mw-cream); }
+
+    /* Record item */
+    .mw-item{ border:1px solid var(--mw-border); background:linear-gradient(180deg,#ffffff, #fffefb); }
+    .mw-date{ background:var(--mw-cream); border:1px solid var(--mw-border); color:var(--mw-ink); }
+    .mw-badge{ background:var(--mw-green-light); color:#fff; }
+
+    /* Pager */
+    .mw-pager .btn{ border:1px solid var(--mw-border); border-radius:12px; padding:.55rem .9rem; font-weight:700; }
+    .mw-pager .prev{ background:#fff; color:var(--mw-ink); }
+    .mw-pager .prev:hover{ background:var(--mw-cream); }
+    .mw-pager .next{ background:var(--mw-green); color:#fff; }
+    .mw-pager .next:hover{ filter:brightness(.95); }
+
+    /* Fab */
+    .mw-fab{
+      position: fixed; right: 20px; bottom: 20px;
+      width:64px; height:64px; border-radius:50%;
+      background: linear-gradient(135deg, var(--mw-green) 0%, rgba(101,153,99,.9) 100%);
+      color:#fff; font-size:2rem; font-weight:900;
+      box-shadow:0 10px 24px rgba(0,0,0,.18);
+      display:flex; align-items:center; justify-content:center;
+      transition:.18s ease;
+      z-index:50;
     }
-    .animate-fadeInUp {
-      animation: fadeInUp 0.95s 0.2s cubic-bezier(0.23,1,0.32,1) backwards;
-    }
+    .mw-fab:hover{ transform:scale(1.06); box-shadow:0 14px 28px rgba(0,0,0,.22); }
+
+    @keyframes fadeInDown { from{opacity:0; transform:translateY(-24px)} to{opacity:1; transform:translateY(0)} }
+    @keyframes fadeInUp { from{opacity:0; transform:translateY(24px)} to{opacity:1; transform:translateY(0)} }
+    .animate-fadeInDown{ animation: fadeInDown .6s cubic-bezier(.23,1,.32,1); }
+    .animate-fadeInUp{ animation: fadeInUp .7s .12s cubic-bezier(.23,1,.32,1) backwards; }
   </style>
 </head>
-<body class="flex flex-col items-center min-h-screen font-[Noto Sans TC,sans-serif]">
-  <header class="w-full bg-gradient-to-r from-[#929fff] via-[#9de0ff] to-[#ffa897] py-14 shadow-xl flex flex-col items-center rounded-b-[2.5rem] animate-fadeInDown">
-    <h1 class="text-white text-5xl md:text-6xl font-extrabold tracking-widest drop-shadow-xl mb-3">MakeWell</h1>
-    <p class="text-white text-xl md:text-2xl tracking-wide font-medium drop-shadow">慢理歲月 樂活永悅</p>
+<body class="min-h-screen">
+
+  <!-- 主頁 Header -->
+  <header class="mw-header">
+    <div class="mx-auto max-w-6xl px-4 py-6 md:py-8 flex items-center gap-4">
+      <div class="flex-1">
+        <div class="flex items-center gap-2">
+          <h1 class="mw-title text-3xl md:text-4xl font-black tracking-wide animate-fadeInDown">MakeWell</h1>
+          <span class="mw-chip animate-fadeInDown">主頁</span>
+        </div>
+        <p class="mw-sub text-sm md:text-base mt-1 animate-fadeInDown">慢理歲月，樂活永悅</p>
+      </div>
+
+      <!-- 右上角動作：新增紀錄（連到 data2） -->
+      
+    </div>
   </header>
 
-  <main class="text-[115%] w-[92vw] max-w-[840px] md:max-w-[960px] rounded-[3rem] shadow-2xl bg-white bg-opacity-95 border border-[#e5e7fa] px-10 py-12 md:px-14 md:py-14 mt-14 z-10 animate-fadeInUp relative overflow-visible">
-    <div class="flex items-center mb-8 border-b border-[#d3d9fd] pb-6">
-      <span class="px-5 py-1.5 rounded-xl bg-[#e3ebff] text-[#433e7c] font-semibold text-xl tracking-wider shadow-sm">
-        數據紀錄
-      </span>
-    </div>
-
-    <div id="record-list" class="mb-10 flex flex-col gap-5"></div>
-
-    <!-- 分頁按鈕 -->
-    <div class="flex justify-center gap-3 mt-4">
-      <button id="prevPage" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300">上一頁</button>
-      <button id="nextPage" class="px-4 py-2 bg-indigo-200 text-indigo-800 rounded-xl hover:bg-indigo-300">下一頁</button>
-    </div>
-
-    <div class="flex items-center justify-between mt-6">
-      <button class="flex flex-col items-center text-[130%] text-[#433e7c] hover:text-[#bb60b2] transition">
-        <div class="w-[90px] h-[90px] rounded-full bg-[#f0f4ff] flex items-center justify-center shadow-md hover:shadow-xl duration-200">
-          <span>頭像</span>
+  <!-- 內容 -->
+  <main class="mx-auto max-w-4xl px-4">
+    <!-- 清爽提示 / 篩選區可留日後擴充 -->
+    <section class="mw-card mt-6 p-5 md:p-6 animate-fadeInUp">
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <div class="flex items-center gap-2">
+          <span class="mw-chip">數據紀錄</span>
+          <span class="text-sm" style="color:var(--mw-gray)">近期上傳的健康紀錄（依時間新→舊）</span>
         </div>
-      </button>
-      <button onclick="window.location.href='ocr_data2.html'" class="w-20 h-20 rounded-full bg-gradient-to-tr from-[#929fff] via-[#9de0ff] to-[#af87fe] flex items-center justify-center shadow-2xl text-white text-[2.8rem] font-bold hover:scale-110 hover:ring-2 hover:ring-[#bb60b2] transition">
-        +
-      </button>
-    </div>
+        <div class="flex items-center gap-2">
+          <button id="prevPage" class="mw-btn mw-btn-ghost">上一頁</button>
+          <button id="nextPage" class="mw-btn mw-btn-primary">下一頁</button>
+        </div>
+      </div>
+
+      <div id="record-list" class="mt-4 flex flex-col gap-4"></div>
+    </section>
   </main>
 
+  <!-- 浮動新增鍵（同樣連到 data2） -->
+  <button class="mw-fab" aria-label="新增紀錄" onclick="location.href='ocr_data2.html'">＋</button>
+
+  <!-- Firebase + 列表程式 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getFirestore, collection, getDocs, query, orderBy, deleteDoc, doc as docRef } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
@@ -84,7 +142,7 @@
     let currentPage = 0;
     let records = [];
 
-    // 取出資料含id
+    // 取出資料（含文件 id）
     async function loadRecords() {
       records = [];
       const q = query(collection(db, "health_records"), orderBy("timestamp", "desc"));
@@ -94,33 +152,19 @@
       });
     }
 
-    // 取代原本的 getRecordType()
-function getRecordType(obj) {
-  if (!obj || typeof obj !== 'object') return '健康紀錄';
-
-  // 扁平化 keys/values 做關鍵字檢查
-  const keys = Object.keys(obj).map(String);
-  const values = Object.values(obj).flatMap(v =>
-    (v && typeof v === 'object') ? Object.values(v) : [v]
-  ).map(v => String(v ?? ''));
-
-  const hay = (keys.join(' ') + ' ' + values.join(' ')).toLowerCase();
-
-  // 1) 有血糖/血壓/脈搏 ⇒ 一律當「血壓紀錄」
-  const vitalsTokens = [
-    '血壓','收縮壓','舒張壓','脈搏','心跳','pulse','heart rate','hr','bp','sbp','dbp',
-    '血糖','glucose','hba1c','糖化','systolic','diastolic'
-  ];
-  if (vitalsTokens.some(t => hay.includes(t))) return '血壓紀錄';
-
-  // 2) 有疾病相關（含「XX病」） ⇒ 「疾病紀錄」
-  const diseaseTokens = ['疾病','病名','診斷','病史','disease','diagnosis','dx'];
-  const hasXxDisease = /[\u4e00-\u9fa5]{1,6}病/.test(hay); // 例：胃病、糖尿病、高血壓病
-  if (diseaseTokens.some(t => hay.includes(t)) || hasXxDisease) return '疾病紀錄';
-
-  // 3) 其餘 ⇒ 「健康紀錄」
-  return '健康紀錄';
-}
+    // 類別規則：有血壓/血糖/脈搏 => 血壓紀錄；含「XX病」或疾病關鍵字 => 疾病紀錄；其餘 => 健康紀錄
+    function getRecordType(obj) {
+      if (!obj || typeof obj !== 'object') return '健康紀錄';
+      const keys = Object.keys(obj).map(String);
+      const values = Object.values(obj).flatMap(v => (v && typeof v === 'object') ? Object.values(v) : [v]).map(v => String(v ?? ''));
+      const hay = (keys.join(' ') + ' ' + values.join(' ')).toLowerCase();
+      const vitalsTokens = ['血壓','收縮壓','舒張壓','脈搏','心跳','pulse','heart rate','hr','bp','sbp','dbp','血糖','glucose','hba1c','糖化','systolic','diastolic'];
+      if (vitalsTokens.some(t => hay.includes(t))) return '血壓紀錄';
+      const diseaseTokens = ['疾病','病名','診斷','病史','disease','diagnosis','dx'];
+      const hasXxDisease = /[\u4e00-\u9fa5]{1,6}病/.test(hay);
+      if (diseaseTokens.some(t => hay.includes(t)) || hasXxDisease) return '疾病紀錄';
+      return '健康紀錄';
+    }
 
     function renderPage() {
       recordList.innerHTML = "";
@@ -129,41 +173,52 @@ function getRecordType(obj) {
       const pageRecords = records.slice(start, end);
 
       pageRecords.forEach((data, idx) => {
-        const date = new Date(data.timestamp?.seconds * 1000);
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
-        let showObj = data.data || data;
+        const ts = data.timestamp?.seconds ? new Date(data.timestamp.seconds * 1000) : new Date();
+        const month = ts.getMonth() + 1;
+        const day = ts.getDate();
+        const showObj = data.data || data;
 
-        const html = `
-          <div class="rounded-3xl bg-gradient-to-r from-indigo-50 to-white border border-indigo-100 shadow-md p-6 flex items-center transition group hover:scale-[1.015] hover:border-indigo-300 duration-200 relative overflow-visible">
-            <!-- 右上角常駐編輯刪除 -->
-            <div class="absolute top-2 right-2 flex gap-1 z-50">
-              <button class="flex items-center px-2 py-1 rounded-md text-xs text-gray-700 bg-white hover:bg-indigo-50 shadow edit-btn" data-id="${data._id}" data-idx="${start + idx}">
-                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16.862 4.487a2.347 2.347 0 1 1 3.321 3.321L7.547 20.444l-4.062.741.741-4.062 12.636-12.636z"></path></svg>
-                編輯
-              </button>
-              <button class="flex items-center px-2 py-1 rounded-md text-xs text-red-600 bg-white hover:bg-red-50 shadow delete-btn" data-id="${data._id}" data-idx="${start + idx}">
-                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"></path></svg>
-                刪除
-              </button>
-            </div>
-            <!-- 左側日期區 -->
-            <div class="w-16 h-16 flex flex-col justify-center items-center rounded-2xl bg-white border border-indigo-200 shadow-sm mr-7 flex-shrink-0">
-              <span class="text-2xl font-bold text-indigo-400 leading-tight">${day}</span>
-              <span class="text-xs text-gray-400 -mt-1">${month}月</span>
-            </div>
-            <!-- 中間只留分類 badge -->
-            <div class="flex-1 flex flex-col md:flex-row items-center md:items-center gap-2 min-w-0">
-              <div class="px-3 py-1 rounded-full bg-[#e3ebff] text-[#433e7c] font-semibold text-base shadow-sm mb-2 md:mb-0 md:mr-3 text-center w-28">
-                ${getRecordType(showObj)}
-              </div>
-            </div>
+        const item = document.createElement('div');
+        item.className = "mw-item rounded-2xl p-5 md:p-6 flex items-center gap-4 relative transition hover:scale-[1.01] hover:shadow duration-150";
+
+        // 右上角常駐編輯刪除
+        const actions = document.createElement('div');
+        actions.className = "absolute top-2 right-2 flex gap-1 z-10";
+        actions.innerHTML = `
+          <button class="px-2 py-1 rounded-md text-xs bg-white border border-[var(--mw-border)] hover:bg-[var(--mw-cream)] text-[var(--mw-ink)] shadow edit-btn"
+                  data-id="${data._id}" data-idx="${start + idx}">
+            ✎ 編輯
+          </button>
+          <button class="px-2 py-1 rounded-md text-xs bg-white border border-[var(--mw-border)] hover:bg-red-50 text-red-600 shadow delete-btn"
+                  data-id="${data._id}" data-idx="${start + idx}">
+            ␡ 刪除
+          </button>
+        `;
+
+        // 日期塊
+        const dateBox = document.createElement('div');
+        dateBox.className = "mw-date w-16 h-16 rounded-2xl flex flex-col justify-center items-center shadow-sm flex-shrink-0";
+        dateBox.innerHTML = `
+          <span class="text-2xl font-black leading-tight" style="color:var(--mw-green)">${day}</span>
+          <span class="text-xs" style="color:var(--mw-gray)">${month}月</span>
+        `;
+
+        // 中段：類別 badge
+        const mid = document.createElement('div');
+        mid.className = "flex-1 min-w-0";
+        mid.innerHTML = `
+          <div class="mw-badge inline-flex items-center px-3 py-1 rounded-full text-sm font-extrabold tracking-wide">
+            ${getRecordType(showObj)}
           </div>
         `;
-        recordList.insertAdjacentHTML("beforeend", html);
+
+        item.appendChild(actions);
+        item.appendChild(dateBox);
+        item.appendChild(mid);
+        recordList.appendChild(item);
       });
 
-      // 編輯
+      // 綁定編輯
       document.querySelectorAll('.edit-btn').forEach(btn => {
         btn.onclick = e => {
           e.stopPropagation();
@@ -173,7 +228,7 @@ function getRecordType(obj) {
         };
       });
 
-      // 刪除
+      // 綁定刪除
       document.querySelectorAll('.delete-btn').forEach(btn => {
         btn.onclick = async e => {
           e.stopPropagation();
@@ -183,31 +238,27 @@ function getRecordType(obj) {
           try {
             await deleteDoc(docRef(db, "health_records", _id));
             alert('已刪除！');
-            // 前端刪除
             records.splice(idx, 1);
+            // 若刪到本頁無資料且非第0頁，往前翻一頁
+            if (currentPage > 0 && currentPage * PAGE_SIZE >= records.length) currentPage--;
             renderPage();
           } catch (err) {
-            alert('刪除失敗，請檢查網路或帳號權限');
+            console.error(err);
+            alert('刪除失敗，請檢查網路或權限');
           }
         };
       });
     }
 
+    // 分頁
     prevPageBtn.addEventListener("click", () => {
-      if (currentPage > 0) {
-        currentPage--;
-        renderPage();
-      }
+      if (currentPage > 0) { currentPage--; renderPage(); }
     });
-
     nextPageBtn.addEventListener("click", () => {
-      if ((currentPage + 1) * PAGE_SIZE < records.length) {
-        currentPage++;
-        renderPage();
-      }
+      if ((currentPage + 1) * PAGE_SIZE < records.length) { currentPage++; renderPage(); }
     });
 
-    // 初始化
+    // 啟動
     await loadRecords();
     renderPage();
   </script>
