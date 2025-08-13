@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>MakeWell 集點卡</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    .stamp{width:64px;height:64px;border-radius:9999px;border:3px dashed rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;opacity:.7}
+    .stamp.active{background:rgba(255,255,255,.16);opacity:1}
+    .safe-bottom{padding-bottom:max(env(safe-area-inset-bottom),16px)}
+  </style>
+</head>
+<body class="bg-white text-gray-900">
+  <div class="max-w-md mx-auto pb-32">
+
+    <!-- 上半部：紅色集點卡 -->
+    <div class="bg-red-500 text-white px-5 pt-8 pb-6 rounded-b-3xl shadow">
+      <div class="text-center">
+        <div class="text-3xl font-bold">慢無憂</div>
+        <div class="text-sm opacity-90 mt-1">至2026.08.07止</div>
+
+        <div class="mt-3 inline-flex items-center gap-2 bg-white/15 px-3 py-1 rounded-full text-sm">
+          <span class="px-1.5 py-0.5 bg-emerald-500 rounded text-white text-xs">★ 集點</span>
+          <span id="nextText">再 5 點可獲得獎勵</span>
+        </div>
+      </div>
+
+      <!-- 五枚印章 -->
+      <div id="stamps" class="mt-6 flex items-center justify-between px-2">
+        <div class="stamp"><span>STAMP</span></div>
+        <div class="stamp"><span>STAMP</span></div>
+        <div class="stamp"><span>STAMP</span></div>
+        <div class="stamp"><span>STAMP</span></div>
+        <div class="stamp"><span>STAMP</span></div>
+      </div>
+    </div>
+
+    <!-- 使用說明 -->
+    <div class="px-5 py-6">
+      <h3 class="font-bold text-lg">使用說明</h3>
+      <ul class="list-disc pl-5 mt-3 space-y-2 text-[15px] text-gray-700">
+        <li>來店可獲得點數 1 點。</li>
+        <li>當日不論來店次數，僅可獲得點數 1 點，敬請見諒。</li>
+        <li class="text-gray-500">服務使用方法・查看 <span class="underline">Help</span></li>
+      </ul>
+    </div>
+
+    <!-- 快捷鍵 -->
+    <div class="px-5">
+      <h3 class="font-bold text-lg">快捷鍵</h3>
+      <ul id="quickList" class="mt-4 space-y-4">
+        <!-- 由 JS 產生 -->
+      </ul>
+    </div>
+  </div>
+
+  <!-- 底部固定：綠色掃碼鈕 -->
+  <div class="fixed left-0 right-0 bottom-0 bg-white/90 backdrop-blur safe-bottom">
+    <div class="max-w-md mx-auto px-5">
+      <button id="scanBtn"
+        class="w-full rounded-full py-3 text-white font-semibold bg-green-600 shadow-lg active:opacity-90">
+        <span class="mr-2">▣</span> 掃描行動條碼
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const LIFF_ID = '你的_LIFF_ID';
+    const HISTORY_URL = '/loyalty-history.html'; // 使用記錄頁（可改）
+    const STAMPS_PER_REWARD = 5; // 與後端一致
+
+    let gUserId = null;
+    let gCount = 0;
+    let deferredPrompt = null; // A2HS
+
+    window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredPrompt = e; });
+
+    // 快捷鍵清單（想改就改這裡）
+// ---- 快捷鍵清單（想改就改這裡）----
+const QUICK = [
+  { key:'chat',    label:'前往聊天室',   icon:chatIcon(),  runFallback:() => history.back(), runLiff:() => liff.closeWindow() },
+  { key:'card',    label:'前往我的集點卡', icon:cardIcon(),  runFallback:() => location.href='/loyalty.html', runLiff:() => location.href='/loyalty.html' },
+  { key:'history', label:'前往使用記錄',   icon:clockIcon(), runFallback:() => location.href=HISTORY_URL,     runLiff:() => liff.openWindow({ url:HISTORY_URL, external:false }) },
+  { key:'a2hs',    label:'新增至主畫面',   icon:homeIcon(),  runFallback:installPWA,                          runLiff:installPWA }
+];
+
+function renderQuick() {
+  const ul = document.getElementById('quickList');
+  ul.innerHTML = QUICK.map(it => `
+    <li>
+      <button data-action="${it.key}" class="w-full flex items-center gap-3 px-1">
+        <span class="shrink-0 text-gray-800">${it.icon}</span>
+        <span class="text-[16px]">${it.label}</span>
+      </button>
+    </li>`).join('');
+}
+
+function bindQuickActions(useLiff=false) {
+  document.querySelectorAll('[data-action]').forEach(btn => {
+    const item = QUICK.find(x => x.key === btn.dataset.action);
+    btn.onclick = useLiff ? item.runLiff : item.runFallback;
+  });
+}
+
+// 先顯示「可用」的快捷鍵（不依賴 LIFF）
+renderQuick();
+bindQuickActions(false);
+
+// --- LIFF 初始化（成功後再改綁成 LIFF 行為）---
+(async function init() {
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+
+    // 取得 userId
+    const idToken = liff.getIDToken();
+    const payload = JSON.parse(atob(idToken.split('.')[1]));
+    gUserId = payload.sub;
+
+    bindQuickActions(true);           // 重新綁定：使用 LIFF 版本的動作
+    await refreshStatus();
+    document.getElementById('scanBtn').onclick = onScan;
+  } catch (e) {
+    console.warn('LIFF init failed -> 使用 fallback 按鈕', e);
+    // 失敗時仍保留 fallback 綁定，快捷鍵仍可見
+  }
+})();
+
+  </script>
+</body>
+</html>

@@ -242,18 +242,6 @@ async function handleEvent(event, client) {
     console.log("✅ 收到志工配對指令");
     return client.replyMessage(event.replyToken, loginFlex());
 }
-      if (msg === '我要新增紀錄') {
-        return client.replyMessage(event.replyToken, {
-          type: "text",
-          text: "請拍照或上傳您的處方箋圖片：",
-          quickReply: {
-            items: [
-              { type: "action", action: { type: "camera", label: "打開相機" } },
-              { type: "action", action: { type: "cameraRoll", label: "從相簿選擇" } }
-            ]
-          }
-        });
-      }
 
 
     }
@@ -277,15 +265,25 @@ function sendReminder(message) {
 
 
 app.post('/api/ocr', upload.single('image'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: '沒有圖片檔案' });
+  if (!req.file) return res.status(400).json({ ok: false, error: '沒有圖片檔案' });
   try {
-    const text = await googleVisionOCR(req.file.path);
+    const text = await googleVisionOCR(req.file.path); // 仍用你的 OCR
     fs.unlinkSync(req.file.path);
-    res.json({ text });
+
+    // 解析成健康數據欄位
+    const parsed = extractHealthData(text); // 回傳 fieldsSuggested / metrics 等
+
+    // 相容 + 結構化一起回
+    res.json({
+      ok: true,
+      text,
+      ...parsed // => fieldsSuggested, metrics, segmentsFallback, lineCount
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
+
 
 // 4. (建議保留測試首頁) 
 app.get('/', (req, res) => {
