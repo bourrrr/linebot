@@ -5,297 +5,316 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>健康數據新增</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <style>
-    @media (max-width:640px){ input,select,textarea{font-size:16px} }
-    .disabled{opacity:.5;pointer-events:none}
-  </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-indigo-100 to-blue-50 flex items-center justify-center px-4 py-8">
-  <a href="ocr_data1.html"
-     class="fixed top-4 left-4 px-4 py-2 bg-gray-200 text-gray-800 rounded-xl shadow hover:bg-gray-300 transition z-50">
-    ← 返回
-  </a>
+<body class="bg-slate-50 min-h-screen">
+  <div class="max-w-3xl mx-auto p-4 md:p-6">
+    <h1 class="text-2xl md:text-3xl font-bold text-indigo-800 mb-4">健康數據新增</h1>
 
-  <div class="max-w-4xl w-full bg-white rounded-3xl shadow-2xl p-6 md:p-10 flex flex-col-reverse md:flex-row items-center gap-10">
-    <!-- 表單 -->
-    <div class="w-full max-w-md">
-      <h1 class="text-3xl font-bold text-gray-800 text-center mb-1">健康數據新增</h1>
-      <h2 id="date" class="text-center text-indigo-600 text-lg mb-2">日期：--/--</h2>
+    <!-- 上傳卡片 -->
+    <div class="bg-white rounded-2xl shadow p-4 md:p-6 mb-6">
+      <div class="flex flex-col md:flex-row md:items-center gap-4">
+        <div class="flex-1">
+          <label class="block text-sm text-slate-600 mb-1">選擇圖片 / 拍照</label>
+          <input id="fileInput" type="file" accept="image/*" capture="environment"
+                 class="block w-full text-sm text-slate-700 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+        </div>
+        <button id="btnUpload"
+                class="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
+          上傳辨識
+        </button>
+      </div>
+
+      <!-- 圖片預覽 -->
+      <div id="previewWrap" class="mt-4 hidden">
+        <p class="text-sm text-slate-600 mb-2">預覽</p>
+        <img id="previewImg" class="w-full max-h-80 object-contain rounded-xl border"/>
+      </div>
 
       <!-- 狀態列 -->
-      <div id="status" class="text-center text-sm text-slate-500 mb-4">正在連線 LINE…</div>
-
-      <div id="dynamic-fields" class="my-4"></div>
-
-      <!-- 拍照與確認同一排 -->
-      <div class="flex gap-4 mt-6">
-        <button class="photo-btn flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl border hover:bg-gray-200 transition">📷 拍照上傳</button>
-        <button id="confirmBtn" class="confirm-btn disabled flex-1 px-4 py-3 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 transition">確認</button>
-      </div>
-      <input type="file" id="photoInput" accept="image/*" hidden>
+      <div id="status" class="mt-3 text-sm text-slate-600"></div>
     </div>
 
-    <!-- 品牌文字 -->
-    <div class="text-center md:text-right">
-      <h3 class="text-3xl font-bold text-indigo-800 mb-1">MakeWell</h3>
-      <p class="text-lg text-slate-600">慢理歲月，樂活永悅</p>
+    <!-- 欄位區 -->
+    <div class="bg-white rounded-2xl shadow p-4 md:p-6">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xl font-semibold text-slate-800">辨識結果（可編輯）</h2>
+        <div class="flex gap-2">
+          <button id="btnAdd"
+                  class="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50">＋ 新增欄位</button>
+          <button id="btnClear"
+                  class="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50">清除欄位</button>
+          <button id="btnConfirm"
+                  class="px-3 py-1.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700">確認</button>
+        </div>
+      </div>
+
+      <!-- 日期 -->
+      <div class="text-sm text-slate-600 mb-4">
+        <span id="date"></span>
+      </div>
+
+      <!-- 欄位列表 -->
+      <div id="fields" class="space-y-2">
+        <div class="text-slate-500 text-sm">尚未有資料，請先上傳圖片辨識，或點「＋ 新增欄位」。</div>
+      </div>
+    </div>
+
+    <!-- 原文備查 -->
+    <div id="rawBlock" class="bg-white rounded-2xl shadow p-4 md:p-6 mt-6 hidden">
+      <h3 class="text-lg font-semibold text-slate-800 mb-2">原始內容（備查）</h3>
+      <pre id="rawText" class="whitespace-pre-wrap text-sm bg-slate-50 border rounded-xl p-3"></pre>
     </div>
   </div>
 
-<script>
-/* ---------------- 基本變數 ---------------- */
-let currentUserId = null;
-const liffId = "2007877199-xXoPD8mD";
+  <script>
+  // 後端 OCR API（用你的 Render 網域）
+const OCR_API = "https://linebot-o8nr.onrender.com/api/ocr";
 
-/* ---------------- Firebase ---------------- */
-const firebaseConfig = {
-  apiKey: "AIzaSyCCUzxpn1quR9PPSBeZBGG17XVh8vPzjY",
-  authDomain: "medwell-test1.firebaseapp.com",
-  projectId: "medwell-test1",
-  storageBucket: "medwell-test1.appspot.com",
-  messagingSenderId: "860851688843",
-  appId: "1:860851688843:web:622eb8feccad45ce640b8e",
-  measurementId: "G-9FGX9SG7XB"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+    // ====== 狀態與工具 ======
+    const fileInput = document.getElementById('fileInput');
+    const btnUpload = document.getElementById('btnUpload');
+    const btnAdd = document.getElementById('btnAdd');
+    const btnClear = document.getElementById('btnClear');
+    const btnConfirm = document.getElementById('btnConfirm');
+    const statusEl = document.getElementById('status');
+    const fieldsEl = document.getElementById('fields');
+    const previewWrap = document.getElementById('previewWrap');
+    const previewImg = document.getElementById('previewImg');
+    const rawBlock = document.getElementById('rawBlock');
+    const rawTextEl = document.getElementById('rawText');
 
-/* ---------------- 取得 userId（強化版） ---------------- */
-async function resolveUserId() {
-  const $status = document.getElementById('status');
-  const $confirm = document.getElementById('confirmBtn');
+    // 當前欄位（動態）
+    let dynamicData = {};     // { key: value }
+    let ocrRawText = "";      // 後端回傳的 text
+    let fieldsSuggested = {}; // 後端已解析欄位
 
-  try {
-    await liff.init({ liffId });
+    // 日期顯示
+    (function setToday(){
+      const dateText = document.getElementById("date");
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const dd = String(d.getDate()).padStart(2,'0');
+      dateText.textContent = `日期：${yyyy}/${mm}/${dd}`;
+    })();
 
-    // 若尚未登入，走 LINE Login，再回到本頁
-    if (!liff.isLoggedIn()) {
-      $status.textContent = "導向 LINE 登入中…";
-      liff.login({ redirectUri: location.href });
-      return;
-    }
-
-    // 方案 A：用 getProfile() 拿 Messaging 用的 userId
-    try {
-      const profile = await liff.getProfile();
-      currentUserId = profile.userId || null;
-    } catch (e) {
-      // 方案 B：外部瀏覽器時，用 ID Token 的 sub 當識別
-      const decoded = liff.getDecodedIDToken();
-      currentUserId = decoded && decoded.sub ? decoded.sub : null;
-    }
-
-    if (currentUserId) {
-      $status.textContent = "已登入 ✓";
-      $confirm.classList.remove('disabled');
-    } else {
-      // 仍失敗 → 提示用 LINE 內開啟
-      $status.innerHTML = `
-        目前取不到使用者身分，請改用 <b>LINE 內</b> 開啟或點這裡重試。
-        <button id="retryBtn" class="ml-2 px-3 py-1 rounded bg-indigo-100 text-indigo-700">重試</button>
-        <button id="openInLine" class="ml-2 px-3 py-1 rounded bg-gray-100 text-gray-700">用 LINE 開啟</button>
-      `;
-      document.getElementById('retryBtn').onclick = resolveUserId;
-      document.getElementById('openInLine').onclick = () => {
-        liff.openWindow({ url: location.href, external: false });
-      };
-    }
-  } catch (err) {
-    document.getElementById('status').textContent = "LIFF 初始化失敗：" + err;
-  }
-}
-
-/* ---------------- 畫面初始化 ---------------- */
-window.addEventListener("DOMContentLoaded", async () => {
-  // 日期顯示
-  const dateText = document.getElementById("date");
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const dd = String(today.getDate()).padStart(2, '0');
-  const formattedDate = `${yyyy}/${mm}/${dd}`;
-  dateText.textContent = `日期：${formattedDate}`;
-
-  // 先處理 LIFF / userId
-  resolveUserId();
-
-  // ====== 動態欄位 ======
-  let dynamicData = {};
-  let editId = null;
-
-  function renderFields() {
-    const fieldsDiv = document.getElementById("dynamic-fields");
-    fieldsDiv.innerHTML = "";
-
-    Object.entries(dynamicData).forEach(([k, v]) => {
-      const row = document.createElement("div");
-      row.className = "flex gap-2 items-center mb-2 min-w-0";
-      row.innerHTML = `
-        <label class="w-24 shrink-0 text-gray-700 font-medium truncate" title="${k}">${k}：</label>
-        <input type="text" data-key="${k}" value="${v ?? ''}" class="flex-1 min-w-0 bg-indigo-50 rounded-xl px-4 py-2 text-gray-800" />
-        <button type="button" class="del-btn text-red-500 text-xl px-2" title="刪除欄位">×</button>
-      `;
-      row.querySelector('.del-btn').onclick = () => { delete dynamicData[k]; renderFields(); };
-      fieldsDiv.appendChild(row);
+    // 預覽
+    fileInput.addEventListener('change', () => {
+      const f = fileInput.files?.[0];
+      if (!f) { previewWrap.classList.add('hidden'); return; }
+      const url = URL.createObjectURL(f);
+      previewImg.src = url;
+      previewWrap.classList.remove('hidden');
     });
 
-    const addRow = document.createElement("div");
-    addRow.className = "flex flex-col sm:flex-row gap-2 items-stretch sm:items-center mt-3";
-    addRow.innerHTML = `
-      <input id="add-key" type="text" placeholder="記錄項目" class="sm:w-24 bg-indigo-50 rounded-xl px-3 py-2 text-gray-800" />
-      <input id="add-value" type="text" placeholder="內容或數值" class="flex-1 bg-indigo-50 rounded-xl px-3 py-2 text-gray-800" />
-      <button type="button" class="add-btn text-green-700 text-xl px-2 sm:px-3 py-1.5 sm:py-0" title="新增">＋</button>
-    `;
-    addRow.querySelector(".add-btn").onclick = () => {
-      const key = addRow.querySelector("#add-key").value.trim();
-      const val = addRow.querySelector("#add-value").value.trim();
-      if (!key || !val) return;
-      dynamicData[key] = val;
-      renderFields();
+    // ====== 鍵名歸一化：避免同義重複（中英） ======
+    const keyAliasMap = {
+      '高密度膽固醇': 'HDL',
+      '低密度膽固醇': 'LDL',
+      '總膽固醇': '總膽固醇',
+      '三酸甘油脂': '三酸甘油脂',
+      '血糖': '血糖',
+      '血糖(空腹)': '血糖(空腹)',
+      '血糖(飯後)': '血糖(飯後)',
+      '脈搏': '脈搏',
+      '心率': '脈搏',
+      '血氧': '血氧',
+      '體溫': '體溫',
+      '體重': '體重',
+      '身高': '身高',
+      'BMI': 'BMI',
+      '腰圍': '腰圍',
+      '體脂': '體脂',
+      'GOT(AST)': 'GOT(AST)',
+      'GPT(ALT)': 'GPT(ALT)',
+      '尿酸': '尿酸',
+      'BUN': 'BUN',
+      'Creatinine': 'Creatinine',
+      'eGFR': 'eGFR',
+      // 需要再補可加在這裡
     };
-    fieldsDiv.appendChild(addRow);
-  }
+    function normalizeKey(k){ return keyAliasMap[k] || k; }
 
-  // 編輯模式
-  const params = new URLSearchParams(window.location.search);
-  editId = params.get('id');
-  if (editId && localStorage.getItem('edit_data')) {
-    const saved = JSON.parse(localStorage.getItem('edit_data'));
-    dynamicData = saved.data || {};
-    localStorage.removeItem('edit_data');
-  } else {
-    dynamicData = {};
-  }
-  renderFields();
-
-  // 拍照 → OCR
-  document.querySelector(".photo-btn").addEventListener("click", () => {
-    document.getElementById("photoInput").click();
-  });
-
-document.getElementById("photoInput").addEventListener("change", async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const formData = new FormData();
-  formData.append("image", file, "image.jpg");
-
-  try {
-    const res = await fetch("https://linebot-o8nr.onrender.com/api/ocr", { method: "POST", body: formData });
-    const result = await res.json();
-    const text = result.text || "";
-
-    if (!text && !result.fieldsSuggested) {
-      alert("❌ 無法辨識圖片，請重試或更換照片");
-      return;
-    }
-
-    const before = Object.keys(dynamicData).length;
-
-    // 1) 先吃後端已經幫你整理好的欄位
-    if (result.fieldsSuggested) {
-      Object.entries(result.fieldsSuggested).forEach(([k, v]) => {
-        if (k && v && (!(k in dynamicData) || String(dynamicData[k] ?? "").trim() === "")) {
-          dynamicData[k] = v;
+    // ====== 解析「欄位: 值」的彈性補強 ======
+    function parseOCRResultFlexible(text) {
+      const result = {};
+      if (!text) return result;
+      // 只抓看起來像「欄位: 值」或「欄位 值」
+      const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      for (const line of lines) {
+        // 先用冒號
+        let m = line.match(/^(.{1,30}?)[：:]\s*(.+)$/);
+        if (!m) {
+          // 再試空格切（避免吃到太多：限制鍵長度）
+          m = line.match(/^(.{1,30}?)\s{1,3}(.{1,50})$/);
         }
-      });
-    }
-
-    // 2) 再跑原本的彈性行文解析（包含後端前置的「欄位: 值」行）
-    if (text) {
-      const parsed = parseOCRResultFlexible(text);
-      Object.entries(parsed).forEach(([k, v]) => {
-        if (k && v && (!(k in dynamicData) || String(dynamicData[k] ?? "").trim() === "")) {
-          dynamicData[k] = v;
+        if (m) {
+          const k = normalizeKey(m[1].trim());
+          const v = m[2].trim();
+          if (!k || !v) continue;
+          if (!(k in result) || String(result[k] ?? "").trim() === "") {
+            result[k] = v;
+          }
         }
-      });
-    }
-
-    renderFields();
-
-    const after = Object.keys(dynamicData).length;
-    if (after > before) {
-      alert("📋 已辨識並加入欄位！");
-    } else {
-      // 仍沒有任何欄位 → 把全文放到「原始內容」
-      if (text) {
-        dynamicData['原始內容'] = text.trim();
-        renderFields();
       }
-      alert("⚠️ 有辨識到文字，但尚未解析出欄位。");
-    }
-  } catch (err) {
-    console.error(err);
-    alert("❌ OCR 失敗，請稍後再試");
-  }
-});
-
-
-  // 確認儲存
-  document.querySelector(".confirm-btn").addEventListener("click", async () => {
-    // 再保險：若 userId 還沒到，嘗試重取一次
-    if (!currentUserId) {
-      await resolveUserId();
-      if (!currentUserId) { alert("userId 尚未取得，請改用 LINE 內開啟或稍後再試"); return; }
+      return result;
     }
 
-    const inputs = Array.from(document.querySelectorAll('#dynamic-fields input[data-key]'));
-    const dataToSave = {};
-    inputs.forEach(input => {
-      const k = input.getAttribute('data-key');
-      const v = input.value.trim();
-      if (k && v) dataToSave[k] = v;
+    // ====== 渲染欄位 ======
+    function renderFields() {
+      fieldsEl.innerHTML = "";
+      const keys = Object.keys(dynamicData);
+      if (keys.length === 0) {
+        fieldsEl.innerHTML = '<div class="text-slate-500 text-sm">尚未有資料，請先上傳圖片辨識，或點「＋ 新增欄位」。</div>';
+        return;
+      }
+
+      for (const k of keys) {
+        const v = dynamicData[k] ?? "";
+        const row = document.createElement('div');
+        row.className = "grid grid-cols-12 gap-2 items-center";
+
+        const keyInput = document.createElement('input');
+        keyInput.className = "col-span-5 md:col-span-4 px-3 py-2 rounded-xl border text-slate-800";
+        keyInput.value = k;
+
+        const valInput = document.createElement('input');
+        valInput.className = "col-span-6 md:col-span-7 px-3 py-2 rounded-xl border text-slate-800";
+        valInput.value = v;
+
+        const delBtn = document.createElement('button');
+        delBtn.className = "col-span-1 px-3 py-2 rounded-xl border hover:bg-slate-50";
+        delBtn.textContent = "刪";
+        delBtn.onclick = () => {
+          delete dynamicData[k];
+          renderFields();
+        };
+
+        // 同步編輯
+        keyInput.addEventListener('change', () => {
+          const newK = normalizeKey(keyInput.value.trim());
+          const oldV = dynamicData[k];
+          delete dynamicData[k];
+          if (newK) {
+            // 若新鍵不存在或為空，再寫
+            if (!(newK in dynamicData) || String(dynamicData[newK] ?? "").trim() === "") {
+              dynamicData[newK] = valInput.value.trim();
+            }
+          }
+          renderFields();
+        });
+        valInput.addEventListener('change', () => {
+          dynamicData[keyInput.value.trim()] = valInput.value.trim();
+        });
+
+        row.appendChild(keyInput);
+        row.appendChild(valInput);
+        row.appendChild(delBtn);
+        fieldsEl.appendChild(row);
+      }
+    }
+
+    // ====== 事件：新增、清除、確認 ======
+    btnAdd.addEventListener('click', () => {
+      let base = "自訂欄位";
+      let name = base;
+      let i = 1;
+      while (name in dynamicData) { name = base + (++i); }
+      dynamicData[name] = "";
+      renderFields();
     });
 
-    try {
-      if (editId) {
-        await db.collection("health_records").doc(editId).update({
-          userId: currentUserId,
-          date: formattedDate,
-          data: dataToSave,
-          timestamp: new Date()
-        });
-        alert("✅ 資料已成功更新！");
-      } else {
-        await db.collection("health_records").add({
-          userId: currentUserId,
-          date: formattedDate,
-          data: dataToSave,
-          timestamp: new Date()
-        });
-        alert("✅ 資料成功上傳到 Firebase！");
-      }
-      window.location.href = "ocr_data1.html";
-    } catch (err) {
-      console.error(err);
-      alert("❌ 上傳失敗，請查看 Console");
-    }
-  });
+    btnClear.addEventListener('click', () => {
+      dynamicData = {};
+      renderFields();
+    });
+
+    btnConfirm.addEventListener('click', () => {
+      // 這裡可改成送 Firestore；先示範輸出 JSON
+      const payload = {
+        date: new Date().toISOString(),
+        data: dynamicData,
+        raw: ocrRawText || ""
+      };
+      console.log("確認送出：", payload);
+      alert("✅ 已整理完成（示範）：\n" + JSON.stringify(payload, null, 2));
+      // TODO: 寫入 Firestore 的程式放這裡
+    });
+
+    // ====== 上傳辨識 ======
+    btnUpload.addEventListener('click', async () => {
+      const file = fileInput.files?.[0];
+      if (!file) { statusEl.textContent = "請先選擇圖片檔案"; return; }
+
+      statusEl.textContent = "⏳ 上傳並辨識中…";
+      btnUpload.disabled = true;
+
+      try {
+        const fd = new FormData();
+fd.append("image", file);               // 欄位名一定要叫 image
+
+const resp = await fetch(OCR_API, {    // ← 改成打到完整網址
+  method: 'POST',
+  body: fd
 });
 
-/* === 彈性 OCR 解析（原本就有，保留） === */
-function parseOCRResultFlexible(text) {
-  const data = {};
-  const lines = text
-    .split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
-
-  for (let i = 0; i < lines.length; i++) {
-    let m = lines[i].match(/^([\u4e00-\u9fa5A-Za-z0-9（）()．\.\-／\/\s]+)[：:]\s*(.+)$/);
-    if (m) { const key = m[1].trim().replace(/[．。]$/,''); const val = m[2].trim(); if (key && val) data[key] = val; continue; }
-    let m2 = lines[i].match(/^([\u4e00-\u9fa5A-Za-z0-9（）()．\.\-／\/\s]+)[：:]$/);
-    if (m2 && i + 1 < lines.length) { const key = m2[1].trim().replace(/[．。]$/,''); const val = lines[i + 1].trim(); if (key && val) data[key] = val; i++; }
-  }
-
-  const map = { '藥名':'藥名','品名':'藥名','藥品名稱':'藥名','用法':'用法','服法':'用法','用量':'劑量','劑量':'劑量','天數':'天數','日數':'天數','日期':'日期','開立日期':'日期' };
-  for (const k of Object.keys(data)) { const nk = map[k] || k; if (nk !== k && !(nk in data)) { data[nk] = data[k]; delete data[k]; } }
-
-  if (Object.keys(data).length === 0 && text.trim()) data['原始內容'] = text.trim();
-  return data;
+// 把錯誤內容也提示出來，方便排查
+if (!resp.ok) {
+  let msg = "辨識失敗";
+  try {
+    const e = await resp.json();
+    if (e?.error) msg += "：" + e.error;
+  } catch (_) {}
+  throw new Error(msg);
 }
-</script>
+
+const result = await resp.json();       // 之後照你原流程處理 result
+
+
+        // 後端應回傳：{ ok, text, fieldsSuggested, ... }
+        ocrRawText = result.text || "";
+        fieldsSuggested = result.fieldsSuggested || {};
+
+        // 先吃 fieldsSuggested
+        dynamicData = {};
+        for (const [k, v] of Object.entries(fieldsSuggested)) {
+          const nk = normalizeKey(k);
+          if (nk && v && (!(nk in dynamicData) || String(dynamicData[nk] ?? "").trim() === "")) {
+            dynamicData[nk] = v;
+          }
+        }
+
+        // 再用彈性解析做補強
+        const flexParsed = parseOCRResultFlexible(ocrRawText);
+        for (const [k, v] of Object.entries(flexParsed)) {
+          const nk = normalizeKey(k);
+          if (nk && v && (!(nk in dynamicData) || String(dynamicData[nk] ?? "").trim() === "")) {
+            dynamicData[nk] = v;
+          }
+        }
+
+        // 如果完全沒抓到欄位，至少保留原文備查
+        if (Object.keys(dynamicData).length === 0 && ocrRawText) {
+          dynamicData["原始內容"] = ocrRawText;
+        }
+
+        // 原文區塊
+        if (ocrRawText && ocrRawText.trim().length > 0) {
+          rawTextEl.textContent = ocrRawText;
+          rawBlock.classList.remove('hidden');
+        } else {
+          rawBlock.classList.add('hidden');
+        }
+
+        renderFields();
+        statusEl.textContent = "✅ 完成";
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "❌ 發生錯誤：" + err.message;
+      } finally {
+        btnUpload.disabled = false;
+      }
+    });
+  </script>
 </body>
 </html>
