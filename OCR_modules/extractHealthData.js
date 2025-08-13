@@ -29,6 +29,7 @@ const r1 = x => Math.round(x * 10) / 10;
 
 // 規則庫（含容錯）
 const RX = {
+  // ...原本規則保留，其餘略...
   pairBP: /\b(\d{2,3})\s*\/\s*(\d{2,3})\b/,
   bpLine: /(血壓|BP|收縮壓|舒張壓)/i,
   sbp: /收縮壓[:\s]*?(\d{2,3})/i,
@@ -44,25 +45,29 @@ const RX = {
   waist: /(腰圍)[:\s]*?(\d{2,3}(?:\.\d+)?)\s*(?:cm|公分)?/i,
   fat: /(體脂|Body\s*Fat|BF)[:\s]*?(\d{1,2}(?:\.\d+)?)\s*%/i,
 
+  // 血糖
   glu_f: /(空腹|餐前|飯前).{0,6}?(血糖|GLU|Glucose|FPG|AC)[:\s]*?(\d+(?:\.\d+)?)(?:\s*(mg\/dL|mmol\/L))?/i,
   glu_p: /(飯後|餐後).{0,6}?(血糖|GLU|Glucose|PPG|PC)[:\s]*?(\d+(?:\.\d+)?)(?:\s*(mg\/dL|mmol\/L))?/i,
   glu_any: /(血糖|GLU|Glucose)[:\s]*?(\d+(?:\.\d+)?)(?:\s*(mg\/dL|mmol\/L))?/i,
 
   a1c: /(HbA1c|A1C|糖化血色素)[:\s]*?(\d+(?:\.\d+)?)\s*%/i,
 
-  // 血脂（容錯 Cholestero、mg/d1|mg/dI）
-  tc: /(總膽固醇|血清總膽固醇|Cholester(?:ol)?|TC)\s*[:：]?\s*(\d+(?:\.\d+)?)(?:\s*(?:mg\/?d[l1I]|mmol\/?L))?/i,
-  tg: /(三酸甘油(?:脂|酯)|中性脂肪|Triglycerides?|TG)\s*[:：]?\s*(\d+(?:\.\d+)?)(?:\s*(?:mg\/?d[l1I]|mmol\/?L))?/i,
-  hdl: /(高密度膽固醇|HDL)(?:\s*Cholester(?:ol)?)?\s*[:：]?\s*(\d+(?:\.\d+)?)(?:\s*(?:mg\/?d[l1I]|mmol\/?L))?/i,
-  ldl: /(低密度膽固醇|LDL)\s*[:：]?\s*(\d+(?:\.\d+)?)(?:\s*(?:mg\/?d[l1I]|mmol\/?L))?/i,
+  // ★ 血脂：擴充分身名與連字號變體（TC/T-CHO、TG/T-G、HDL/HDL-C、LDL/LDL-C）
+  tc: /(?:總膽固醇|血清總膽固醇|Cholester(?:ol)?|T-?CHO|TC)\s*[:：]?\s*(\d+(?:\.\d+)?)(?:\s*(?:mg\/?d[l1I]|mmol\/?L))?/i,
+  tg: /(?:三酸甘油(?:脂|酯)|中性脂肪|Triglycerides?|T-?G|TG)\s*[:：]?\s*(\d+(?:\.\d+)?)(?:\s*(?:mg\/?d[l1I]|mmol\/?L))?/i,
+  hdl: /(?:高密度膽固醇|HDL(?:-?C)?)(?:\s*Cholester(?:ol)?)?\s*[:：]?\s*(\d+(?:\.\d+)?)(?:\s*(?:mg\/?d[l1I]|mmol\/?L))?/i,
+  ldl: /(?:低密度膽固醇|LDL(?:-?C)?)(?:\s*Cholester(?:ol)?)?\s*[:：]?\s*(\d+(?:\.\d+)?)(?:\s*(?:mg\/?d[l1I]|mmol\/?L))?/i,
 
-  got: /(GOT|AST)[:\s]*?(\d+(?:\.\d+)?)\s*(?:U\/L)?/i,
-  gpt: /(GPT|ALT)[:\s]*?(\d+(?:\.\d+)?)\s*(?:U\/L)?/i,
+  got: /(GOT|AST|SGOT)\s*[:：]?\s*(\d+(?:\.\d+)?)\s*(?:U\/L)?/i,
+  gpt: /(GPT|ALT|SGPT)\s*[:：]?\s*(\d+(?:\.\d+)?)\s*(?:U\/L)?/i,
 
   ua: /(尿酸|Uric\s*Acid|UA)[:\s]*?(\d+(?:\.\d+)?)/i,
   bun: /(BUN|血尿素氮)[:\s]*?(\d+(?:\.\d+)?)/i,
-  cr: /(肌(?:酸|酐)酐?|Creatinine|Cr)[:\s]*?(\d+(?:\.\d+)?)/i,
+  cr: /(肌(?:酸|酐)酐?|Creatinine|Creat|Cr)[:\s]*?(\d+(?:\.\d+)?)/i,
   egfr: /(eGFR)[:\s]*?(\d+(?:\.\d+)?)/i,
+
+  // ★ 有些報告有「危險因子指數 / Risk」
+  risk: /(危險因子指數|Risk)[:：]?\s*(\d+(?:\.\d+)?)\s*%?/i,
 };
 
 function setField(obj, key, val) {
@@ -150,15 +155,41 @@ function parseHealthMetrics(fullText) {
 }
 
 // 對外：維持舊的介面名稱，但回傳更完整
-function extractHealthData(text) {
-  const parsed = parseHealthMetrics(text);
-  return {
-    fieldsSuggested: parsed.fields,
-    metrics: parsed.metrics,
-    segmentsFallback: parsed.segmentsFallback,
-    lineCount: parsed.lines.length
-  };
+function parseOCRResultFlexible(text) {
+  const result = {};
+  if (!text) return result;
+
+  const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+
+  const keyHints = /^(血壓|血糖(?:\(空腹\)|\(飯後\))?|脈搏|心率|血氧|體溫|體重|身高|BMI|腰圍|體脂|HDL(?:-?C)?|LDL(?:-?C)?|高密度膽固醇|低密度膽固醇|總膽固醇|三酸甘油脂|GOT\(AST\)|GPT\(ALT\)|AST|ALT|SGOT|SGPT|尿酸|BUN|Creatinine|Creat|eGFR|Risk|危險因子指數)$/i;
+  const valueLine = /^([0-9]+(?:\.[0-9]+)?(?:\/[0-9]+(?:\.[0-9]+)?)?)\s*(?:[a-zA-Z%°/]+|mmHg|mg\/dl|g\/dl|bpm)?$/i;
+
+  const normalizeMap = { '心率':'脈搏', '高密度膽固醇':'HDL', '低密度膽固醇':'LDL' };
+  const nk = k => normalizeMap[k] || k;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // 1) 同行：欄位: 值／欄位 值
+    let m = line.match(/^(.{1,30}?)[：:]\s*(.+)$/) || line.match(/^(.{1,30}?)\s{1,3}(.{1,50})$/);
+    if (m) {
+      const key = nk(m[1].trim());
+      const val = m[2].trim();
+      if (key && val && (!(key in result) || String(result[key] ?? '').trim() === '')) result[key] = val;
+      continue;
+    }
+
+    // 2) 換行：這行像欄位，下一行像數值
+    if (keyHints.test(line) && i + 1 < lines.length && valueLine.test(lines[i + 1])) {
+      const key = nk(line);
+      const val = lines[i + 1].trim();
+      if (key && val && (!(key in result) || String(result[key] ?? '').trim() === '')) result[key] = val;
+      i++;
+    }
+  }
+  return result;
 }
+
 
 module.exports = extractHealthData;
 
