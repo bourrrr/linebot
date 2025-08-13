@@ -8,7 +8,7 @@ import {
   doc,
   updateDoc,
   Timestamp,
-  addDoc
+  addDoc,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getStorage,
@@ -24,23 +24,195 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// 🔧 明確指定 bucket（依你後台截圖）
+// 指定 bucket（沿用你的設定）
 const storage = getStorage(app, "gs://medwell-test1.firebasestorage.app");
 
 const container = document.getElementById("myTaskContainer");
+const emptyHint = document.getElementById("emptyStateHint");
 
-// 小工具：安全轉字串
+/* ========================
+   自動完成：參數 & 工具
+======================== */
+const DURATION_MINUTES = 90;
+const GRACE_MINUTES = 30;
+const ENABLE_DB_WRITEBACK = true;
+
+function getTs(t){
+  try{
+    if (!t) return NaN;
+    if (typeof t === "number") return t;
+    if (typeof t === "string") {
+      const ms = Date.parse(t);
+      return isNaN(ms) ? NaN : ms;
+    }
+    if (typeof t.seconds === "number") return t.seconds * 1000 + Math.floor((t.nanoseconds||0)/1e6);
+    if (typeof t.toDate === "function") return t.toDate().getTime();
+    return NaN;
+  }catch{ return NaN; }
+}
+
+function computeStatus(taskData){
+  const startMs = getTs(taskData.time || taskData.appointmentAt);
+  if (isNaN(startMs)) {
+    return (taskData.status || "").toLowerCase() === "completed" ? "done" : "active";
+  }
+  const endMs = getTs(taskData.endAt);
+  const assumedEnd = isNaN(endMs) ? (startMs + DURATION_MINUTES * 60 * 1000) : endMs;
+  const cutoff = assumedEnd + GRACE_MINUTES * 60 * 1000;
+  if ((taskData.status || "").toLowerCase() === "completed") return "done";
+  return (Date.now() >= cutoff) ? "done" : "active";
+}
+
 const safe = (v) => (v === undefined || v === null ? "" : String(v));
-// 小工具：支援 Firestore Timestamp / 毫秒 / ISO
 const fmtTime = (t) => {
-  try {
-    if (!t) return "-";
-    if (t.seconds) return new Date(t.seconds * 1000).toLocaleString();
-    const d = typeof t === "number" ? new Date(t) : new Date(String(t));
-    return isNaN(d.getTime()) ? "-" : d.toLocaleString();
-  } catch { return "-"; }
+  const ms = getTs(t);
+  return isNaN(ms) ? "-" : new Date(ms).toLocaleString();
 };
+const composeAddress = (d) => `${safe(d.city)}${safe(d.district)}${safe(d.road)}`.trim();
 
+/* ========================
+   地圖導航：通用開啟
+======================== */
+function makeMapsUrl({ lat, lng, query, travelMode = "driving" }){
+  let dest = "";
+  if (typeof lat === "number" && typeof lng === "number" && !Number.isNaN(lat) && !Number.isNaN(lng)){
+    dest = `${lat},${lng}`;
+  } else if (query) {
+    dest = encodeURIComponent(query);
+  } else {
+    return "";
+  }
+  return `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=${encodeURIComponent(travelMode)}`;
+}
+
+function getMeetingNavUrl(data){
+  const lat = (typeof data.meetingLat === "number") ? data.meetingLat : undefined;
+  const lng = (typeof data.meetingLng === "number") ? data.meetingLng : undefined;
+  const address = composeAddress(data) || null;
+  return makeMapsUrl({ lat, lng, query: address });
+}
+function getHospitalNavUrl(data){
+  const lat = (typeof data.hospitalLat === "number") ? data.hospitalLat : undefined;
+  const lng = (typeof data.hospitalLng === "number") ? data.hospitalLng : undefined;
+  const query = safe(data.hospital) || composeAddress(data) || null;
+  return makeMapsUrl({ lat, lng, query });
+}
+
+/* ========================
+   導航按鈕樣式（溫暖、低飽和）
+======================== */
+const NAV_BTN_CLASS =
+  "text-white/95 px-3 py-1.5 rounded-xl border border-[var(--border)] shadow-sm transition-colors disabled:opacity-60 hover:brightness-95";
+const NAV_BTN_STYLE = "background: var(--primary-weak);"; // 柔和主色（在頁面 :root 已定義）
+
+/* ========================
+   渲染卡片
+======================== */
+function renderTaskCard(docSnap){
+  const data = docSnap.data();
+  const taskId = docSnap.id;
+
+  const card = document.createElement("div");
+  card.className = "task-card bg-white p-4 rounded-xl shadow space-y-2";
+  card.dataset.taskId = taskId;
+
+  const uiStatus = computeStatus(data);
+  card.dataset.status = uiStatus;
+
+  card.__data = { ...data, id: taskId };
+  card.__autoWriteInFlight = false;
+  card.__autoCompletedPersisted = (data.status || "").toLowerCase() === "completed";
+
+  const meetUrl = getMeetingNavUrl(data);
+  const hospUrl = getHospitalNavUrl(data);
+  const disableHosp = !hospUrl;
+  const disableMeet = !meetUrl;
+
+  card.innerHTML = `
+    <h2 class="task-title text-lg font-bold">📍 ${composeAddress(data) || "未提供地址"}</h2>
+    <p>🏥 醫院名稱：${safe(data.hospital) || "未提供"}</p>
+    <p>🙋‍♂️ 是否陪同進診間：${safe(data.accompany) || "未提供"}</p>
+    <p>類型：${safe(data.type) || "-"}</p>
+    <p>時間：${fmtTime(data.time)}</p>
+    <p>備註：${safe(data.note) || "無"}</p>
+
+    <!-- 導航按鈕列（改成溫暖配色） -->
+    <div class="mt-2 flex flex-wrap gap-2">
+      <button class="nav-meet ${NAV_BTN_CLASS}" style="${NAV_BTN_STYLE}" data-url="${meetUrl || ""}" ${disableMeet ? "disabled" : ""}>🧭 導航到會合地點</button>
+      <button class="nav-hospital ${NAV_BTN_CLASS}" style="background: var(--chip); color: var(--primary);" ...>🏥 導航到醫院</button>
+
+    </div>
+
+    <!-- 上傳回報 -->
+    <div class="mt-2 space-y-2">
+      <input type="file" accept="image/*" data-id="${taskId}" />
+      <progress max="100" value="0" class="hidden w-full h-2 bg-gray-200 rounded" data-id="${taskId}"></progress>
+      <button class="upload-btn bg-green-600 text-white px-4 py-1 rounded" data-id="${taskId}">上傳回報照片</button>
+    </div>
+
+    ${data.photoURL ? `
+      <div class="mt-2">
+        <img src="${data.photoURL}" class="w-32 h-auto rounded object-contain" style="max-height: 200px;" />
+        <button class="delete-photo text-red-500 text-sm mt-1" data-url="${data.photoURL}" data-id="${taskId}">刪除圖片</button>
+      </div>` : ""}
+
+    <p class="text-sm text-gray-500 mt-1">更新時間：${data.updatedAt ? fmtTime(data.updatedAt) : "尚未更新"}</p>
+  `;
+
+  return card;
+}
+
+/* ========================
+   自動結案：寫回 Firestore
+======================== */
+async function persistAutoCompleteIfNeeded(card){
+  if (!ENABLE_DB_WRITEBACK) return;
+  if (card.__autoWriteInFlight || card.__autoCompletedPersisted) return;
+
+  const data = card.__data;
+  const next = computeStatus(data);
+
+  if (next === "done" && (data.status || "").toLowerCase() !== "completed") {
+    try{
+      card.__autoWriteInFlight = true;
+      await updateDoc(doc(db, "requests", data.id), {
+        status: "completed",
+        updatedAt: Timestamp.now(),
+        autoCompleteReason: "time_passed"
+      });
+      data.status = "completed";
+      card.__autoCompletedPersisted = true;
+    }catch(err){
+      console.error("自動結案寫回失敗", err);
+    }finally{
+      card.__autoWriteInFlight = false;
+    }
+  }
+}
+
+/* ========================
+   每分鐘重算狀態（純前端）
+======================== */
+function startStatusRecomputeTimer(){
+  setInterval(() => {
+    const cards = Array.from(container.querySelectorAll(".task-card"));
+    cards.forEach((card) => {
+      const data = card.__data;
+      if (!data) return;
+
+      const next = computeStatus(data);
+      if (card.dataset.status !== next) {
+        card.dataset.status = next;
+      }
+      persistAutoCompleteIfNeeded(card);
+    });
+    window.dispatchEvent(new Event("tasksStatusRecomputed"));
+  }, 60_000);
+}
+
+/* ========================
+   主流程：載入任務並渲染
+======================== */
 onAuthStateChanged(auth, async (user) => {
   try {
     if (!user) {
@@ -59,44 +231,36 @@ onAuthStateChanged(auth, async (user) => {
 
     if (snapshot.empty) {
       container.innerHTML = "<p class='text-center text-gray-500'>目前尚無已接受的任務。</p>";
+      emptyHint && emptyHint.classList.remove("hidden");
       return;
+    } else {
+      emptyHint && emptyHint.classList.add("hidden");
     }
 
     snapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      const card = document.createElement("div");
-      card.className = "bg-white p-4 rounded-xl shadow space-y-2";
-
-      card.innerHTML = `
-        <h2 class="text-lg font-bold">📍 ${safe(data.city)}${safe(data.district)}${safe(data.road)}</h2>
-        <p>🏥 醫院名稱：${safe(data.hospital) || "未提供"}</p>
-        <p>🙋‍♂️ 是否陪同進診間：${safe(data.accompany) || "未提供"}</p>
-        <p>類型：${safe(data.type) || "-"}</p>
-        <p>時間：${fmtTime(data.time)}</p>
-        <p>備註：${safe(data.note) || "無"}</p>
-
-        <input type="file" accept="image/*" data-id="${docSnap.id}" />
-        <progress max="100" value="0" class="hidden w-full h-2 bg-gray-200 rounded" data-id="${docSnap.id}"></progress>
-        <button class="upload-btn bg-green-500 text-white px-4 py-1 rounded" data-id="${docSnap.id}">上傳回報照片</button>
-
-        ${data.photoURL ? `
-          <div class="mt-2">
-            <img src="${data.photoURL}" class="w-32 h-auto rounded object-contain" style="max-height: 200px;" />
-            <button class="delete-photo text-red-500 text-sm mt-1" data-url="${data.photoURL}" data-id="${docSnap.id}">刪除圖片</button>
-          </div>` : ""}
-
-        <p class="text-sm text-gray-500 mt-1">更新時間：${data.updatedAt ? fmtTime(data.updatedAt) : "尚未更新"}</p>
-      `;
-
+      const card = renderTaskCard(docSnap);
       container.appendChild(card);
     });
 
-    // 事件委派：上傳 / 刪除
+    Array.from(container.querySelectorAll(".task-card")).forEach(persistAutoCompleteIfNeeded);
+    startStatusRecomputeTimer();
+
+    /* === 事件委派：導航 / 上傳 / 刪除 === */
     container.addEventListener("click", async (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+
+      // 導航
+      if (btn.classList.contains("nav-meet") || btn.classList.contains("nav-hospital")) {
+        const url = btn.dataset.url;
+        if (!url) { alert("找不到此地點資訊，請確認任務地址或醫院名稱。"); return; }
+        window.open(url, "_blank", "noopener");
+        return;
+      }
+
       // 上傳
-      const uploadBtn = e.target.closest(".upload-btn");
-      if (uploadBtn) {
-        const taskId = uploadBtn.dataset.id;
+      if (btn.classList.contains("upload-btn")) {
+        const taskId = btn.dataset.id;
         const input = container.querySelector(`input[data-id="${taskId}"]`);
         const file = input && input.files && input.files[0];
         const progress = container.querySelector(`progress[data-id="${taskId}"]`);
@@ -124,14 +288,12 @@ onAuthStateChanged(auth, async (user) => {
             async () => {
               const photoURL = await getDownloadURL(uploadTask.snapshot.ref);
 
-              // 更新 requests
               await updateDoc(doc(db, "requests", taskId), {
                 photoURL,
                 status: "completed",
                 updatedAt: Timestamp.now()
               });
 
-              // 新增 my_task 紀錄（避免爆量，你之後可改為 setDoc 覆蓋）
               await addDoc(collection(db, "my_task"), {
                 taskId,
                 volunteerId: user.uid,
@@ -152,13 +314,11 @@ onAuthStateChanged(auth, async (user) => {
         return;
       }
 
-      // 刪除
-      const delBtn = e.target.closest(".delete-photo");
-      if (delBtn) {
-        const url = delBtn.dataset.url;
-        const taskId = delBtn.dataset.id;
+      // 刪除回報照片
+      if (btn.classList.contains("delete-photo")) {
+        const url = btn.dataset.url;
+        const taskId = btn.dataset.id;
         try {
-          // 下載 URL 也能用 ref(storage, url) 取得參考
           const fileRef = ref(storage, url);
           await deleteObject(fileRef);
 
@@ -175,6 +335,36 @@ onAuthStateChanged(auth, async (user) => {
         }
       }
     });
+
+    // 快速上傳回報（配合 my-tasks.html）
+    window.handleQuickReportUpload = async (taskId, files) => {
+      if (!files || !files.length) throw new Error("沒有選擇檔案");
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const ext = (file.name.split(".").pop() || "png").toLowerCase();
+        const fileName = `${taskId}_${Date.now()}_${i}.${ext}`;
+        const storageRef = ref(storage, `my_task/${taskId}/${fileName}`);
+        await uploadBytesResumable(storageRef, file);
+        const url = await getDownloadURL(storageRef);
+
+        if (i === 0) {
+          await updateDoc(doc(db, "requests", taskId), {
+            photoURL: url,
+            status: "completed",
+            updatedAt: Timestamp.now()
+          });
+        }
+        await addDoc(collection(db, "my_task"), {
+          taskId,
+          volunteerId: auth.currentUser?.uid || "",
+          photoURL: url,
+          status: "completed",
+          updatedAt: Timestamp.now()
+        });
+      }
+      location.reload();
+    };
+
   } catch (err) {
     console.error("頁面初始化錯誤：", err);
     alert("載入任務失敗，請開 F12 → Console 給我錯誤訊息。");

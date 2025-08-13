@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📕 我的圖鑑 - MakeWell</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="https://static.line-scdn.net/liff/edge/2.1/sdk.js"></script>
+  <style>
+    body { background-color: #efede9; color: #363636; font-family: sans-serif; padding: 20px; }
+    h1, h2 { text-align: center; color: #588157; }
+    .card-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+    }
+    .card {
+      border: 2px solid #dad7cd;
+      border-radius: 8px;
+      padding: 8px;
+      background: #fff;
+      width: 120px;
+      text-align: center;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.08);
+    }
+    .card img {
+      display: block;
+      margin: auto;
+      max-width: 100px;
+    }
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px;
+      border-bottom: 1px solid #dad7cd;
+      background: #f9f9f9;
+    }
+    .history-item img {
+      width: 50px;
+      border-radius: 4px;
+    }
+    .history-text {
+      flex: 1;
+    }
+    .btn-back {
+      display: block;
+      margin: 20px auto;
+      background: #659963de;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .btn-back:hover {
+      background: #588157;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📕 我的長輩圖圖鑑</h1>
+
+    <!-- 圖鑑區 -->
+    <section>
+      <h2>我的圖鑑</h2>
+      <div id="collectionDisplay" class="card-grid"></div>
+      <p id="totalCount" style="text-align:center; margin-top:10px;"></p>
+    </section>
+
+    <!-- 歷史紀錄區 -->
+    <section style="margin-top: 30px;">
+      <h2>抽卡歷史紀錄</h2>
+      <div id="historyDisplay"></div>
+    </section>
+
+    <button class="btn-back" onclick="location.href='indexcard.html'">← 回到抽卡</button>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      await liff.init({ liffId: "你的 LIFF ID" });
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+      const profile = await liff.getProfile();
+      const userId = profile.userId;
+
+      // ===== Firebase 設定 =====
+      const firebaseConfig = {
+        apiKey: "AIzaSyCCUzkxpn1quR9PPSBeZBGGl7XVh8vPzjY",
+        authDomain: "medwell-test1.firebaseapp.com",
+        projectId: "medwell-test1",
+        storageBucket: "medwell-test1.appspot.com", // 修正 Storage Bucket
+        messagingSenderId: "860851688843",
+        appId: "1:860851688843:web:622eb8feccad45ce640b8e"
+      };
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.firestore();
+
+      loadCollection(userId);
+      loadHistory(userId);
+
+      // 載入圖鑑
+      function loadCollection(userId) {
+        const cardGrid = document.getElementById('collectionDisplay');
+        const totalCountEl = document.getElementById('totalCount');
+        cardGrid.innerHTML = '';
+
+        db.collection('card_collection')
+          .where('userId', '==', userId)
+          .get()
+          .then(snapshot => {
+            let cardsArr = [];
+            let total = 0;
+
+            snapshot.forEach(doc => {
+              const data = doc.data();
+              total += data.count;
+              cardsArr.push(data);
+            });
+
+            // 稀有度排序：超稀有 > 稀有 > 普通
+            const rarityOrder = { '超稀有': 1, '稀有': 2, '普通': 3 };
+            cardsArr.sort((a, b) => {
+              const rarityDiff = rarityOrder[a.rarity] - rarityOrder[b.rarity];
+              if (rarityDiff !== 0) return rarityDiff;
+              return a.cardName.localeCompare(b.cardName, 'zh-Hant');
+            });
+
+            // 顯示
+            cardsArr.forEach(data => {
+              const div = document.createElement('div');
+              div.className = 'card';
+              div.setAttribute('data-rarity', data.rarity);
+              div.innerHTML = `
+                <img src="${data.image}" alt="${data.cardName}" />
+                <h4>${data.cardName}</h4>
+                <p>數量：${data.count}</p>
+              `;
+              cardGrid.appendChild(div);
+            });
+
+            totalCountEl.textContent = total > 0 ? `📈 總收集數量：${total} 張` : '目前尚未收集到任何卡片';
+          });
+      }
+
+      // 載入抽卡歷史
+      function loadHistory(userId) {
+        const historyDisplay = document.getElementById('historyDisplay');
+        historyDisplay.innerHTML = '';
+
+        db.collection('draw_history')
+          .where('userId', '==', userId)
+          .orderBy('timestamp', 'desc')
+          .get()
+          .then(snapshot => {
+            if (snapshot.empty) {
+              historyDisplay.innerHTML = '<p>目前沒有抽卡紀錄</p>';
+              return;
+            }
+
+            let historyArr = [];
+            snapshot.forEach(doc => {
+              historyArr.push(doc.data());
+            });
+
+            // 稀有度排序
+            const rarityOrder = { '超稀有': 1, '稀有': 2, '普通': 3 };
+            historyArr.sort((a, b) => {
+              const rarityDiff = rarityOrder[a.rarity] - rarityOrder[b.rarity];
+              if (rarityDiff !== 0) return rarityDiff;
+              return (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0);
+            });
+
+            historyArr.forEach(data => {
+              const div = document.createElement('div');
+              div.className = 'history-item';
+              div.innerHTML = `
+                <img src="${data.image}" alt="${data.cardName}" />
+                <div class="history-text">
+                  <strong>${data.cardName}</strong>（${data.rarity}）
+                  <br>
+                  ${data.timestamp ? data.timestamp.toDate().toLocaleString() : ''}
+                </div>
+              `;
+              historyDisplay.appendChild(div);
+            });
+          });
+      }
+    });
+  </script>
+</body>
+</html>

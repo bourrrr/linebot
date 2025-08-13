@@ -1,168 +1,254 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <title>個人資訊</title>
+  <meta charset="UTF-8" />
+  <title>志工個人資訊 - MakeWell</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --bg:#efede9; --bg-2:#dad7cd;
+      --text:#363636; --muted:#6e746e;
+      --primary:#588157; --primary-weak:#659963de;
+      --surface:#ffffff; --chip:#f4f3ef; --border:#e7e5dc;
+    }
+    body{ background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%); color:var(--text); }
+    .card{ background:var(--surface); border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,.06); }
+    .h-divider{ height:1px; width:100%; background:linear-gradient(to right, transparent, var(--border), transparent); }
+    .field{ display:flex; flex-direction:column; gap:.35rem; }
+    .label{ font-weight:800; }
+    .input, .select{
+      width:100%; border:1px solid var(--border); background:#fff; border-radius:14px;
+      padding:.7rem .9rem; font-size:15px; outline:none;
+    }
+    .input:focus, .select:focus{ box-shadow:0 0 0 3px rgba(101,153,99,.25); }
+    .badge{ display:inline-flex; align-items:center; gap:.4rem; padding:.35rem .6rem; border-radius:999px; font-weight:800; font-size:.8rem; background:var(--chip); border:1px solid var(--border); color:var(--primary); }
+    .btn-ghost{
+      border:1px solid var(--border); background:#fff; border-radius:9999px;
+      padding:.6rem .9rem; font-weight:800; transition:.15s transform,.15s filter;
+    }
+    .btn-ghost:hover{ transform:translateY(-1px); filter:brightness(.98); }
+    .btn-primary{
+      background:var(--primary); color:#fff; font-weight:800;
+      padding:.9rem 1.1rem; border-radius:9999px; transition:.15s transform,.15s filter;
+    }
+    .btn-primary:hover{ transform:translateY(-1px); filter:brightness(.98); }
+    .btn-primary[disabled]{ opacity:.55; cursor:not-allowed; transform:none; filter:none; }
+    .section-title{ font-weight:900; display:flex; align-items:center; gap:.6rem; }
+    .dot{ width:.55rem; height:.55rem; border-radius:999px; background:var(--primary); opacity:.8; }
+  </style>
+</head>
+<body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
+  <div class="mx-auto max-w-[1120px]">
+    <div class="card rounded-3xl p-8 md:p-12 min-h-[82vh] md:min-h-[86vh]">
+      <!-- Header -->
+      <header class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div class="flex items-center gap-5">
+          <img src="MakeWell.jpg" alt="MakeWell Logo"
+               class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
+          <div>
+            <h1 class="text-3xl md:text-4xl font-extrabold leading-tight">志工個人資訊</h1>
+            <p class="text-sm md:text-base mt-1" style="color:var(--muted)">更新你的聯絡方式與可服務地區。</p>
+          </div>
+        </div>
+        <a href="volunteer.html" class="btn-ghost text-sm md:text-base">← 回志工中心</a>
+      </header>
+
+      <div class="mt-8 h-divider"></div>
+
+      <!-- 表單 -->
+      <main class="mt-8 md:mt-10">
+        <!-- 基本資料 -->
+        <section>
+          <h2 class="section-title text-xl"><span class="dot"></span> 基本資料 <span id="roleBadge" class="badge hidden">志工</span></h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
+            <div class="field">
+              <label for="name" class="label">姓名</label>
+              <input id="name" type="text" class="input" placeholder="王志工">
+            </div>
+            <div class="field">
+              <label for="phone" class="label">手機號碼</label>
+              <input id="phone" type="tel" class="input" placeholder="0912-345-678">
+            </div>
+            <div class="field">
+              <label for="emergencyName" class="label">緊急聯絡人姓名</label>
+              <input id="emergencyName" type="text" class="input" placeholder="王媽媽">
+            </div>
+            <div class="field">
+              <label for="emergencyPhone" class="label">緊急聯絡人電話</label>
+              <input id="emergencyPhone" type="tel" class="input" placeholder="0912-000-000">
+            </div>
+          </div>
+        </section>
+
+        <!-- 志工資訊 -->
+        <section class="mt-10">
+          <h2 class="section-title text-xl"><span class="dot"></span> 志工資訊</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
+            <div class="field">
+              <label for="city" class="label">縣市</label>
+              <select id="city" class="select">
+                <option value="" disabled selected>請選擇縣市</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="district" class="label">行政區</label>
+              <select id="district" class="select" disabled>
+                <option value="" disabled selected>請先選縣市</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="idCard" class="label">身分證字號</label>
+              <input id="idCard" type="text" class="input" placeholder="A123456789">
+            </div>
+            <div class="field">
+              <label for="police" class="label">良民證編號</label>
+              <input id="police" type="text" class="input" placeholder="POL-2025-XXXX">
+            </div>
+            <div class="field">
+              <label for="hours" class="label">志工時數</label>
+              <input id="hours" type="number" min="0" class="input" placeholder="0">
+            </div>
+          </div>
+        </section>
+
+        <!-- 儲存 -->
+        <div class="mt-12 text-center">
+          <button id="saveBtn" class="btn-primary inline-flex items-center justify-center px-8">儲存變更</button>
+          <p id="saveHint" class="mt-3 text-sm" style="color:var(--muted)"></p>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Firebase 腳本（放頁尾，避免取不到元素） -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, collection, query, where, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import {
+      getFirestore, doc, getDoc, setDoc, updateDoc,
+      collection, query, where, getDocs
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import { firebaseConfig } from './firebase-config.js';
-    import { cityDistricts } from './district-data.js';
+    import { firebaseConfig } from "./firebase-config.js";
+    import { cityDistricts } from "./district-data.js";
 
+    // 初始化
     const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    const db  = getFirestore(app);
     const auth = getAuth(app);
 
-    const saveBtn = document.getElementById("saveBtn");
+    // DOM
+    const el = (id) => document.getElementById(id);
+    const roleBadge = el('roleBadge');
+    const citySel = /** @type {HTMLSelectElement} */(el('city'));
+    const districtSel = /** @type {HTMLSelectElement} */(el('district'));
+    const saveBtn = el('saveBtn');
+    const saveHint = el('saveHint');
+
     let userDocRef = null;
 
-    const citySelect = document.getElementById("city");
-    const districtSelect = document.getElementById("district");
-
-    citySelect.addEventListener("change", () => {
-      const selectedCity = citySelect.value;
-      districtSelect.innerHTML = '<option value="">請選擇行政區</option>';
-      if (cityDistricts[selectedCity]) {
-        cityDistricts[selectedCity].forEach(d => {
-          const opt = document.createElement("option");
-          opt.value = d;
-          opt.textContent = d;
-          districtSelect.appendChild(opt);
-        });
-        districtSelect.disabled = false;
-      } else {
-        districtSelect.disabled = true;
+    // 城市/行政區
+    function fillCities(){
+      citySel.innerHTML = '<option value="" disabled selected>請選擇縣市</option>';
+      Object.keys(cityDistricts).forEach(c => citySel.appendChild(new Option(c, c)));
+    }
+    function fillDistricts(city, selected=''){
+      districtSel.innerHTML = '';
+      const list = cityDistricts[city] || [];
+      if (!list.length){
+        districtSel.innerHTML = '<option value="" disabled selected>請先選縣市</option>';
+        districtSel.disabled = true; return;
       }
-    });
+      districtSel.disabled = false;
+      districtSel.appendChild(new Option('請選擇行政區', '', true, false));
+      list.forEach(d => districtSel.appendChild(new Option(d, d, false, d===selected)));
+    }
+    citySel.addEventListener('change', () => { fillDistricts(citySel.value); districtSel.focus(); });
 
-    onAuthStateChanged(auth, async user => {
-      if (user) {
-        const q = query(collection(db, "users"), where("uid", "==", user.uid));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          const docSnap = querySnapshot.docs[0];
-          const data = docSnap.data();
-          userDocRef = doc(db, "users", docSnap.id);
+    // 載入使用者資料
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) { location.href = "login.html"; return; }
+      fillCities();
 
-          document.getElementById("name").value = data.name || "";
-          document.getElementById("phone").value = data.phone || "";
-          document.getElementById("emergencyName").value = data.emergencyName || "";
-          document.getElementById("emergencyPhone").value = data.emergencyPhone || "";
+      try{
+        // 先用 users/{uid} 嘗試，沒有再 query uid 欄位
+        userDocRef = doc(db, 'users', user.uid);
+        let snap = await getDoc(userDocRef);
 
-          if (data.role === "volunteer") {
-            document.getElementById("idCard").value = data.idCard || "";
-            document.getElementById("police").value = data.police || "";
-            document.getElementById("hours").value = data.hours || 0;
-            citySelect.value = data.city || "";
-            citySelect.dispatchEvent(new Event("change"));
-
-            const waitForDistrictOptions = () => {
-              if (districtSelect.options.length > 1) {
-                districtSelect.value = data.district || "";
-              } else {
-                setTimeout(waitForDistrictOptions, 50);
-              }
-            };
-            waitForDistrictOptions();
+        if (!snap.exists()) {
+          const q = query(collection(db, 'users'), where('uid', '==', user.uid));
+          const qs = await getDocs(q);
+          if (!qs.empty) {
+            userDocRef = doc(db, 'users', qs.docs[0].id);
+            snap = await getDoc(userDocRef);
+          } else {
+            // 第一次登入：建立基本文件
+            await setDoc(userDocRef, { uid: user.uid, role: 'volunteer' });
+            snap = await getDoc(userDocRef);
           }
         }
-      } else {
-        window.location.href = "login.html";
+
+        const data = snap.data() || {};
+        // 角色徽章
+        roleBadge.textContent = (data.role === 'volunteer') ? '志工' : (data.role || '使用者');
+        roleBadge.classList.remove('hidden');
+
+        // 基本資料
+        el('name').value = data.name || '';
+        el('phone').value = data.phone || '';
+        el('emergencyName').value = data.emergencyName || '';
+        el('emergencyPhone').value = data.emergencyPhone || '';
+
+        // 志工資料
+        el('idCard').value = data.idCard || '';
+        el('police').value = data.police || '';
+        el('hours').value = (data.hours ?? 0);
+        if (data.city){
+          citySel.value = data.city;
+          fillDistricts(data.city, data.district || '');
+        } else {
+          fillDistricts('', '');
+        }
+      }catch(err){
+        console.error(err);
+        alert('讀取個人資料失敗，請稍後再試');
       }
     });
 
-    saveBtn.addEventListener("click", async () => {
-      const updates = {
-        name: document.getElementById("name").value,
-        phone: document.getElementById("phone").value,
-        emergencyName: document.getElementById("emergencyName").value,
-        emergencyPhone: document.getElementById("emergencyPhone").value,
-        idCard: document.getElementById("idCard").value,
-        police: document.getElementById("police").value,
-        hours: Number(document.getElementById("hours").value),
-        city: document.getElementById("city").value,
-        district: document.getElementById("district").value
-      };
+    // 儲存
+    saveBtn.addEventListener('click', async () => {
+      if (!userDocRef) return;
 
-      if (userDocRef) {
+      try{
+        saveBtn.setAttribute('disabled','true');
+        saveHint.textContent = '儲存中…';
+
+        const updates = {
+          name: el('name').value.trim(),
+          phone: el('phone').value.trim(),
+          emergencyName: el('emergencyName').value.trim(),
+          emergencyPhone: el('emergencyPhone').value.trim(),
+          idCard: el('idCard').value.trim(),
+          police: el('police').value.trim(),
+          hours: Number(el('hours').value || 0),
+          city: citySel.value || '',
+          district: districtSel.disabled ? '' : (districtSel.value || '')
+        };
+
+        // 簡單驗證（可依需求放寬/加強）
+        if (!updates.city){ saveHint.textContent = '⚠️ 請選擇縣市'; saveBtn.removeAttribute('disabled'); return; }
+        if (!updates.district){ saveHint.textContent = '⚠️ 請選擇行政區'; saveBtn.removeAttribute('disabled'); return; }
+
         await updateDoc(userDocRef, updates);
-        alert("✅ 資料已更新！");
+        saveHint.textContent = '✅ 資料已更新！';
+        setTimeout(()=> saveHint.textContent = '', 2000);
+      }catch(err){
+        console.error(err);
+        saveHint.textContent = '❌ 儲存失敗，請稍後再試';
+      }finally{
+        saveBtn.removeAttribute('disabled');
       }
     });
   </script>
-</head>
-<body class="bg-gray-50 min-h-screen flex flex-col items-center justify-center p-4 sm:p-6">
-  <div class="bg-white p-6 rounded-2xl shadow-md w-full max-w-md">
-    <h2 class="text-xl sm:text-2xl font-bold mb-4 text-center">編輯個人資訊</h2>
-    <div class="space-y-4 text-gray-800 mb-6">
-      <div>
-        <label class="block font-semibold mb-1">姓名</label>
-        <input id="name" class="w-full border p-2 rounded" type="text">
-      </div>
-      <div>
-        <label class="block font-semibold mb-1">手機號碼</label>
-        <input id="phone" class="w-full border p-2 rounded" type="text">
-      </div>
-      <div>
-        <label class="block font-semibold mb-1">緊急聯絡人姓名</label>
-        <input id="emergencyName" class="w-full border p-2 rounded" type="text">
-      </div>
-      <div>
-        <label class="block font-semibold mb-1">緊急聯絡人電話</label>
-        <input id="emergencyPhone" class="w-full border p-2 rounded" type="text">
-      </div>
-
-      <div id="volunteerFields">
-        <label class="block font-semibold mb-1">縣市</label>
-        <select id="city" class="w-full border p-2 rounded mb-2">
-          <option value="">請選擇縣市</option>
-          <option value="基隆市">基隆市</option>
-          <option value="臺北市">臺北市</option>
-          <option value="新北市">新北市</option>
-          <option value="桃園市">桃園市</option>
-          <option value="新竹市">新竹市</option>
-          <option value="新竹縣">新竹縣</option>
-          <option value="苗栗縣">苗栗縣</option>
-          <option value="臺中市">臺中市</option>
-          <option value="彰化縣">彰化縣</option>
-          <option value="南投縣">南投縣</option>
-          <option value="雲林縣">雲林縣</option>
-          <option value="嘉義市">嘉義市</option>
-          <option value="嘉義縣">嘉義縣</option>
-          <option value="臺南市">臺南市</option>
-          <option value="高雄市">高雄市</option>
-          <option value="屏東縣">屏東縣</option>
-          <option value="宜蘭縣">宜蘭縣</option>
-          <option value="花蓮縣">花蓮縣</option>
-          <option value="臺東縣">臺東縣</option>
-          <option value="澎湖縣">澎湖縣</option>
-          <option value="金門縣">金門縣</option>
-          <option value="連江縣">連江縣</option>
-        </select>
-
-        <label class="block font-semibold mb-1">行政區</label>
-        <select id="district" class="w-full border p-2 rounded mb-2" disabled>
-          <option value="">請選擇行政區</option>
-        </select>
-
-        <label class="block font-semibold mb-1 mt-2">身分證號</label>
-        <input id="idCard" class="w-full border p-2 rounded" type="text">
-        <label class="block font-semibold mb-1">良民證編號</label>
-        <input id="police" class="w-full border p-2 rounded" type="text">
-        <label class="block font-semibold mb-1">志工時數</label>
-        <input id="hours" class="w-full border p-2 rounded" type="number">
-      </div>
-    </div>
-
-    <div class="text-center space-y-2">
-      <button id="saveBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">儲存變更</button><br>
-    </div>
-    <div class="text-center mt-4">
-      <a href="volunteer.html" class="text-blue-500 hover:underline">← 回首頁</a>
-    </div>
-  </div>
 </body>
 </html>

@@ -1,10 +1,82 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <title>歷史紀錄</title>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>歷史紀錄 - MakeWell</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --bg:#efede9; --bg-2:#dad7cd;
+      --text:#363636; --muted:#6e746e;
+      --primary:#588157; --primary-weak:#659963de;
+      --surface:#ffffff; --chip:#f4f3ef; --border:#e7e5dc;
+    }
+    body{ background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%); color:var(--text); }
+    .card{ background:var(--surface); border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,.06); }
+    .badge{ display:inline-flex; align-items:center; gap:6px; padding:.35rem .65rem; border-radius:999px; font-weight:700; font-size:.85rem; background:var(--chip); border:1px solid var(--border); }
+    .badge.green{ background:rgba(88,129,87,.08); border-color:rgba(88,129,87,.25); color:var(--primary); }
+    .btn-link{ color:var(--primary); font-weight:700; }
+    .h-divider{ height:1px; width:100%; background:linear-gradient(to right, transparent, var(--border), transparent); }
+    .section-title{ display:flex; align-items:center; gap:.6rem; font-weight:800; }
+    .dot{ width:.6rem; height:.6rem; border-radius:999px; background:var(--primary); opacity:.75; }
+  </style>
+</head>
+<body class="min-h-screen p-4 flex items-center justify-center">
+  <div class="w-full max-w-4xl card rounded-3xl overflow-hidden">
+    <!-- Header -->
+    <div class="p-6 sm:p-8 border-b border-[var(--border)]">
+      <div class="flex flex-col gap-4 sm:gap-3">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <h1 class="text-3xl sm:text-4xl font-extrabold leading-tight">📜 歷史紀錄</h1>
+            <p class="text-[15px] sm:text-[16px] mt-1" style="color:var(--muted)">查看你已發布的協助請求，依「領藥／陪診」快速篩選。</p>
+          </div>
+
+          <div class="flex items-center gap-3 w-full sm:w-auto">
+            <a href="home.html" class="btn-link underline whitespace-nowrap">← 回首頁</a>
+            <!-- 篩選下拉 -->
+            <label class="sr-only" for="typeFilter">篩選</label>
+            <select id="typeFilter" class="w-full sm:w-44 rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-[15px]">
+              <option value="all">全部</option>
+              <option value="pickup">領藥</option>
+              <option value="accompany">陪診</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6 sm:p-8">
+      <div id="loading" class="text-center text-sm" style="color:var(--muted)">載入中…</div>
+      <div id="emptyAll" class="hidden text-center text-[15px]" style="color:var(--muted)">目前沒有紀錄</div>
+
+      <!-- 全部：分兩個區塊 -->
+      <div id="allWrapper" class="hidden space-y-8">
+        <section>
+          <h2 class="section-title text-xl"><span class="dot"></span> 領藥 <span id="countPickupAll" class="text-sm font-semibold" style="color:var(--muted)"></span></h2>
+          <div id="pickupListAll" class="grid gap-4 mt-3"></div>
+          <div id="emptyPickupAll" class="hidden text-sm mt-2" style="color:var(--muted)">沒有「領藥」紀錄</div>
+        </section>
+        <div class="h-divider"></div>
+        <section>
+          <h2 class="section-title text-xl"><span class="dot"></span> 陪診 <span id="countAccompanyAll" class="text-sm font-semibold" style="color:var(--muted)"></span></h2>
+          <div id="accompanyListAll" class="grid gap-4 mt-3"></div>
+          <div id="emptyAccompanyAll" class="hidden text-sm mt-2" style="color:var(--muted)">沒有「陪診」紀錄</div>
+        </section>
+      </div>
+
+      <!-- 單一類別：共用容器 -->
+      <div id="singleWrapper" class="hidden">
+        <h2 id="singleTitle" class="section-title text-xl"><span class="dot"></span> <span id="singleLabel">—</span> <span id="singleCount" class="text-sm font-semibold" style="color:var(--muted)"></span></h2>
+        <div id="singleList" class="grid gap-4 mt-3"></div>
+        <div id="emptySingle" class="hidden text-sm mt-2" style="color:var(--muted)">目前沒有符合的紀錄</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -14,53 +86,161 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    const listContainer = document.getElementById('recordList');
+
+    const loadingEl = document.getElementById('loading');
+    const emptyAllEl = document.getElementById('emptyAll');
+
+    // All mode elements
+    const allWrapper = document.getElementById('allWrapper');
+    const pickupListAll = document.getElementById('pickupListAll');
+    const accompanyListAll = document.getElementById('accompanyListAll');
+    const emptyPickupAll = document.getElementById('emptyPickupAll');
+    const emptyAccompanyAll = document.getElementById('emptyAccompanyAll');
+    const countPickupAll = document.getElementById('countPickupAll');
+    const countAccompanyAll = document.getElementById('countAccompanyAll');
+
+    // Single mode elements
+    const singleWrapper = document.getElementById('singleWrapper');
+    const singleLabel = document.getElementById('singleLabel');
+    const singleList = document.getElementById('singleList');
+    const emptySingle = document.getElementById('emptySingle');
+    const singleCount = document.getElementById('singleCount');
+
+    const typeFilter = document.getElementById('typeFilter');
+
+    let allRecords = [];
 
     onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        window.location.href = 'login.html';
-        return;
+      if (!user) { window.location.href = 'login.html'; return; }
+      try{
+        const snap = await getDocs(collection(db, 'users', user.uid, 'records'));
+        allRecords = [];
+        snap.forEach(doc => allRecords.push(doc.data()));
+
+        // 依時間排序（新到舊）
+        allRecords.sort((a,b) => (getTs(b.time) - getTs(a.time)));
+
+        loadingEl.classList.add('hidden');
+
+        if (allRecords.length === 0) {
+          emptyAllEl.classList.remove('hidden');
+          return;
+        }
+
+        renderByFilter(typeFilter.value);
+      }catch(err){
+        loadingEl.textContent = '讀取失敗，請稍後重試';
+        console.error(err);
       }
-
-      const snapshot = await getDocs(collection(db, 'users', user.uid, 'records'));
-      if (snapshot.empty) {
-        listContainer.innerHTML = `<p class="text-gray-500 text-center mt-4">目前沒有紀錄</p>`;
-        return;
-      }
-
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        const timeStr = data.time ? new Date(data.time).toLocaleString() : '無時間';
-        const address = `${data.city || ''}${data.district || ''}${data.road || ''}`;
-        const note = data.note || '無';
-        const hospital = data.hospital || '無';
-        const accompany = data.accompany || '';
-        const prescriptionURL = data.prescriptionURL || '';
-
-        const card = document.createElement('div');
-        card.className = 'bg-white p-4 rounded-xl shadow space-y-1 mb-4';
-
-        card.innerHTML = `
-          <div class="text-sm text-gray-500">⏰ ${timeStr}</div>
-          <div class="font-bold text-lg">📌 類型：${data.type || '未分類'}</div>
-          <div class="text-sm">📍 地址：${address}</div>
-          <div class="text-sm">🏥 醫院：${hospital}</div>
-          ${accompany ? `<div class="text-sm">🙋‍♂️ 陪同進診間：${accompany}</div>` : ''}
-          <div class="text-sm">📝 備註：${note}</div>
-          ${prescriptionURL ? `<div><img src="${prescriptionURL}" alt="處方簽" class="w-32 mt-2 rounded border" /></div>` : ''}
-        `;
-        listContainer.appendChild(card);
-      });
     });
+
+    typeFilter.addEventListener('change', () => {
+      renderByFilter(typeFilter.value);
+    });
+
+    function renderByFilter(mode){
+      // 清空
+      [pickupListAll, accompanyListAll, singleList].forEach(el => el.innerHTML = '');
+      [emptyPickupAll, emptyAccompanyAll, emptySingle].forEach(el => el.classList.add('hidden'));
+      emptyAllEl.classList.add('hidden');
+
+      if (mode === 'all'){
+        singleWrapper.classList.add('hidden');
+        allWrapper.classList.remove('hidden');
+
+        const pickups = allRecords.filter(r => classify(r.type) === 'pickup');
+        const accompanies = allRecords.filter(r => classify(r.type) === 'accompany');
+
+        countPickupAll.textContent = `（${pickups.length} 筆）`;
+        countAccompanyAll.textContent = `（${accompanies.length} 筆）`;
+
+        pickups.forEach(r => pickupListAll.appendChild(buildCard(r)));
+        accompanies.forEach(r => accompanyListAll.appendChild(buildCard(r)));
+
+        if (pickups.length === 0) emptyPickupAll.classList.remove('hidden');
+        if (accompanies.length === 0) emptyAccompanyAll.classList.remove('hidden');
+
+        if (pickups.length === 0 && accompanies.length === 0) emptyAllEl.classList.remove('hidden');
+      }else{
+        allWrapper.classList.add('hidden');
+        singleWrapper.classList.remove('hidden');
+
+        const label = (mode === 'pickup') ? '領藥' : '陪診';
+        singleLabel.textContent = label;
+
+        const list = allRecords.filter(r => classify(r.type) === mode);
+        singleCount.textContent = `（${list.length} 筆）`;
+
+        list.forEach(r => singleList.appendChild(buildCard(r)));
+        if (list.length === 0) emptySingle.classList.remove('hidden');
+      }
+    }
+
+    function classify(typeVal){
+      const t = String(typeVal || '').trim();
+      if (/領藥/.test(t)) return 'pickup';
+      if (/陪診/.test(t)) return 'accompany';
+      // 若未標註但 hospital 有值、accompany 為空，推測領藥；反之推測陪診
+      // 僅作溫和推斷，不影響原始資料
+      // eslint-disable-next-line
+      if (t === '' ){
+        return 'pickup';
+      }
+      return 'pickup'; // 預設歸到領藥，避免漏顯示
+    }
+
+    function buildCard(data){
+      const timeStr = formatTime(data.time);
+      const address = `${data.city || ''}${data.district || ''}${data.road || ''}` || '—';
+      const note = data.note || '無';
+      const hospital = data.hospital || '無';
+      const accompany = data.accompany || '';
+      const prescriptionURL = data.prescriptionURL || '';
+      const type = data.type || '未分類';
+
+      const wrap = document.createElement('div');
+      wrap.className = 'rounded-2xl border border-[var(--border)] bg-white p-4 sm:p-5 shadow-sm';
+      wrap.innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="text-sm" style="color:var(--muted)">⏰ ${timeStr}</div>
+          <span class="badge green">${escapeHtml(type)}</span>
+        </div>
+        <div class="mt-2 font-bold text-lg">📍 地址：${escapeHtml(address)}</div>
+        <div class="text-[15px] mt-1">🏥 醫院／藥局：${escapeHtml(hospital)}</div>
+        ${accompany ? `<div class="text-[15px] mt-1">🙋‍♂️ 陪同進診間：${escapeHtml(accompany)}</div>` : ''}
+        <div class="text-[15px] mt-1">📝 備註：${escapeHtml(note)}</div>
+        ${prescriptionURL ? `<div class="mt-3"><img src="${prescriptionURL}" alt="處方簽" class="w-40 rounded-lg border border-[var(--border)]" /></div>` : ''}
+      `;
+      return wrap;
+    }
+
+    function formatTime(t){
+      try{
+        if (!t) return '無時間';
+        if (typeof t === 'string') return new Date(t).toLocaleString();
+        if (t.toDate) return t.toDate().toLocaleString();
+        return '無時間';
+      }catch{ return '無時間'; }
+    }
+
+    function getTs(t){
+      try{
+        if (!t) return 0;
+        if (typeof t === 'string') return new Date(t).getTime() || 0;
+        if (t.toDate) return t.toDate().getTime() || 0;
+        return 0;
+      }catch{ return 0; }
+    }
+
+    function escapeHtml(str){
+      if (typeof str !== 'string') return str ?? '';
+      return str
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'",'&#039;');
+    }
   </script>
-</head>
-<body class="bg-gray-100 min-h-screen p-4">
-  <div class="max-w-2xl mx-auto">
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
-      <h1 class="text-xl font-bold">📜 歷史紀錄</h1>
-      <a href="home.html" class="text-blue-500 hover:underline">← 回首頁</a>
-    </div>
-    <div id="recordList"></div>
-  </div>
 </body>
 </html>

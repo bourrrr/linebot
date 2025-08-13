@@ -2,20 +2,239 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>我的任務</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>我的任務 - MakeWell</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --bg:#efede9; --bg-2:#dad7cd;
+      --text:#363636; --muted:#6e746e;
+      --primary:#588157; --primary-weak:#659963de;
+      --surface:#ffffff; --chip:#f4f3ef; --border:#e7e5dc;
+    }
+    body{ background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%); color:var(--text); }
+    .card{ background:var(--surface); border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,.06); }
+    .btn-ghost{
+      border:1px solid var(--border); background:#fff; border-radius:9999px;
+      padding:.6rem .9rem; font-weight:800; transition:.15s transform,.15s filter;
+    }
+    .btn-ghost:hover{ transform:translateY(-1px); filter:brightness(.98); }
+    .h-divider{ height:1px; width:100%; background:linear-gradient(to right, transparent, var(--border), transparent); }
+    /* 篩選 pill */
+    .pill{ padding:.45rem .9rem; border-radius:9999px; font-weight:800; border:1px solid var(--border); background:#fff; }
+    .pill.active{ background:var(--primary); color:#fff; border-color:transparent; box-shadow:0 4px 12px rgba(88,129,87,.25); }
+    /* 快速回報對話框 */
+    .modal{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.35); z-index:50; }
+    .modal.show{ display:flex; }
+  </style>
+
+  <!-- Firebase Auth 守門（未登入導回 login） -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { firebaseConfig } from './firebase-config.js';
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    onAuthStateChanged(auth, (user) => { if (!user) location.href = "login.html"; });
+  </script>
 </head>
-<body class="bg-gray-50 min-h-screen p-4 sm:p-6">
-  <div class="max-w-4xl mx-auto">
-    <h1 class="text-xl sm:text-2xl font-bold mb-6 text-center">✅ 我接受的任務</h1>
-    <div id="myTaskContainer" class="space-y-4"></div>
+<body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
+  <div class="mx-auto max-w-[1120px]">
+    <!-- 主卡片 -->
+    <div class="card rounded-3xl p-8 md:p-12 min-h-[82vh] md:min-h-[86vh] flex flex-col">
+      <!-- Header -->
+      <div class="flex items-center justify-between gap-6">
+        <div class="flex items-center gap-5">
+          <img src="MakeWell.jpg" alt="MakeWell Logo"
+               class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
+          <div>
+            <h1 class="text-3xl md:text-4xl font-extrabold leading-tight">✅ 我的任務</h1>
+            <p class="text-base md:text-lg" style="color:var(--muted)">
+              追蹤已接受的「領藥／陪診」任務進度，完成後上傳回報。
+            </p>
+          </div>
+        </div>
+        <a href="volunteer.html" class="btn-ghost text-sm md:text-base">← 回志工中心</a>
+      </div>
+
+      <div class="mt-8 md:mt-10 h-divider"></div>
+
+      <!-- 功能列：狀態篩選 + 快速上傳回報 -->
+      <section class="mt-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-sm md:text-base font-bold mr-1">狀態：</span>
+          <button id="filterAll"    class="pill active">全部</button>
+          <button id="filterActive" class="pill">進行中</button>
+          <button id="filterDone"   class="pill">已完成</button>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="quickUploadBtn" class="btn-ghost">📸 快速上傳回報</button>
+        </div>
+      </section>
+
+      <!-- 任務清單：手機 1 欄、桌面 2 欄 -->
+      <main class="mt-8 md:mt-10 flex-1">
+        <div id="myTaskContainer" class="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+          <!-- 由 my-tasks.js 動態插入任務卡片 -->
+          <!-- 建議卡片結構（供篩選使用）：
+               <div class="task-card" data-task-id="xxx" data-status="active|done">
+                 <div class="task-title">任務標題...</div>
+                 ...
+               </div>
+          -->
+        </div>
+        <p id="emptyStateHint" class="hidden text-center text-sm md:text-base mt-8" style="color:var(--muted)">
+          目前沒有任務。
+        </p>
+      </main>
+    </div>
   </div>
 
-  <div class="text-center mt-8">
-    <a href="volunteer.html" class="text-blue-500 hover:underline">← 回首頁</a>
+  <!-- 快速回報對話框 -->
+  <div id="quickModal" class="modal">
+    <div class="card rounded-2xl p-6 w-[92vw] max-w-xl">
+      <h3 class="text-xl font-extrabold">上傳回報</h3>
+      <p class="text-sm mt-1" style="color:var(--muted)">選擇要附加回報的任務，然後確認上傳。</p>
+      <div class="mt-4 space-y-3">
+        <div>
+          <label class="block text-sm font-bold mb-1">任務</label>
+          <select id="quickTaskSelect" class="w-full border border-[var(--border)] rounded-xl p-2.5">
+            <!-- 由腳本從頁面任務卡自動填入 -->
+          </select>
+        </div>
+        <div id="quickFilesInfo" class="text-sm" style="color:var(--muted)"></div>
+      </div>
+      <div class="mt-6 flex items-center justify-end gap-3">
+        <button id="cancelQuickUpload" class="btn-ghost">取消</button>
+        <button id="confirmQuickUpload" class="btn-ghost">確認上傳</button>
+      </div>
+    </div>
   </div>
 
+  <!-- 隱藏的檔案選擇 -->
+  <input id="quickFileInput" type="file" accept="image/*" multiple class="hidden" />
+
+  <!-- 你的原本邏輯 -->
   <script type="module" src="my-tasks.js"></script>
+
+  <!-- 新增的互動腳本（不影響原本 my-tasks.js） -->
+  <script>
+    const container = document.getElementById('myTaskContainer');
+    const emptyHint = document.getElementById('emptyStateHint');
+
+    // === 狀態篩選 ===
+    const pills = {
+      all: document.getElementById('filterAll'),
+      active: document.getElementById('filterActive'),
+      done: document.getElementById('filterDone')
+    };
+    let currentFilter = 'all';
+
+    function getCards(){
+      return Array.from(container.querySelectorAll('.task-card'));
+    }
+    function applyFilter(){
+      const cards = getCards();
+      let visible = 0;
+      cards.forEach(card => {
+        const status = (card.dataset.status || '').toLowerCase();
+        const shouldShow = (currentFilter === 'all') ||
+                           (currentFilter === 'active' && status === 'active') ||
+                           (currentFilter === 'done'   && status === 'done');
+        card.style.display = shouldShow ? '' : 'none';
+        if (shouldShow) visible++;
+      });
+      emptyHint.classList.toggle('hidden', visible !== 0);
+    }
+    function setActivePill(key){
+      Object.entries(pills).forEach(([k,btn]) => btn.classList.toggle('active', k === key));
+      currentFilter = key;
+      applyFilter();
+    }
+    pills.all.addEventListener('click', () => setActivePill('all'));
+    pills.active.addEventListener('click', () => setActivePill('active'));
+    pills.done.addEventListener('click', () => setActivePill('done'));
+
+    // 監控清單變化（my-tasks.js 動態插入時自動套用篩選）
+    const mo = new MutationObserver(() => { applyFilter(); rebuildTaskOptions(); });
+    mo.observe(container, { childList: true, subtree: true });
+
+    // === 快速上傳回報 ===
+    const quickBtn = document.getElementById('quickUploadBtn');
+    const fileInput = document.getElementById('quickFileInput');
+    const modal = document.getElementById('quickModal');
+    const taskSelect = document.getElementById('quickTaskSelect');
+    const filesInfo = document.getElementById('quickFilesInfo');
+    const confirmBtn = document.getElementById('confirmQuickUpload');
+    const cancelBtn = document.getElementById('cancelQuickUpload');
+
+    let selectedFiles = [];
+
+    function openModal(){ modal.classList.add('show'); }
+    function closeModal(){ modal.classList.remove('show'); selectedFiles = []; filesInfo.textContent = ''; fileInput.value = ''; }
+
+    function rebuildTaskOptions(){
+      const cards = getCards();
+      taskSelect.innerHTML = '';
+      if (cards.length === 0){
+        taskSelect.appendChild(new Option('（目前沒有任務）', '', true, true));
+        taskSelect.disabled = true;
+      }else{
+        taskSelect.disabled = false;
+        cards.forEach(card => {
+          const id = card.dataset.taskId || '';
+          const titleEl = card.querySelector('.task-title');
+          const title = (titleEl ? titleEl.textContent : '') || `任務 ${id || ''}`.trim();
+          const opt = new Option(title, id);
+          taskSelect.appendChild(opt);
+        });
+      }
+    }
+
+    // 啟動快速上傳流程：先選檔，再選任務
+    quickBtn.addEventListener('click', () => {
+      if (getCards().length === 0){
+        alert('目前沒有任務可回報。');
+        return;
+      }
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (!fileInput.files || fileInput.files.length === 0) return;
+      selectedFiles = Array.from(fileInput.files);
+      filesInfo.textContent = `已選擇 ${selectedFiles.length} 個檔案`;
+      rebuildTaskOptions();
+      openModal();
+    });
+
+    confirmBtn.addEventListener('click', () => {
+      if (!selectedFiles.length){ alert('請先選擇檔案'); return; }
+      const taskId = taskSelect.value;
+      if (!taskId){ alert('請選擇任務'); return; }
+
+      // 若你的程式有 handler，可在全域註冊：
+      // window.handleQuickReportUpload = async (taskId, files) => { ... }
+      if (typeof window.handleQuickReportUpload === 'function'){
+        Promise.resolve(window.handleQuickReportUpload(taskId, selectedFiles))
+          .then(() => { closeModal(); })
+          .catch(err => { console.error(err); alert('上傳失敗，請稍後再試'); });
+      }else{
+        // 或監聽事件 quickReport 取得 { taskId, files } 自行處理
+        const evt = new CustomEvent('quickReport', { detail: { taskId, files: selectedFiles } });
+        window.dispatchEvent(evt);
+        closeModal();
+        alert('已送出回報事件（quickReport）。請在程式碼中監聽並處理上傳。');
+      }
+    });
+
+    cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+    // 初始
+    applyFilter();
+    rebuildTaskOptions();
+  </script>
 </body>
 </html>

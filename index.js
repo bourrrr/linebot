@@ -264,29 +264,38 @@ function sendReminder(message) {
 
 
 
+// 取代整段 /api/ocr
 app.post('/api/ocr', upload.single('image'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ ok: false, error: '沒有圖片檔案' });
+  if (!req.file) {
+    return res.status(400).json({ ok: false, error: '沒有圖片檔案' });
+  }
   try {
+    // 1) OCR 成純文字
     const rawText = await googleVisionOCR(req.file.path);
-    fs.unlinkSync(req.file.path);
 
-    // 這支會把像「Total Cholesterol 155」「Triglyceride 118」「HDL 49」這類行文抓成欄位
-    const parsed = extractHealthData(rawText); // { fieldsSuggested, metrics, ... }
+    // 2) 刪暫存檔
+    try { fs.unlinkSync(req.file.path); } catch (e) { /* ignore */ }
 
-    // 為了相容前端原本的 parseOCRResultFlexible，再把欄位也串成「欄位: 值」前置在 text 前面
+    // 3) 用 extractHealthData 先把健康欄位解析好
+    // 會得到 { fieldsSuggested, metrics, segmentsFallback, lineCount }
+    const parsed = extractHealthData(rawText);
+
+    // 4) 為了相容前端的 parseOCRResultFlexible，
+    //    把已整理好的欄位先串成「欄位: 值」的行，前置在 text
     const kvLines = Object.entries(parsed.fieldsSuggested || {})
       .filter(([k, v]) => k && v)
       .map(([k, v]) => `${k}: ${v}`)
       .join('\n');
 
-    res.json({
+    // 5) 回傳格式：前端 ocr_data2.html 會用到 text 與 fieldsSuggested
+    return res.json({
       ok: true,
       text: kvLines ? `${kvLines}\n\n${rawText}` : rawText,
       ...parsed
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ ok: false, error: err.message });
+    console.error('OCR/解析錯誤：', err);
+    return res.status(500).json({ ok: false, error: err.message });
   }
 });
 
