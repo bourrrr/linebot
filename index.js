@@ -267,22 +267,30 @@ function sendReminder(message) {
 app.post('/api/ocr', upload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ ok: false, error: '沒有圖片檔案' });
   try {
-    const text = await googleVisionOCR(req.file.path); // 仍用你的 OCR
+    const rawText = await googleVisionOCR(req.file.path);
     fs.unlinkSync(req.file.path);
 
-    // 解析成健康數據欄位
-    const parsed = extractHealthData(text); // 回傳 fieldsSuggested / metrics 等
+    // 先用你的健康數據解析器擷取各指標
+    const parsed = extractHealthData(rawText); // 需是新版，會回傳 { fieldsSuggested, metrics, ... }
 
-    // 相容 + 結構化一起回
+    // 把「欄位: 值」前置到 text，讓前端既有 parser 可直接吃到
+    const kvLines = Object.entries(parsed.fieldsSuggested || {})
+      .filter(([k, v]) => k && v)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join('\n');
+
+    const textForFrontend = kvLines ? `${kvLines}\n\n${rawText}` : rawText;
+
     res.json({
       ok: true,
-      text,
-      ...parsed // => fieldsSuggested, metrics, segmentsFallback, lineCount
+      text: textForFrontend,   // ← 前端仍讀 result.text，但現在前面多了「欄位: 值」幾行
+      ...parsed                // 同時保留結構化資料（將來要用也方便）
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
+
 
 
 // 4. (建議保留測試首頁) 

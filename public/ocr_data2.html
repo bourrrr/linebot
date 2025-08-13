@@ -177,41 +177,63 @@ window.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("photoInput").click();
   });
 
-  document.getElementById("photoInput").addEventListener("change", async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+document.getElementById("photoInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    const formData = new FormData();
-    formData.append("image", file, "image.jpg");
+  const formData = new FormData();
+  formData.append("image", file, "image.jpg");
 
-    try {
-      const res = await fetch("https://linebot-o8nr.onrender.com/api/ocr", { method: "POST", body: formData });
-      const result = await res.json();
-      const text = result.text || "";
-      if (!text) { alert("❌ 無法辨識圖片，請重試或更換照片"); return; }
+  try {
+    const res = await fetch("https://linebot-o8nr.onrender.com/api/ocr", { method: "POST", body: formData });
+    const result = await res.json();
+    const text = result.text || "";
 
-      const parsed = parseOCRResultFlexible(text);
+    if (!text && !result.fieldsSuggested) {
+      alert("❌ 無法辨識圖片，請重試或更換照片");
+      return;
+    }
 
-      const before = Object.keys(dynamicData).length;
-      Object.entries(parsed).forEach(([k, v]) => {
-        if (!(k in dynamicData) || String(dynamicData[k] ?? "").trim() === "") {
+    const before = Object.keys(dynamicData).length;
+
+    // 1) 先吃後端已經幫你整理好的欄位
+    if (result.fieldsSuggested) {
+      Object.entries(result.fieldsSuggested).forEach(([k, v]) => {
+        if (k && v && (!(k in dynamicData) || String(dynamicData[k] ?? "").trim() === "")) {
           dynamicData[k] = v;
         }
       });
-
-      renderFields();
-      const after = Object.keys(dynamicData).length;
-
-      if (after > before) {
-        alert("📋 OCR 已辨識並加入欄位！");
-      } else {
-        alert("⚠️ 有辨識到文字，但沒有解析出『欄位：值』格式；已把全文放在「原始內容」。");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("❌ OCR 失敗，請稍後再試");
     }
-  });
+
+    // 2) 再跑原本的彈性行文解析（包含後端前置的「欄位: 值」行）
+    if (text) {
+      const parsed = parseOCRResultFlexible(text);
+      Object.entries(parsed).forEach(([k, v]) => {
+        if (k && v && (!(k in dynamicData) || String(dynamicData[k] ?? "").trim() === "")) {
+          dynamicData[k] = v;
+        }
+      });
+    }
+
+    renderFields();
+
+    const after = Object.keys(dynamicData).length;
+    if (after > before) {
+      alert("📋 已辨識並加入欄位！");
+    } else {
+      // 仍沒有任何欄位 → 把全文放到「原始內容」
+      if (text) {
+        dynamicData['原始內容'] = text.trim();
+        renderFields();
+      }
+      alert("⚠️ 有辨識到文字，但尚未解析出欄位。");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("❌ OCR 失敗，請稍後再試");
+  }
+});
+
 
   // 確認儲存
   document.querySelector(".confirm-btn").addEventListener("click", async () => {
