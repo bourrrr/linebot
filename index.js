@@ -270,26 +270,26 @@ app.post('/api/ocr', upload.single('image'), async (req, res) => {
     const rawText = await googleVisionOCR(req.file.path);
     fs.unlinkSync(req.file.path);
 
-    // 先用你的健康數據解析器擷取各指標
-    const parsed = extractHealthData(rawText); // 需是新版，會回傳 { fieldsSuggested, metrics, ... }
+    // 這支會把像「Total Cholesterol 155」「Triglyceride 118」「HDL 49」這類行文抓成欄位
+    const parsed = extractHealthData(rawText); // { fieldsSuggested, metrics, ... }
 
-    // 把「欄位: 值」前置到 text，讓前端既有 parser 可直接吃到
+    // 為了相容前端原本的 parseOCRResultFlexible，再把欄位也串成「欄位: 值」前置在 text 前面
     const kvLines = Object.entries(parsed.fieldsSuggested || {})
       .filter(([k, v]) => k && v)
       .map(([k, v]) => `${k}: ${v}`)
       .join('\n');
 
-    const textForFrontend = kvLines ? `${kvLines}\n\n${rawText}` : rawText;
-
     res.json({
       ok: true,
-      text: textForFrontend,   // ← 前端仍讀 result.text，但現在前面多了「欄位: 值」幾行
-      ...parsed                // 同時保留結構化資料（將來要用也方便）
+      text: kvLines ? `${kvLines}\n\n${rawText}` : rawText,
+      ...parsed
     });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ ok: false, error: err.message });
   }
 });
+
 
 
 
