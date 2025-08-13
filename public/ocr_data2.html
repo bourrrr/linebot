@@ -3,318 +3,349 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>健康數據新增</title>
+  <title>健康數據新增 | MakeWell</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --mw-green:#588157;       /* 深綠 */
+      --mw-green-light:#659963de;/* 淺綠(含透明度) */
+      --mw-warm-gray:#dad7cd;   /* 奶灰(整頁背景) */
+      --mw-gray:#8e8e8cf2;      /* 灰文字 */
+      --mw-cream:#efede9;       /* 小奶黃(提醒區) */
+      --mw-ink:#363636;         /* 偏灰黑 主字色 */
+      --mw-border: #cfcfc9;     /* 邊框淡灰 */
+    }
+    html,body{ background: var(--mw-warm-gray); color: var(--mw-ink); font-family: "Noto Sans TC", system-ui, -apple-system, Segoe UI, sans-serif; }
+
+    /* 版頭 */
+    .mw-header{
+      background: #ffffff;
+      border-bottom: 1px solid var(--mw-border);
+    }
+    .mw-title{
+      color: var(--mw-green);
+      letter-spacing:.5px;
+    }
+    .mw-sub{
+      color: var(--mw-gray);
+    }
+
+    /* 卡片 */
+    .mw-card{
+      background:#fff;
+      border:1px solid var(--mw-border);
+      border-radius: 20px;
+      box-shadow:0 6px 18px rgba(0,0,0,.04);
+    }
+
+    /* 控制元件 */
+    .mw-btn-primary{
+      background: var(--mw-green);
+      color:#fff;
+      border-radius:12px;
+      padding:.65rem 1rem;
+      font-weight:700;
+      transition:.2s ease;
+    }
+    .mw-btn-primary:hover{ filter:brightness(.95); }
+    .mw-btn-ghost{
+      border:1px solid var(--mw-border);
+      background:#fff;
+      color: var(--mw-ink);
+      border-radius:12px;
+      padding:.55rem .9rem;
+    }
+    .mw-chip{
+      display:inline-block;
+      background: var(--mw-green-light);
+      color:#fff;
+      padding:.25rem .6rem;
+      border-radius:999px;
+      font-size:.75rem;
+      font-weight:700;
+    }
+
+    /* 輸入列 */
+    .mw-input{
+      width:100%;
+      border:1px solid var(--mw-border);
+      border-radius: 14px;
+      padding:.7rem .9rem;
+      background: #fff;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .mw-input:focus{
+      outline: none;
+      border-color: var(--mw-green);
+      box-shadow: 0 0 0 3px rgba(88,129,87,.15);
+    }
+
+    /* 欄位列（動態） */
+    .mw-field-row{
+      display:grid;
+      grid-template-columns: 160px 1fr auto;
+      gap:.6rem;
+      align-items:center;
+    }
+    @media (max-width: 600px){
+      .mw-field-row{ grid-template-columns: 1fr; }
+    }
+
+    /* 提醒區 */
+    .mw-hint{
+      background: var(--mw-cream);
+      border:1px dashed var(--mw-green);
+      color: var(--mw-ink);
+      border-radius: 14px;
+      padding:.8rem 1rem;
+    }
+
+    /* 上傳預覽框 */
+    .mw-preview{
+      background:#f6f6f3;
+      border:1px dashed var(--mw-border);
+      border-radius:16px;
+      padding:.75rem;
+    }
+  </style>
 </head>
-<body class="bg-slate-50 min-h-screen">
-  <div class="max-w-3xl mx-auto p-4 md:p-6">
-    <h1 class="text-2xl md:text-3xl font-bold text-indigo-800 mb-4">健康數據新增</h1>
+<body>
+  <!-- Header：Logo靠左 -->
+  <header class="mw-header">
+    <div class="mx-auto max-w-6xl px-4 py-4 flex items-center gap-4">
+      <!-- 換成你的實際圖檔路徑 -->
+      <img src="/assets/makewell-logo.png" alt="MakeWell" class="h-10 w-auto select-none" />
+      <div class="flex-1">
+        <div class="flex items-center gap-2">
+          <h1 class="mw-title text-2xl md:text-3xl font-extrabold">健康數據新增</h1>
+          <span class="mw-chip">MakeWell</span>
+        </div>
+        <p class="mw-sub text-sm mt-1">慢理歲月，樂活永悅</p>
+      </div>
+    </div>
+  </header>
 
+  <main class="mx-auto max-w-6xl px-4 py-6 space-y-6">
     <!-- 上傳卡片 -->
-    <div class="bg-white rounded-2xl shadow p-4 md:p-6 mb-6">
-      <div class="flex flex-col md:flex-row md:items-center gap-4">
+    <section class="mw-card p-4 md:p-6">
+      <div class="flex flex-col md:flex-row md:items-end gap-4">
         <div class="flex-1">
-          <label class="block text-sm text-slate-600 mb-1">選擇圖片 / 拍照</label>
-          <input id="fileInput" type="file" accept="image/*" capture="environment"
-                 class="block w-full text-sm text-slate-700 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+          <label class="block text-sm font-semibold mb-1" style="color:var(--mw-green)">選擇圖片 / 拍照</label>
+          <input id="fileInput" type="file" accept="image/*" capture="environment" class="mw-input">
+          <p class="text-xs mt-2" style="color:var(--mw-gray)">僅做OCR辨識，請避開反光、傾斜與過度裁切。</p>
         </div>
-        <button id="btnUpload"
-                class="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
-          上傳辨識
-        </button>
+        <button id="btnUpload" class="mw-btn-primary">上傳辨識</button>
       </div>
 
-      <!-- 圖片預覽 -->
-      <div id="previewWrap" class="mt-4 hidden">
-        <p class="text-sm text-slate-600 mb-2">預覽</p>
-        <img id="previewImg" class="w-full max-h-80 object-contain rounded-xl border"/>
+      <div id="previewWrap" class="mw-preview mt-4 hidden">
+        <p class="text-sm mb-2" style="color:var(--mw-gray)">預覽</p>
+        <img id="previewImg" class="w-full max-h-80 object-contain rounded-md border border-[var(--mw-border)] bg-white">
       </div>
 
-      <!-- 狀態列 -->
-      <div id="status" class="mt-3 text-sm text-slate-600"></div>
-    </div>
+      <div id="status" class="mt-3 text-sm mw-hint hidden"></div>
+    </section>
 
-    <!-- 欄位區 -->
-    <div class="bg-white rounded-2xl shadow p-4 md:p-6">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-xl font-semibold text-slate-800">辨識結果（可編輯）</h2>
+    <!-- 辨識結果 -->
+    <section class="mw-card p-4 md:p-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-bold" style="color:var(--mw-green)">辨識結果（可編輯）</h2>
+          <p class="text-xs mt-1" style="color:var(--mw-gray)">日期：<span id="date"></span></p>
+        </div>
         <div class="flex gap-2">
-          <button id="btnAdd"
-                  class="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50">＋ 新增欄位</button>
-          <button id="btnClear"
-                  class="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50">清除欄位</button>
-          <button id="btnConfirm"
-                  class="px-3 py-1.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700">確認</button>
+          <button id="btnAdd" class="mw-btn-ghost">＋ 新增欄位</button>
+          <button id="btnClear" class="mw-btn-ghost">清除欄位</button>
+          <button id="btnConfirm" class="mw-btn-primary">確認</button>
         </div>
       </div>
 
-      <!-- 日期 -->
-      <div class="text-sm text-slate-600 mb-4">
-        <span id="date"></span>
+      <div id="fields" class="mt-4 space-y-2">
+        <div class="text-sm" style="color:var(--mw-gray)">尚未有資料，請先上傳圖片辨識，或點「＋ 新增欄位」。</div>
       </div>
-
-      <!-- 欄位列表 -->
-      <div id="fields" class="space-y-2">
-        <div class="text-slate-500 text-sm">尚未有資料，請先上傳圖片辨識，或點「＋ 新增欄位」。</div>
-      </div>
-    </div>
+    </section>
 
     <!-- 原文備查 -->
-    <div id="rawBlock" class="bg-white rounded-2xl shadow p-4 md:p-6 mt-6 hidden">
-      <h3 class="text-lg font-semibold text-slate-800 mb-2">原始內容（備查）</h3>
-      <pre id="rawText" class="whitespace-pre-wrap text-sm bg-slate-50 border rounded-xl p-3"></pre>
-    </div>
-  </div>
+    <section id="rawSection" class="mw-card p-4 md:p-6 hidden">
+      <h3 class="text-lg font-semibold mb-2" style="color:var(--mw-green)">原始內容（備查）</h3>
+      <pre id="rawText" class="bg-white rounded-lg border border-[var(--mw-border)] p-3 text-sm whitespace-pre-wrap"></pre>
+    </section>
+  </main>
 
+  <!-- ===== 你的腳本區：保留既有功能掛勾（可直接沿用你前面的OCR流程） ===== -->
   <script>
-  // 後端 OCR API（用你的 Render 網域）
-const OCR_API = "https://linebot-o8nr.onrender.com/api/ocr";
-
-    // ====== 狀態與工具 ======
+    // === 基本變數 ===
+    const OCR_API = "https://linebot-o8nr.onrender.com/api/ocr"; // 若你有 rewrites 可改回 /api/ocr
     const fileInput = document.getElementById('fileInput');
     const btnUpload = document.getElementById('btnUpload');
     const btnAdd = document.getElementById('btnAdd');
     const btnClear = document.getElementById('btnClear');
     const btnConfirm = document.getElementById('btnConfirm');
-    const statusEl = document.getElementById('status');
     const fieldsEl = document.getElementById('fields');
+    const statusEl = document.getElementById('status');
     const previewWrap = document.getElementById('previewWrap');
     const previewImg = document.getElementById('previewImg');
-    const rawBlock = document.getElementById('rawBlock');
+    const rawSection = document.getElementById('rawSection');
     const rawTextEl = document.getElementById('rawText');
 
-    // 當前欄位（動態）
-    let dynamicData = {};     // { key: value }
-    let ocrRawText = "";      // 後端回傳的 text
-    let fieldsSuggested = {}; // 後端已解析欄位
+    let dynamicData = {};
+    let ocrRawText = "";
 
-    // 日期顯示
-    (function setToday(){
-      const dateText = document.getElementById("date");
+    // 日期
+    (function(){
       const d = new Date();
       const yyyy = d.getFullYear();
       const mm = String(d.getMonth()+1).padStart(2,'0');
       const dd = String(d.getDate()).padStart(2,'0');
-      dateText.textContent = `日期：${yyyy}/${mm}/${dd}`;
+      document.getElementById('date').textContent = `${yyyy}/${mm}/${dd}`;
     })();
 
     // 預覽
     fileInput.addEventListener('change', () => {
       const f = fileInput.files?.[0];
       if (!f) { previewWrap.classList.add('hidden'); return; }
-      const url = URL.createObjectURL(f);
-      previewImg.src = url;
+      previewImg.src = URL.createObjectURL(f);
       previewWrap.classList.remove('hidden');
     });
 
-    // ====== 鍵名歸一化：避免同義重複（中英） ======
-    const keyAliasMap = {
-      '高密度膽固醇': 'HDL',
-      '低密度膽固醇': 'LDL',
-      '總膽固醇': '總膽固醇',
-      '三酸甘油脂': '三酸甘油脂',
-      '血糖': '血糖',
-      '血糖(空腹)': '血糖(空腹)',
-      '血糖(飯後)': '血糖(飯後)',
-      '脈搏': '脈搏',
-      '心率': '脈搏',
-      '血氧': '血氧',
-      '體溫': '體溫',
-      '體重': '體重',
-      '身高': '身高',
-      'BMI': 'BMI',
-      '腰圍': '腰圍',
-      '體脂': '體脂',
-      'GOT(AST)': 'GOT(AST)',
-      'GPT(ALT)': 'GPT(ALT)',
-      '尿酸': '尿酸',
-      'BUN': 'BUN',
-      'Creatinine': 'Creatinine',
-      'eGFR': 'eGFR',
-      // 需要再補可加在這裡
-    };
-    function normalizeKey(k){ return keyAliasMap[k] || k; }
+    // 欄位渲染
+    function renderFields(){
+      fieldsEl.innerHTML = "";
+      const keys = Object.keys(dynamicData);
+      if (!keys.length){
+        fieldsEl.innerHTML = '<div class="text-sm" style="color:var(--mw-gray)">尚未有資料，請先上傳圖片辨識，或點「＋ 新增欄位」。</div>';
+        return;
+      }
+      keys.forEach(k=>{
+        const row = document.createElement('div');
+        row.className = "mw-field-row";
+        row.innerHTML = `
+          <input class="mw-input" data-k="key" value="${k}">
+          <input class="mw-input" data-k="val" value="${dynamicData[k] ?? ''}">
+          <button class="mw-btn-ghost" data-del>刪</button>
+        `;
+        row.querySelector('[data-del]').onclick = ()=>{ delete dynamicData[k]; renderFields(); };
+        const keyInput = row.querySelector('[data-k="key"]');
+        const valInput = row.querySelector('[data-k="val"]');
+        keyInput.addEventListener('change', ()=>{
+          const nk = keyInput.value.trim();
+          const v = valInput.value.trim();
+          delete dynamicData[k];
+          if (nk) dynamicData[nk] = v;
+          renderFields();
+        });
+        valInput.addEventListener('change', ()=>{
+          dynamicData[keyInput.value.trim()] = valInput.value.trim();
+        });
+        fieldsEl.appendChild(row);
+      });
+    }
 
-    // ====== 解析「欄位: 值」的彈性補強 ======
-    function parseOCRResultFlexible(text) {
+    // 解析（同行 & 換行）
+    function parseOCRResultFlexible(text){
       const result = {};
       if (!text) return result;
-      // 只抓看起來像「欄位: 值」或「欄位 值」
-      const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-      for (const line of lines) {
-        // 先用冒號
-        let m = line.match(/^(.{1,30}?)[：:]\s*(.+)$/);
-        if (!m) {
-          // 再試空格切（避免吃到太多：限制鍵長度）
-          m = line.match(/^(.{1,30}?)\s{1,3}(.{1,50})$/);
+      const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+      const keyHints = /^(血壓|血糖(?:\(空腹\)|\(飯後\))?|脈搏|心率|血氧|體溫|體重|身高|BMI|腰圍|體脂|HDL(?:-?C)?|LDL(?:-?C)?|高密度膽固醇|低密度膽固醇|總膽固醇|三酸甘油脂|GOT\(AST\)|GPT\(ALT\)|AST|ALT|SGOT|SGPT|尿酸|BUN|Creatinine|Creat|eGFR|Risk|危險因子指數)$/i;
+      const valueLine = /^([0-9]+(?:\.[0-9]+)?(?:\/[0-9]+(?:\.[0-9]+)?)?)\s*(?:[a-zA-Z%°/]+|mmHg|mg\/dl|g\/dl|bpm)?$/i;
+      const normalizeMap = { '心率':'脈搏', '高密度膽固醇':'HDL', '低密度膽固醇':'LDL' };
+      const nk = k => normalizeMap[k] || k;
+
+      for (let i=0;i<lines.length;i++){
+        const line = lines[i];
+        let m = line.match(/^(.{1,30}?)[：:]\s*(.+)$/) || line.match(/^(.{1,30}?)\s{1,3}(.{1,50})$/);
+        if (m){
+          const key = nk(m[1].trim()); const val = m[2].trim();
+          if (key && val && (!(key in result) || String(result[key]??'').trim()==='')) result[key]=val;
+          continue;
         }
-        if (m) {
-          const k = normalizeKey(m[1].trim());
-          const v = m[2].trim();
-          if (!k || !v) continue;
-          if (!(k in result) || String(result[k] ?? "").trim() === "") {
-            result[k] = v;
-          }
+        if (keyHints.test(line) && i+1<lines.length && valueLine.test(lines[i+1])){
+          const key = nk(line); const val = lines[i+1].trim();
+          if (key && val && (!(key in result) || String(result[key]??'').trim()==='')) result[key]=val;
+          i++;
         }
       }
       return result;
     }
 
-    // ====== 渲染欄位 ======
-    function renderFields() {
-      fieldsEl.innerHTML = "";
-      const keys = Object.keys(dynamicData);
-      if (keys.length === 0) {
-        fieldsEl.innerHTML = '<div class="text-slate-500 text-sm">尚未有資料，請先上傳圖片辨識，或點「＋ 新增欄位」。</div>';
-        return;
-      }
-
-      for (const k of keys) {
-        const v = dynamicData[k] ?? "";
-        const row = document.createElement('div');
-        row.className = "grid grid-cols-12 gap-2 items-center";
-
-        const keyInput = document.createElement('input');
-        keyInput.className = "col-span-5 md:col-span-4 px-3 py-2 rounded-xl border text-slate-800";
-        keyInput.value = k;
-
-        const valInput = document.createElement('input');
-        valInput.className = "col-span-6 md:col-span-7 px-3 py-2 rounded-xl border text-slate-800";
-        valInput.value = v;
-
-        const delBtn = document.createElement('button');
-        delBtn.className = "col-span-1 px-3 py-2 rounded-xl border hover:bg-slate-50";
-        delBtn.textContent = "刪";
-        delBtn.onclick = () => {
-          delete dynamicData[k];
-          renderFields();
-        };
-
-        // 同步編輯
-        keyInput.addEventListener('change', () => {
-          const newK = normalizeKey(keyInput.value.trim());
-          const oldV = dynamicData[k];
-          delete dynamicData[k];
-          if (newK) {
-            // 若新鍵不存在或為空，再寫
-            if (!(newK in dynamicData) || String(dynamicData[newK] ?? "").trim() === "") {
-              dynamicData[newK] = valInput.value.trim();
-            }
-          }
-          renderFields();
-        });
-        valInput.addEventListener('change', () => {
-          dynamicData[keyInput.value.trim()] = valInput.value.trim();
-        });
-
-        row.appendChild(keyInput);
-        row.appendChild(valInput);
-        row.appendChild(delBtn);
-        fieldsEl.appendChild(row);
-      }
-    }
-
-    // ====== 事件：新增、清除、確認 ======
-    btnAdd.addEventListener('click', () => {
-      let base = "自訂欄位";
-      let name = base;
-      let i = 1;
-      while (name in dynamicData) { name = base + (++i); }
-      dynamicData[name] = "";
-      renderFields();
-    });
-
-    btnClear.addEventListener('click', () => {
-      dynamicData = {};
-      renderFields();
-    });
-
-    btnConfirm.addEventListener('click', () => {
-      // 這裡可改成送 Firestore；先示範輸出 JSON
-      const payload = {
-        date: new Date().toISOString(),
-        data: dynamicData,
-        raw: ocrRawText || ""
-      };
-      console.log("確認送出：", payload);
-      alert("✅ 已整理完成（示範）：\n" + JSON.stringify(payload, null, 2));
-      // TODO: 寫入 Firestore 的程式放這裡
-    });
-
-    // ====== 上傳辨識 ======
-    btnUpload.addEventListener('click', async () => {
+    // 上傳辨識
+    btnUpload.addEventListener('click', async ()=>{
       const file = fileInput.files?.[0];
-      if (!file) { statusEl.textContent = "請先選擇圖片檔案"; return; }
+      if (!file){ toast("請先選擇圖片檔案"); return; }
 
-      statusEl.textContent = "⏳ 上傳並辨識中…";
+      setStatus("⏳ 上傳並辨識中…", true);
       btnUpload.disabled = true;
 
-      try {
+      try{
         const fd = new FormData();
-fd.append("image", file);               // 欄位名一定要叫 image
-
-const resp = await fetch(OCR_API, {    // ← 改成打到完整網址
-  method: 'POST',
-  body: fd
-});
-
-// 把錯誤內容也提示出來，方便排查
-if (!resp.ok) {
-  let msg = "辨識失敗";
-  try {
-    const e = await resp.json();
-    if (e?.error) msg += "：" + e.error;
-  } catch (_) {}
-  throw new Error(msg);
-}
-
-const result = await resp.json();       // 之後照你原流程處理 result
-
-
-        // 後端應回傳：{ ok, text, fieldsSuggested, ... }
+        fd.append('image', file);
+        const resp = await fetch(OCR_API, { method:'POST', body:fd });
+        if (!resp.ok){
+          let msg = "辨識失敗";
+          try { const e = await resp.json(); if(e?.error) msg += "："+e.error; } catch {}
+          throw new Error(msg);
+        }
+        const result = await resp.json();
         ocrRawText = result.text || "";
-        fieldsSuggested = result.fieldsSuggested || {};
+        const fieldsSuggested = result.fieldsSuggested || {};
 
-        // 先吃 fieldsSuggested
+        // 優先吃後端欄位
         dynamicData = {};
-        for (const [k, v] of Object.entries(fieldsSuggested)) {
-          const nk = normalizeKey(k);
-          if (nk && v && (!(nk in dynamicData) || String(dynamicData[nk] ?? "").trim() === "")) {
-            dynamicData[nk] = v;
-          }
+        for (const [k,v] of Object.entries(fieldsSuggested)){
+          if (k && v && (!(k in dynamicData) || String(dynamicData[k]??'').trim()==='')) dynamicData[k]=v;
         }
-
-        // 再用彈性解析做補強
-        const flexParsed = parseOCRResultFlexible(ocrRawText);
-        for (const [k, v] of Object.entries(flexParsed)) {
-          const nk = normalizeKey(k);
-          if (nk && v && (!(nk in dynamicData) || String(dynamicData[nk] ?? "").trim() === "")) {
-            dynamicData[nk] = v;
-          }
+        // 彈性補強
+        const flex = parseOCRResultFlexible(ocrRawText);
+        for (const [k,v] of Object.entries(flex)){
+          if (k && v && (!(k in dynamicData) || String(dynamicData[k]??'').trim()==='')) dynamicData[k]=v;
         }
-
-        // 如果完全沒抓到欄位，至少保留原文備查
-        if (Object.keys(dynamicData).length === 0 && ocrRawText) {
-          dynamicData["原始內容"] = ocrRawText;
+        if (!Object.keys(dynamicData).length && ocrRawText){
+          dynamicData["原始內容"]=ocrRawText;
         }
-
-        // 原文區塊
-        if (ocrRawText && ocrRawText.trim().length > 0) {
+        // 原文
+        if (ocrRawText?.trim()){
           rawTextEl.textContent = ocrRawText;
-          rawBlock.classList.remove('hidden');
-        } else {
-          rawBlock.classList.add('hidden');
+          rawSection.classList.remove('hidden');
+        }else{
+          rawSection.classList.add('hidden');
         }
 
         renderFields();
-        statusEl.textContent = "✅ 完成";
-      } catch (err) {
+        setStatus("✅ 完成");
+      }catch(err){
         console.error(err);
-        statusEl.textContent = "❌ 發生錯誤：" + err.message;
-      } finally {
+        setStatus("❌ "+err.message);
+      }finally{
         btnUpload.disabled = false;
       }
     });
+
+    // 其他操作
+    btnAdd.addEventListener('click', ()=>{
+      let base="自訂欄位", name=base, i=1;
+      while (dynamicData[name]) name = base+(++i);
+      dynamicData[name]="";
+      renderFields();
+    });
+    btnClear.addEventListener('click', ()=>{ dynamicData={}; renderFields(); });
+    btnConfirm.addEventListener('click', ()=>{
+      // TODO: 這裡可串 Firestore；先示範
+      alert("✅ 已整理：\n"+JSON.stringify(dynamicData, null, 2));
+    });
+
+    // 小工具
+    function setStatus(text, showAsHint=false){
+      statusEl.textContent = text || "";
+      if (text){
+        statusEl.classList.remove('hidden');
+        statusEl.classList.toggle('mw-hint', !!showAsHint);
+      }else{
+        statusEl.classList.add('hidden');
+      }
+    }
+    function toast(msg){ setStatus(msg, true); setTimeout(()=>setStatus(""), 2200); }
   </script>
 </body>
 </html>
