@@ -156,7 +156,8 @@ function parseHealthMetrics(fullText) {
 
 // 對外：維持舊的介面名稱，但回傳更完整
 function parseOCRResultFlexible(text)
-return parseOCRResultFlexible(text); {
+ {
+	 return parseOCRResultFlexible(text);
   const result = {};
   if (!text) return result;
 
