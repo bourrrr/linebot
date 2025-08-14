@@ -254,13 +254,7 @@ async function handleEvent(event, client) {
 cron.schedule('0 8 * * *', () => sendReminder('早安！記得吃早上的藥喔 💊'));
 cron.schedule('0 20 * * *', () => sendReminder('晚安前別忘了吃晚上的藥 💊'));
 
-function sendReminder(message) {
-  const userId = '你的_user_id'; // ← ⚠️ 請改為實際的 LINE user ID
-  client.pushMessage(userId, {
-    type: 'text',
-    text: message
-  }).then(() => console.log('✅ 推播成功')).catch(err => console.error('❌ 推播錯誤：', err));
-}
+
 
 
 

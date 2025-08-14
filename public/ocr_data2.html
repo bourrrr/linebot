@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Firebase & LIFF（沿用 20807 設定） -->
+  <!-- Firebase & LIFF -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -22,47 +22,41 @@
       --mw-gray:#8e8e8cf2;
       --mw-cream:#efede9;
       --mw-ink:#363636;
-      --mw-border: #cfcfc9;
+      --mw-border:#cfcfc9;
     }
     html,body{ background: var(--mw-warm-gray); color: var(--mw-ink); font-family: "Noto Sans TC", system-ui, -apple-system, Segoe UI, sans-serif; }
     .mw-header{ background:#fff; border-bottom:1px solid var(--mw-border);}
-    .mw-title{ color:var(--mw-green); letter-spacing:.5px;}
+    .mw-title{ color:var(--mw-green);}
     .mw-sub{ color:var(--mw-gray);}
-
     .mw-card{ background:#fff; border:1px solid var(--mw-border); border-radius:20px; box-shadow:0 6px 18px rgba(0,0,0,.04); }
-
     .mw-btn-primary{ background:var(--mw-green); color:#fff; border-radius:12px; padding:.65rem 1rem; font-weight:700; transition:.2s ease;}
     .mw-btn-primary:hover{ filter:brightness(.95); }
-    .mw-btn-ghost{ border:1px solid var(--mw-border); background:#fff; color:var(--mw-ink); border-radius:12px; padding:.55rem .9rem; }
+    .mw-btn-ghost{ border:1px solid var(--mw-border); background:#fff; color:#363636; border-radius:12px; padding:.55rem .9rem; }
     .mw-chip{ display:inline-block; background:var(--mw-green-light); color:#fff; padding:.25rem .6rem; border-radius:999px; font-size:.75rem; font-weight:700; }
-
     .mw-input{ width:100%; border:1px solid var(--mw-border); border-radius:14px; padding:.7rem .9rem; background:#fff; transition:border-color .15s ease, box-shadow .15s ease;}
     .mw-input:focus{ outline:none; border-color:var(--mw-green); box-shadow:0 0 0 3px rgba(88,129,87,.15);}
-
     .mw-field-row{ display:grid; grid-template-columns:160px 1fr auto; gap:.6rem; align-items:center;}
     @media (max-width: 600px){ .mw-field-row{ grid-template-columns: 1fr; } }
-
     .mw-hint{ background:var(--mw-cream); border:1px dashed var(--mw-green); color:var(--mw-ink); border-radius:14px; padding:.8rem 1rem; }
     .mw-preview{ background:#f6f6f3; border:1px dashed var(--mw-border); border-radius:16px; padding:.75rem; }
   </style>
 </head>
 <body>
   <!-- Header -->
-
   <header class="mw-header">
     <div class="mx-auto max-w-6xl px-4 py-4 flex items-center gap-4">
-	  <div style="padding: 10px; text-align: left;">
-  <a href="https://medwell-test1.web.app/ocr_data1.html" 
-     style="display: inline-block; background-color: #588157; color: white; padding: 8px 16px; 
-            border-radius: 8px; text-decoration: none; font-size: 16px;">
-    ← 回主頁
-  </a>
-</div>
+      <div style="padding: 10px; text-align: left;">
+        <a href="https://medwell-test1.web.app/ocr_data1.html"
+           style="display: inline-block; background-color: #588157; color: white; padding: 8px 16px;
+                  border-radius: 8px; text-decoration: none; font-size: 16px;">
+          ← 回主頁
+        </a>
+      </div>
       <img src="https://medwell-test1.web.app/makewell-logo.jpg" alt="MakeWell" class="h-10 w-auto select-none" />
       <div class="flex-1">
         <div class="flex items-center gap-2">
-          <h1 class="mw-title text-2xl md:text-3xl font-extrabold">健康數據新增</h1>
-          <span class="mw-chip">MakeWell</span>
+          <h1 id="pageTitle" class="mw-title text-2xl md:text-3xl font-extrabold">健康數據新增</h1>
+          <span id="modeChip" class="mw-chip">MakeWell</span>
         </div>
         <p class="mw-sub text-sm mt-1">慢理歲月，樂活永悅</p>
       </div>
@@ -76,11 +70,13 @@
       <div class="flex flex-col md:flex-row md:items-end gap-4">
         <div class="flex-1">
           <label class="block text-sm font-semibold mb-1" style="color:var(--mw-green)">選擇圖片 / 相簿</label>
-          <!-- 移除 capture，手機可選相簿或檔案管理器 -->
           <input id="fileInput" type="file" accept="image/*" class="mw-input">
           <p class="text-xs mt-2" style="color:var(--mw-gray)">僅做 OCR 辨識，請避開反光、傾斜與過度裁切。</p>
         </div>
-        <button id="btnUpload" class="mw-btn-primary">上傳辨識</button>
+        <div class="flex gap-2">
+          <button id="btnUpload" class="mw-btn-primary">上傳辨識</button>
+          <button id="btnFillFromRaw" class="mw-btn-ghost" title="把原文一鍵轉欄位（嘗試）">原文轉欄位</button>
+        </div>
       </div>
 
       <div id="previewWrap" class="mw-preview mt-4 hidden">
@@ -118,8 +114,8 @@
   </main>
 
   <script>
-    /* ====== 後端／平台設定（沿用 20807） ====== */
-    const liffId = "2007877199-xXoPD8mD";          // LIFF ID
+    /* ====== 後端／平台設定 ====== */
+    const liffId = "2007877199-xXoPD8mD";
     const firebaseConfig = {
       apiKey: "AIzaSyCCUzxpn1quR9PPSBeZBGG17XVh8vPzjY",
       authDomain: "medwell-test1.firebaseapp.com",
@@ -132,6 +128,18 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
+    /* ====== URL / 編輯模式 ====== */
+    const urlParams = new URLSearchParams(location.search);
+    const editIdFromUrl = urlParams.get('id') || null;
+    // 重要：若沒有 ?id，主動清掉殘留的 edit_data，避免新增頁帶到上一筆
+    if (!editIdFromUrl) localStorage.removeItem('edit_data');
+
+    let editMode = false;
+    let editingDocId = null;
+    let originalRecord = null;
+    let keepOriginalDate = true;
+
+    /* ====== LIFF user ====== */
     let currentUserId = null;
     async function resolveUserId(){
       const $login = document.getElementById('loginStatus');
@@ -156,10 +164,11 @@
       }
     }
 
-    /* ====== 本頁變數 ====== */
-    const OCR_API = "https://linebot-o8nr.onrender.com/api/ocr"; // 若你有 rewrites 可改回 /api/ocr
+    /* ====== 本頁元素 ====== */
+    const OCR_API = "https://linebot-o8nr.onrender.com/api/ocr"; // 若你有 rewrites 可改 /api/ocr
     const fileInput = document.getElementById('fileInput');
     const btnUpload = document.getElementById('btnUpload');
+    const btnFillFromRaw = document.getElementById('btnFillFromRaw');
     const btnAdd = document.getElementById('btnAdd');
     const btnClear = document.getElementById('btnClear');
     const btnConfirm = document.getElementById('btnConfirm');
@@ -169,12 +178,15 @@
     const previewImg = document.getElementById('previewImg');
     const rawSection = document.getElementById('rawSection');
     const rawTextEl = document.getElementById('rawText');
+    const pageTitle = document.getElementById('pageTitle');
+    const modeChip = document.getElementById('modeChip');
 
+    /* ====== 狀態資料 ====== */
     let dynamicData = {};
     let ocrRawText = "";
     let formattedDate = "";
 
-    // 日期
+    // 日期：預設今天（編輯模式會覆蓋為原日期）
     (function(){
       const d = new Date();
       const yyyy = d.getFullYear();
@@ -184,18 +196,7 @@
       document.getElementById('date').textContent = formattedDate;
     })();
 
-    // LIFF 身分
-    resolveUserId();
-
-    // 預覽
-    fileInput.addEventListener('change', () => {
-      const f = fileInput.files?.[0];
-      if (!f) { previewWrap.classList.add('hidden'); return; }
-      previewImg.src = URL.createObjectURL(f);
-      previewWrap.classList.remove('hidden');
-    });
-
-    // 欄位渲染
+    /* ====== 欄位渲染 ====== */
     function renderFields(){
       fieldsEl.innerHTML = "";
       const keys = Object.keys(dynamicData);
@@ -228,7 +229,7 @@
       });
     }
 
-    // 解析（同行 & 換行）
+    /* ====== OCR 前端補強解析 ====== */
     function parseOCRResultFlexible(text){
       const result = {};
       if (!text) return result;
@@ -255,7 +256,27 @@
       return result;
     }
 
-    // 上傳辨識
+    /* ====== 狀態提示 ====== */
+    function setStatus(text, showAsHint=false){
+      statusEl.textContent = text || "";
+      if (text){
+        statusEl.classList.remove('hidden');
+        statusEl.classList.toggle('mw-hint', !!showAsHint);
+      }else{
+        statusEl.classList.add('hidden');
+      }
+    }
+    function toast(msg){ setStatus(msg, true); setTimeout(()=>setStatus(""), 2200); }
+
+    /* ====== 預覽 ====== */
+    fileInput.addEventListener('change', () => {
+      const f = fileInput.files?.[0];
+      if (!f) { previewWrap.classList.add('hidden'); return; }
+      previewImg.src = URL.createObjectURL(f);
+      previewWrap.classList.remove('hidden');
+    });
+
+    /* ====== 上傳辨識 ====== */
     btnUpload.addEventListener('click', async ()=>{
       const file = fileInput.files?.[0];
       if (!file){ toast("請先選擇圖片檔案"); return; }
@@ -298,6 +319,16 @@
           rawSection.classList.add('hidden');
         }
 
+        // 新增模式：日期為今天；編輯模式、且保留原日期：不動
+        if (!(editMode && keepOriginalDate)) {
+          const d = new Date();
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth()+1).padStart(2,'0');
+          const dd = String(d.getDate()).padStart(2,'0');
+          formattedDate = `${yyyy}/${mm}/${dd}`;
+          document.getElementById('date').textContent = formattedDate;
+        }
+
         renderFields();
         setStatus("✅ 完成");
       }catch(err){
@@ -308,7 +339,21 @@
       }
     });
 
-    // 新增／清除
+    /* ====== 原文一鍵轉欄位 ====== */
+    btnFillFromRaw.addEventListener('click', ()=>{
+      if (!ocrRawText?.trim()){
+        toast("尚無原文可轉換。請先上傳圖片或此功能需後端回傳原文。");
+        return;
+      }
+      const flex = parseOCRResultFlexible(ocrRawText);
+      for (const [k,v] of Object.entries(flex)){
+        if (k && v && (!(k in dynamicData) || String(dynamicData[k]??'').trim()==='')) dynamicData[k]=v;
+      }
+      renderFields();
+      toast("已嘗試從原文提取欄位");
+    });
+
+    /* ====== 新增／清除欄位 ====== */
     btnAdd.addEventListener('click', ()=>{
       let base="自訂欄位", name=base, i=1;
       while (dynamicData[name]) name = base+(++i);
@@ -317,14 +362,9 @@
     });
     btnClear.addEventListener('click', ()=>{ dynamicData={}; renderFields(); });
 
-    // 確認 → 上傳 Firestore（沿用 20807 資料結構）
+    /* ====== 確認（新增 or 更新） ====== */
     btnConfirm.addEventListener('click', async ()=>{
-      if (!currentUserId){
-        await resolveUserId();
-        if (!currentUserId){ alert("userId 尚未取得，請改用 LINE 內開啟或稍後再試"); return; }
-      }
-
-      // 以目前 dynamicData 為準，再把畫面上可能尚未 blur 的值同步回去
+      // 同步尚未 blur 的值
       const rows = fieldsEl.querySelectorAll('.mw-field-row');
       rows.forEach(row=>{
         const k = row.querySelector('[data-k="key"]')?.value?.trim();
@@ -338,34 +378,111 @@
         if (k && String(v ?? '').trim() !== '') dataToSave[k]=String(v).trim();
       });
 
+      const LIST_URL = new URL('/ocr_data1.html', window.location.origin).href;
+
       try{
-        await db.collection("health_records").add({
-          userId: currentUserId,
-          date: formattedDate,
-          data: dataToSave,
-          timestamp: new Date()
-        });
-        alert("✅ 資料成功上傳到 Firebase！");
-        // 上傳後可視需求導回列表頁
-        // location.href = "https://medwell-test1.web.app/ocr_data1.html";
+        if (editMode && editingDocId){
+          // 編輯模式：更新既有紀錄（預設保留原日期）
+          const payload = {
+            data: dataToSave,
+            updatedAt: new Date()
+          };
+          await db.collection("health_records").doc(editingDocId).update(payload);
+          alert("✅ 已更新資料！");
+          // 清掉編輯殘留，導回清單
+          localStorage.removeItem('edit_data');
+          window.location.href = LIST_URL;
+        }else{
+          // 新增模式：需 userId
+          if (!currentUserId){
+            await resolveUserId();
+            if (!currentUserId){ alert("userId 尚未取得，請改用 LINE 內開啟或稍後再試"); return; }
+          }
+          await db.collection("health_records").add({
+            userId: currentUserId,
+            date: formattedDate,
+            data: dataToSave,
+            timestamp: new Date()
+          });
+          alert("✅ 資料成功上傳到 Firebase！");
+          // 保險清理，避免返回本頁殘留
+          localStorage.removeItem('edit_data');
+          window.location.href = LIST_URL;
+        }
       }catch(err){
         console.error(err);
-        alert("❌ 上傳失敗，請查看 Console");
+        alert("❌ 送出失敗，請查看 Console");
       }
     });
 
-    // 小工具
-    function setStatus(text, showAsHint=false){
-      statusEl.textContent = text || "";
-      if (text){
-        statusEl.classList.remove('hidden');
-        statusEl.classList.toggle('mw-hint', !!showAsHint);
-      }else{
-        statusEl.classList.add('hidden');
+    /* ====== 編輯模式初始化 ====== */
+    async function initEditIfNeeded(){
+      const local = localStorage.getItem('edit_data');
+      let localObj = null;
+      if (local){
+        try{ localObj = JSON.parse(local); }catch(e){ console.warn("edit_data parse error", e); }
+      }
+
+      if (editIdFromUrl || localObj){
+        editMode = true;
+        modeChip.textContent = "編輯模式";
+        pageTitle.textContent = "編輯健康數據";
+        btnConfirm.textContent = "儲存變更";
+
+        if (localObj) originalRecord = localObj;
+        if (editIdFromUrl && (!originalRecord || originalRecord._id !== editIdFromUrl)){
+          try{
+            const snap = await db.collection('health_records').doc(editIdFromUrl).get();
+            if (snap.exists) originalRecord = { ...snap.data(), _id: editIdFromUrl };
+          }catch(e){ console.error("讀取 Firestore 失敗：", e); }
+        }
+
+        if (originalRecord){
+          editingDocId = originalRecord._id || editIdFromUrl;
+          // 日期顯示
+          const dateText = typeof originalRecord.date === 'string'
+            ? originalRecord.date
+            : (originalRecord.timestamp?.seconds ? new Date(originalRecord.timestamp.seconds*1000) : null);
+          if (typeof dateText === 'string'){
+            formattedDate = dateText;
+          }else if (dateText instanceof Date && !isNaN(dateText)){
+            const d = dateText;
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth()+1).padStart(2,'0');
+            const dd = String(d.getDate()).padStart(2,'0');
+            formattedDate = `${yyyy}/${mm}/${dd}`;
+          }
+          document.getElementById('date').textContent = formattedDate;
+
+          // 欄位
+          const src = originalRecord.data && typeof originalRecord.data === 'object'
+            ? originalRecord.data
+            : {};
+          dynamicData = { ...src };
+          renderFields();
+
+          // 若有 rawText 可顯示
+          if (originalRecord.rawText){
+            ocrRawText = originalRecord.rawText;
+            rawTextEl.textContent = ocrRawText;
+            rawSection.classList.remove('hidden');
+          }
+        }else{
+          // 找不到資料 → 退回新增模式
+          editMode = false;
+          modeChip.textContent = "MakeWell";
+          pageTitle.textContent = "健康數據新增";
+          btnConfirm.textContent = "確認";
+          toast("找不到要編輯的資料，將以新增模式開啟。");
+        }
       }
     }
-    function toast(msg){ setStatus(msg, true); setTimeout(()=>setStatus(""), 2200); }
-	
+
+    /* ====== 啟動 ====== */
+    (async function boot(){
+      await initEditIfNeeded();
+      resolveUserId();
+    })();
   </script>
 </body>
 </html>

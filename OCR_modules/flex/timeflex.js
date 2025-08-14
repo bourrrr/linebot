@@ -1,5 +1,6 @@
 // timeflex.js
-// flex.js
+// Flex（互動版）：保留說明，並在 footer 放一顆「選擇時間」按鈕（postback）
+// 按下後，伺服器再回 Template buttons + datetimepicker
 const medicineReminderFlex = {
   type: 'bubble',
   body: {
@@ -8,7 +9,7 @@ const medicineReminderFlex = {
     contents: [
       {
         type: 'text',
-        text: '💊 用藥提醒設定操作',
+        text: '💊 用藥提醒時間設定',
         weight: 'bold',
         size: 'lg',
         color: '#333333',
@@ -28,21 +29,39 @@ const medicineReminderFlex = {
         contents: [
           {
             type: 'text',
-            text: '1️⃣ 請先在本聊天室輸入「藥名」',
+            text: '1️⃣ 點擊下方按鈕「選擇時間」',
             size: 'sm',
-            color: '#ff5551',
+            color: '#0084ff',
             margin: 'xl'
           },
           {
             type: 'text',
-            text: '2️⃣  再點擊設定「提醒時間」按鈕設定時間',
+            text: '2️⃣ 在彈出的視窗按「確認提醒」完成',
             size: 'sm',
-            color: '#0084ff',
+            color: '#00aa55',
             margin: 'xl'
           }
         ]
       }
     ]
+  },
+  footer: {
+    type: 'box',
+    layout: 'vertical',
+    spacing: 'md',
+    contents: [
+      {
+        type: 'button',
+        style: 'primary',
+        height: 'sm',
+        action: {
+          type: 'postback',
+          label: '選擇時間',
+          data: 'action=open_time_picker' // 你在 webhook 收到這個後，回一則 Template buttons + datetimepicker
+        }
+      }
+    ]
   }
 };
+
 module.exports = medicineReminderFlex;
