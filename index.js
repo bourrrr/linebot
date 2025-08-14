@@ -226,11 +226,7 @@ async function handleEvent(event, client) {
 
 	  if (msg === '用藥提醒') {
 		return client.replyMessage(event.replyToken, [
-	  {
-      type: 'flex',
-      altText: '用藥提醒操作步驟',
-      contents: medicineReminderFlex
-    },
+	  
 	  {
         type: 'flex',
         altText: '設定用藥提醒',

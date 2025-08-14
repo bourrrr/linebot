@@ -1,55 +1,60 @@
 const reminderBubble = {
-  type: "bubble",
-  size: "mega",
+type: 'bubble',
   body: {
-    type: "box",
-    layout: "vertical",
-    spacing: "md",
+    type: 'box',
+    layout: 'vertical',
     contents: [
       {
-        type: "text",
-        text: "💊 用藥提醒設定",
-        weight: "bold",
-        size: "xl"
+        type: 'text',
+        text: '💊 用藥提醒時間設定',
+        weight: 'bold',
+        size: 'lg',
+        color: '#333333',
+        margin: 'md'
       },
       {
-        type: "box",
-        layout: "vertical",
-        spacing: "sm",
+        type: 'text',
+        text: '請依步驟操作：',
+        size: 'md',
+        color: '#222222',
+        margin: 'md'
+      },
+      {
+        type: 'box',
+        layout: 'vertical',
+        margin: 'sm',
         contents: [
           {
-            type: "text",
-            text: "請按照上方步驟說明操作",
-            size: "xxl",
-            color: "#555555",
-            wrap: true
+            type: 'text',
+            text: '1️⃣ 點擊下方按鈕「選擇時間」',
+            size: 'sm',
+            color: '#0084ff',
+            margin: 'xl'
+          },
+          {
+            type: 'text',
+            text: '2️⃣ 在彈出的視窗按「確認提醒」完成',
+            size: 'sm',
+            color: '#00aa55',
+            margin: 'xl'
           }
         ]
       }
     ]
   },
   footer: {
-    type: "box",
-    layout: "vertical",
-    spacing: "sm",
+    type: 'box',
+    layout: 'vertical',
+    spacing: 'md',
     contents: [
       {
-        type: "button",
-        style: "primary",
+        type: 'button',
+        style: 'primary',
+        height: 'sm',
         action: {
-          type: "datetimepicker",
-          label: "選擇提醒時間",
-          data: "action=set_time",
-          mode: "datetime"
-        }
-      },
-      {
-        type: "button",
-        style: "primary",
-        action: {
-          type: "postback",
-          label: "✅ 確認提醒",
-          data: "action=confirm_reminder"
+          type: 'postback',
+          label: '選擇時間',
+          data: 'action=open_time_picker' // 你在 webhook 收到這個後，回一則 Template buttons + datetimepicker
         }
       }
     ]
