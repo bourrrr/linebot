@@ -143,6 +143,10 @@ async function handleEvent(event, client) {
 	   if (event.type === "postback") {
       // 加 log 看有沒有收到 postback
       console.log('收到 postback:', JSON.stringify(event, null, 2));
+	  if (data.startsWith('action=open_time_picker')) {
+    await replyTimePicker(event, client);
+    return;
+  }
 
       // 先處理 checkin
       const checkinResult = await handleCheckin(event, client); // ✅ 只傳 event 和 client
@@ -155,16 +159,13 @@ async function handleEvent(event, client) {
 
       // 其他 postback 可以加更多分支
       return;
+	  
+}
     }
 
     if (event.type === "message" && event.message.type === "text") {
       const msg = event.message.text.trim();
-	if (!["藥局地圖", "血壓地圖", "紀錄數據", "健康數據紀錄", "飲食推薦", "用藥提醒", "我要新增紀錄"].includes(msg)) {
-			const userId = event.source.userId;
-			if (!reminderCache[userId]) reminderCache[userId] = {};
-			reminderCache[userId].medicine = msg;
-			console.log('藥名輸入後 reminderCache:', reminderCache[userId]);
-		  }
+	
       if (msg === '藥局地圖') {
         return client.replyMessage(event.replyToken, [
          
@@ -226,7 +227,7 @@ async function handleEvent(event, client) {
 
 	  if (msg === '用藥提醒') {
 		return client.replyMessage(event.replyToken, [
-	  
+
 	  {
         type: 'flex',
         altText: '設定用藥提醒',
@@ -250,7 +251,13 @@ async function handleEvent(event, client) {
 cron.schedule('0 8 * * *', () => sendReminder('早安！記得吃早上的藥喔 💊'));
 cron.schedule('0 20 * * *', () => sendReminder('晚安前別忘了吃晚上的藥 💊'));
 
-
+function sendReminder(message) {
+  const userId = '你的_user_id'; // ← ⚠️ 請改為實際的 LINE user ID
+  client.pushMessage(userId, {
+    type: 'text',
+    text: message
+  }).then(() => console.log('✅ 推播成功')).catch(err => console.error('❌ 推播錯誤：', err));
+}
 
 
 
