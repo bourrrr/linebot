@@ -143,6 +143,7 @@ async function handleEvent(event, client) {
 	   if (event.type === "postback") {
       // 加 log 看有沒有收到 postback
       console.log('收到 postback:', JSON.stringify(event, null, 2));
+	  const data = event.postback?.data || '';
 	  if (data.startsWith('action=open_time_picker')) {
     await replyTimePicker(event, client);
     return;
@@ -160,7 +161,7 @@ async function handleEvent(event, client) {
       // 其他 postback 可以加更多分支
       return;
 	  
-}
+
     }
 
     if (event.type === "message" && event.message.type === "text") {
