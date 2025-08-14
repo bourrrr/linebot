@@ -10,7 +10,12 @@ console.log('🔥 This is the REAL index.js 正在執行！');
 require('module-alias/register');
 const cors = require("cors");
 require('dotenv').config();
-
+// ---- 時區設定（只在 index.js 放一次就好）----
+const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 
 // 模組載入
@@ -136,7 +141,29 @@ async function replyHealthWithDiet(event, client, userId) {
     contents: dietFlex.contents
   });
 }
+async function replyTimePicker(event, client, hintText = '請點選時間（台北時區）：') {
+  const now = dayjs.tz(new Date(), 'Asia/Taipei');
+  const initial = now.add(10, 'minute').format('YYYY-MM-DDTHH:mm');
+  const min = now.format('YYYY-MM-DDTHH:mm');
+  const max = now.add(90, 'day').format('YYYY-MM-DDTHH:mm');
 
+  return client.replyMessage(event.replyToken, {
+    type: 'template',
+    altText: '選擇提醒時間',
+    template: {
+      type: 'buttons',
+      title: '設定提醒時間',
+      text: hintText,
+      actions: [{
+        type: 'datetimepicker',
+        label: '選擇時間',
+        data: 'action=select_time',
+        mode: 'datetime',
+        initial, min, max
+      }]
+    }
+  });
+}
 // 處理個別事件
 async function handleEvent(event, client) {
   try {
@@ -300,10 +327,6 @@ app.post('/api/ocr', upload.single('image'), async (req, res) => {
 
 
 
-// 4. (建議保留測試首頁) 
-app.get('/', (req, res) => {
-  res.send('MakeWell LINE Bot Server is running!');
-});
 
 // 測試首頁
 app.get('/', (req, res) => {
