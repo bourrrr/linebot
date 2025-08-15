@@ -212,7 +212,7 @@ async function handleEvent(event, client) {
   return replyHealthWithDiet(event, client, event.source.userId);
 }
 
-	  const checkinResult = await handleCheckin(event, client);
+	  const checkinResult = await handleCheckin(event, db, client);
 	  if (checkinResult) return checkinResult;
 	const reminderResult = await handleReminderPostback(event, db, client);
 	  if (reminderResult) return reminderResult;
