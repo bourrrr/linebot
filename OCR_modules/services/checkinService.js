@@ -1,60 +1,66 @@
-// OCR_modules/services/checkinService.js
-const { getStorage } = require('firebase-admin/storage');
+// checkinService.js
+const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 async function handleCheckin(event, db, client) {
-  if (event.type === 'postback' && event.postback.data.startsWith('action=checkin')) {
-    const userId = event.source.userId;
-    const params = new URLSearchParams(event.postback.data);
-    const reminderId = params.get('reminderId');
+  const userId = event.source.userId;
+  const todayKey = dayjs().tz('Asia/Taipei').format('YYYY-MM-DD');
 
-    if (!reminderId) {
-      return client.replyMessage(event.replyToken, {
+  try {
+    const snapshot = await db.collection('time')
+      .where('userId', '==', userId)
+      .where('dateKey', '==', todayKey)
+      .get();
+
+    if (snapshot.empty) {
+      await client.replyMessage(event.replyToken, {
         type: 'text',
-        text: '⚠️ 無效的簽到資料'
+        text: '你今天沒有任何提醒紀錄唷。'
       });
+      return;
     }
 
-    // 1. 更新該筆提醒為已完成
-    const reminderRef = db.collection('time').doc(reminderId);
-    await reminderRef.update({ done: true });
+    let completed = 0;
+    let total = 0;
+    let lastReminderId = null;
 
-    // 2. 從 Firebase Storage 隨機抓一張圖片
-    const bucket = getStorage().bucket(); // 取得預設 bucket
-    const [files] = await bucket.getFiles({ prefix: '長輩圖/' });
-
-    const imageFiles = files.filter(file => file.name.endsWith('.jpg') || file.name.endsWith('.png'));
-
-    if (imageFiles.length === 0) {
-      return client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: '簽到成功 ✅，但找不到可用的長輩圖。'
-      });
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      total++;
+      if (data.done) {
+        completed++;
+      } else {
+        // 尚未簽到的提醒 → 設為 done
+        await doc.ref.update({ done: true });
+        completed++;
+        lastReminderId = doc.id;
+      }
     }
 
-    const randomFile = imageFiles[Math.floor(Math.random() * imageFiles.length)];
+    const msg = completed === total
+      ? `🎉 今日簽到完成 ${completed}/${total}！你可以抽卡囉！`
+      : `✅ 今日進度 ${completed}/${total}，繼續加油唷～`;
 
-    // 取得下載 URL
-    const [url] = await randomFile.getSignedUrl({
-      action: 'read',
-      expires: '2099-12-31'
+    await client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: msg
     });
 
-    // 3. 傳送圖片與訊息
-    return client.replyMessage(event.replyToken, [
-      {
-        type: 'image',
-        originalContentUrl: url,
-        previewImageUrl: url
-      },
-      {
-        type: 'text',
-        text: '🎉 今日藥物已完成服用，繼續保持健康唷 💪'
-      }
-    ]);
-  }
+    // 如果已完成所有提醒，可以推播抽卡 Flex（你可額外實作）
+    // TODO: push 抽卡功能 if needed
 
-  // 如果不是 checkin，回 null
-  return null;
+  } catch (err) {
+    console.error('[checkin] 錯誤：', err);
+    await client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '⚠️ 無法完成簽到，請稍後再試。'
+    });
+  }
 }
 
-module.exports = { handleCheckin };
+module.exports = {
+  handleCheckin
+};
