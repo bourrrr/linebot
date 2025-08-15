@@ -58,6 +58,7 @@ const config = {
 const client = new line.Client(config);
 
 startReminderCron(db, client);
+startRepeatingReminderGenerator(db);
 
 // webhook 事件處理
 app.post('/webhook', line.middleware(config), async (req, res) => {
@@ -159,7 +160,6 @@ async function replyTimePicker(event, client, hintText = '請點選時間（台�
         label: '選擇時間',
         data: 'action=select_time',
         mode: 'datetime',
-        initial, min, max
       }]
     }
   });
@@ -279,12 +279,10 @@ async function handleEvent(event, client) {
 cron.schedule('0 8 * * *', () => sendReminder('早安！記得吃早上的藥喔 💊'));
 cron.schedule('0 20 * * *', () => sendReminder('晚安前別忘了吃晚上的藥 💊'));
 
-function sendReminder(message) {
-  const userId = '你的_user_id'; // ← ⚠️ 請改為實際的 LINE user ID
-  client.pushMessage(userId, {
-    type: 'text',
-    text: message
-  }).then(() => console.log('✅ 推播成功')).catch(err => console.error('❌ 推播錯誤：', err));
+// index.js
+async function sendReminder(client, userId, messageObject) {
+  // messageObject 可以是 text / template / flex 等
+  return client.pushMessage(userId, messageObject);
 }
 
 
