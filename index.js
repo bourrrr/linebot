@@ -43,8 +43,11 @@ require('dotenv').config();
 
 const { db, bucket } = require('./firebase'); // ✅ 引入 bucket，會觸發 firebase.js 裡的 console.log
 
-const admin = require('firebase-admin');
-admin.initializeApp();
+const admin = require("firebase-admin");
+
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
 
 
