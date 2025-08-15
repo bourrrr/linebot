@@ -45,7 +45,7 @@ const { db, bucket } = require('./firebase'); // ✅ 引入 bucket，會觸發 f
 
 const admin = require('firebase-admin');
 admin.initializeApp();
-const db = admin.firestore();
+
 
 
 // 建立 Express app
