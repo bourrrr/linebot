@@ -56,7 +56,10 @@ const config = {
   channelSecret: '3da6c5c600c1ee5897209607a02b42d9'
 };
 const client = new line.Client(config);
-
+const {
+  startReminderCron,
+  startRepeatingReminderGenerator
+} = require('./OCR_modules/services/reminderCron');
 startReminderCron(db, client);
 startRepeatingReminderGenerator(db);
 
