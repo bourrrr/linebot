@@ -14,8 +14,7 @@ function startReminderCron(db, client) {
     const minAfter = nowTW.add(1, 'minute');
 
     console.log('[cron] 現在台灣時間:', nowTW.format('YYYY-MM-DD HH:mm:ss Z'));
-	console.log("使用者選擇：", userSelectedTime.format());
-	console.log("系統目前：", now.format());
+	
     try {
       const ONLY_USER_IDS = [
         'U4627fdb2f24e8784b75faac9d0ce178a'
