@@ -5,7 +5,6 @@ const cron = require('node-cron');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const startReminderCron = require('./OCR_modules/services/reminderCron');
 console.log('🔥 This is the REAL index.js 正在執行！');
 require('module-alias/register');
 const cors = require("cors");
