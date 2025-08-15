@@ -179,7 +179,7 @@ async function handleEvent(event, client) {
   }
 
       // 先處理 checkin
-      const checkinResult = await handleCheckin(event, client); // ✅ 只傳 event 和 client
+      const checkinResult = await handleCheckin(event, client,db); // ✅ 只傳 event 和 client
 
       if (checkinResult) return checkinResult;
 
