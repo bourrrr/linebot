@@ -17,7 +17,7 @@ async function handleCheckin(event, db, client) {
       .get();
 
     if (snapshot.empty) {
-      await client.replyMessage(event.replyToken, {
+      await client.pushMessage(userId,{
         type: 'text',
         text: '你今天沒有任何提醒紀錄唷。'
       });
@@ -44,7 +44,7 @@ async function handleCheckin(event, db, client) {
       ? `🎉 今日簽到完成 ${completed}/${total}！你可以抽卡囉！`
       : `✅ 今日進度 ${completed}/${total}，繼續加油唷～`;
 	console.log(`[checkin] user: ${userId}, ${completed}/${total} 已簽到`);
-    await client.replyMessage(event.replyToken, {
+    await client.pushMessage(userId, {
       type: 'text',
       text: msg
     });

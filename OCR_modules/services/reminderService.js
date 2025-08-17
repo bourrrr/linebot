@@ -30,7 +30,7 @@ async function handleReminderPostback(event, db, client) {
   if (data.startsWith('action=select_time')) {
     const dtStr = params.datetime; // e.g. "2025-08-14T08:00"
     if (!dtStr) {
-      await client.replyMessage(event.replyToken, {
+      await client.pushMessage(userId,  {
         type: 'text',
         text: '請先從日期時間選擇器選擇時間喔。'
       });
@@ -41,7 +41,7 @@ async function handleReminderPostback(event, db, client) {
     reminderCache[userId] = { datetime: dtTW };
 
     // 給一個「確認提醒」按鈕
-    await client.replyMessage(event.replyToken, {
+    await client.pushMessage(userId,  {
       type: 'template',
       altText: '確認提醒',
       template: {
@@ -64,7 +64,7 @@ async function handleReminderPostback(event, db, client) {
   if (data === 'action=confirm_reminder') {
     const cache = reminderCache[userId];
     if (!cache || !cache.datetime) {
-      await client.replyMessage(event.replyToken, {
+      await client.pushMessage(userId, {
         type: 'text',
         text: '⚠️ 尚未選擇時間，請先用時間選擇器選擇時間。'
       });
@@ -74,7 +74,7 @@ async function handleReminderPostback(event, db, client) {
     const nowTW = dayjs.tz(new Date(), 'Asia/Taipei');
     const dtTW = cache.datetime;
     if (dtTW.isBefore(nowTW)) {
-      await client.replyMessage(event.replyToken, {
+    await client.pushMessage(userId,  {
         type: 'text',
         text: `⚠️ 時間不可早於現在。\n你選的是：${formatTW(dtTW)}`
       });
@@ -94,18 +94,20 @@ async function handleReminderPostback(event, db, client) {
 
     // 建立 /time（medicine 以空字串/預設值存）
     await timeRef.add({
-      userId,
-      datetime: Timestamp.fromDate(dtTW.toDate()),
-      done: false,
-      medicine: "",              // ← 已移除藥名需求，存空字串或 "每日用藥"
-      dateKey,                   // e.g. "2025-08-14"
-      slot                       // 當日第幾個時段
-    });
+  userId: userId,
+  hour: dtTW.hour(),
+  minute: dtTW.minute(),
+  repeat: "daily",
+  active: true,
+  dateKey: dtTW.format('YYYY-MM-DD'),
+  done: false,
+  createdAt: Timestamp.now()
+});
 
     // 清掉 cache
     delete reminderCache[userId];
 
-    await client.replyMessage(event.replyToken, {
+    await client.pushMessage(userId, {
       type: 'text',
       text: `✅ 已設定提醒：${formatTW(dtTW)}（台北時間）`
     });
