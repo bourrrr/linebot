@@ -48,7 +48,7 @@ function buildTimeMenuFlex() {
           "style": "secondary",
           "action": {
             "type": "postback",
-            "label": "查看我的提醒 ",
+            "label": "查看我的提醒",
             "data": "action=list_reminders"
             }
           }
