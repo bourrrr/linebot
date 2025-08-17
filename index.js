@@ -245,10 +245,18 @@ async function handleEvent(event, client) {
       }
 
 if (msg === '用藥提醒') {
-  const flex = buildTimeMenuFlex(); // 純 UI，功能都在 reminderService 的 postback
+  const flex = buildTimeMenuFlex(); // UI 組件
   console.log('📤 reply content:', JSON.stringify(flex, null, 2));
-  return client.replyMessage(event.replyToken, flex);
+
+  try {
+    await client.replyMessage(event.replyToken, flex);
+  } catch (err) {
+    console.error('❌ 發送錯誤:', err.response?.data || err.message);
+  }
+
+  return; // ✅ 已經回覆過了，不要再送一次
 }
+
 
 
       if (msg === '志工配對') {
