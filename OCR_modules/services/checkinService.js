@@ -7,7 +7,17 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 async function handleCheckin(event, db, client) {
-  const userId = event.source.userId;
+  const userId = event.source?.userId;
+  console.log('[checkin] userId:', userId);
+
+  if (!userId) {
+    console.error('[checkin] 無法取得 userId');
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '⚠️ 發生錯誤，請確認帳號是否綁定'
+    });
+  }
+
   const todayKey = dayjs().tz('Asia/Taipei').format('YYYY-MM-DD');
 
   try {
@@ -17,7 +27,8 @@ async function handleCheckin(event, db, client) {
       .get();
 
     if (snapshot.empty) {
-      await client.pushMessage(userId,{
+      console.log('[checkin] 今日沒有任何提醒');
+      await client.pushMessage(userId, {
         type: 'text',
         text: '你今天沒有任何提醒紀錄唷。'
       });
@@ -43,7 +54,8 @@ async function handleCheckin(event, db, client) {
     const msg = completed === total
       ? `🎉 今日簽到完成 ${completed}/${total}！你可以抽卡囉！`
       : `✅ 今日進度 ${completed}/${total}，繼續加油唷～`;
-	console.log(`[checkin] user: ${userId}, ${completed}/${total} 已簽到`);
+    console.log(`[checkin] user: ${userId}, ${completed}/${total} 已簽到`);
+    
     await client.pushMessage(userId, {
       type: 'text',
       text: msg
@@ -57,7 +69,6 @@ async function handleCheckin(event, db, client) {
     });
   }
 }
-
 
 module.exports = {
   handleCheckin
