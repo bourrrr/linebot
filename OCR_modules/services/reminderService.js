@@ -8,6 +8,7 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const reminderCache = {}; // 暫存使用者選的時間
+const MAX_BUBBLES = 12;   // LINE Flex carousel 上限
 
 /* ---------------- Utils ---------------- */
 function parseQuery(q) {
@@ -34,18 +35,29 @@ function fmtWeekdaysFromArray(arr = []) {
 }
 function formatTW(d) { return d.tz('Asia/Taipei').format('YYYY/MM/DD HH:mm'); }
 
+/**
+ * 安全回覆：先 reply，失敗或無 token 再 push
+ * - 支援一次傳多則訊息（陣列）
+ * - 其他 service（如 checkin）可直接引用此函式，避免 400
+ */
 async function replyOrPush(event, client, message) {
-  if (!Array.isArray(message)) message = [message];
+  const messages = Array.isArray(message) ? message : [message];
   const userId = event?.source?.userId;
 
   if (event?.replyToken) {
-    try { return await client.replyMessage(event.replyToken, message.length === 1 ? message[0] : message); }
-    catch (e) {
-      if (userId) return client.pushMessage(userId, message.length === 1 ? message[0] : message);
+    try {
+      return await client.replyMessage(event.replyToken, messages.length === 1 ? messages[0] : messages);
+    } catch (e) {
+      console.error('LINE reply error:', e.response?.data || e.message);
+      if (userId) {
+        return client.pushMessage(userId, messages.length === 1 ? messages[0] : messages);
+      }
       throw e;
     }
   }
-  if (userId) return client.pushMessage(userId, message.length === 1 ? message[0] : message);
+  if (userId) {
+    return client.pushMessage(userId, messages.length === 1 ? messages[0] : messages);
+  }
   throw new Error('No replyToken and no userId.');
 }
 
@@ -57,6 +69,7 @@ async function sendReminderCarousel(event, db, client) {
   const now = dayjs.tz(new Date(), 'Asia/Taipei');
   const next3 = now.add(3, 'day');
 
+  // 單次提醒（time）：今天 ~ +3 天
   const timeSnap = await db.collection('time')
     .where('userId','==', userId)
     .where('datetime','>=', Timestamp.fromDate(now.startOf('day').toDate()))
@@ -64,6 +77,7 @@ async function sendReminderCarousel(event, db, client) {
     .orderBy('datetime','asc')
     .get();
 
+  // 重複提醒（repeatingReminders）
   const repSnap = await db.collection('repeatingReminders')
     .where('userId','==', userId)
     .where('active','==', true)
@@ -144,10 +158,13 @@ async function sendReminderCarousel(event, db, client) {
     });
   }
 
+  // Flex carousel 最多 12 張，避免 400
+  const contents = bubbles.slice(0, MAX_BUBBLES);
+
   return replyOrPush(event, client, {
     type:'flex',
     altText:'提醒清單',
-    contents:{ type:'carousel', contents:bubbles }
+    contents:{ type:'carousel', contents }
   });
 }
 
@@ -368,4 +385,5 @@ async function handleReminderPostback(event, db, client) {
 module.exports = {
   handleReminderPostback,
   sendReminderCarousel,
+  replyOrPush, // ← 導出給 checkinService.js / 其他模組共用
 };
