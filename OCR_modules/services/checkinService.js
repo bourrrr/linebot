@@ -14,6 +14,7 @@ async function handleCheckin(event, db, client) {
       .where('userId', '==', userId)
       .where('dateKey', '==', todayKey)
       .get();
+	console.log("db typeof:", typeof db, db);
 
     if (snapshot.empty) {
       await client.replyMessage(event.replyToken, {
