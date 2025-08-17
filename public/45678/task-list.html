@@ -20,14 +20,25 @@
       padding:.6rem .9rem; font-weight:800; transition:.15s transform,.15s filter;
     }
     .btn-ghost:hover{ transform:translateY(-1px); filter:brightness(.98); }
-    .filter{
-      background:var(--chip); border:1px solid var(--border);
-    }
+    .filter{ background:var(--chip); border:1px solid var(--border); }
     .select, .input{
       width:100%; border:1px solid var(--border); background:#fff; border-radius:12px;
       padding:.55rem .7rem; font-size:15px; outline:none;
     }
     .select:focus, .input:focus{ box-shadow:0 0 0 3px rgba(101,153,99,.25); }
+
+    /* Chips */
+    .chip {
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:.44rem .8rem; border-radius:9999px;
+      border:1px solid var(--border); background:#fff; cursor:pointer;
+      font-weight:700; user-select:none; transition:.15s transform,.15s background,.15s border-color;
+    }
+    .chip[aria-pressed="true"]{
+      background:var(--primary-weak); border-color:var(--primary);
+    }
+    .chip:disabled{ opacity:.5; cursor:not-allowed; }
+    .chips-wrap{ display:flex; flex-wrap:wrap; gap:.5rem; }
   </style>
 
   <!-- Firebase Auth 守門（未登入導回 login） -->
@@ -63,21 +74,26 @@
 
       <!-- 篩選列 -->
       <section class="mt-8 filter rounded-2xl p-4 md:p-5">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:items-end">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:items-start">
           <div>
             <label for="citySelect" class="block text-sm font-bold mb-1">縣市</label>
             <select id="citySelect" class="select">
               <option value="">全部縣市</option>
             </select>
           </div>
-          <div>
-            <label for="districtSelect" class="block text-sm font-bold mb-1">行政區</label>
-            <select id="districtSelect" class="select" disabled>
-              <option value="">全部行政區</option>
-            </select>
+          <div class="md:col-span-2">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-sm font-bold">行政區</span>
+              <button id="toggleAllDistricts" class="btn-ghost text-xs md:text-sm">全選/全不選</button>
+            </div>
+            <!-- 改為點選式複選 chips -->
+            <div id="districtChips" class="chips-wrap" aria-label="行政區複選" role="group"></div>
+            <p id="districtHint" class="text-xs mt-2" style="color:var(--muted)">
+              先選縣市後即可選擇行政區；可多選。
+            </p>
           </div>
-          <div class="flex md:justify-end">
-            <button id="resetFilters" class="btn-ghost w-full md:w-auto">重設篩選</button>
+          <div class="md:col-span-3 flex md:justify-end">
+            <button id="resetFilters" class="btn-ghost w-full md:w-auto">取消</button>
           </div>
         </div>
       </section>
@@ -94,7 +110,7 @@
     </div>
   </div>
 
-  <!-- 你的原本邏輯 -->
+  <!-- 你的原本邏輯（已改為 chips） -->
   <script type="module" src="task-list.js"></script>
 </body>
 </html>

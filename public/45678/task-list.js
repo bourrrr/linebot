@@ -1,13 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getFirestore,
-  collection,
-  getDocs,
-  updateDoc,
-  doc,
-  query,
-  where,
-  getDoc
+  getFirestore, collection, updateDoc, doc, query, where, getDoc, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { firebaseConfig } from './firebase-config.js';
@@ -20,19 +13,20 @@ const auth = getAuth(app);
 const taskContainer = document.getElementById("taskContainer");
 const emptyState = document.getElementById("emptyState");
 const citySelect = document.getElementById("citySelect");
-const districtSelect = document.getElementById("districtSelect");
 const resetBtn = document.getElementById("resetFilters");
+const chipsWrap = document.getElementById("districtChips");
+const toggleAllBtn = document.getElementById("toggleAllDistricts");
 
 let currentUser = null;
-let tasks = []; // 從 DB 撈到的所有 pending 任務（前端做篩選/隱藏）
+let tasks = []; // 全部 pending 任務（由前端做過濾）
+let selectedDistricts = new Set(); // chips 複選狀態
 
 /* =======================
-   逾期判斷參數與工具
+   逾期判斷參數與工具（保留）
 ======================= */
-const DURATION_MINUTES = 90; // 若沒有 endAt，預估任務時長（可自行調整）
-const GRACE_MINUTES    = 30; // 緩衝時間（看診延誤、交通，避免誤判）
+const DURATION_MINUTES = 90;
+const GRACE_MINUTES    = 30;
 
-// 將 Firestore Timestamp / ISO / 毫秒 / toDate() 轉成 ms
 function getTs(t){
   try{
     if (!t) return NaN;
@@ -43,25 +37,18 @@ function getTs(t){
     return NaN;
   }catch{ return NaN; }
 }
-
-// 任務是否已逾期（仍為開放狀態但時間已到）
 function isExpired(req){
-  // 優先用 endAt；沒有就用 time + DURATION
   const startMs = getTs(req.time || req.appointmentAt);
-  if (isNaN(startMs)) return false; // 沒時間就不判定，避免誤殺
+  if (isNaN(startMs)) return false;
   const endMs = getTs(req.endAt);
   const assumedEnd = isNaN(endMs) ? (startMs + DURATION_MINUTES*60*1000) : endMs;
   const cutoff = assumedEnd + GRACE_MINUTES*60*1000;
   return Date.now() >= cutoff;
 }
-
-// 是否為開放可接狀態（保險起見，雖然查詢已過濾 pending）
 function isOpenStatus(s){
   const st = String(s || '').toLowerCase();
   return !['accepted','rejected','completed','canceled','expired','closed'].includes(st);
 }
-
-// 友善時間字串
 function timeToString(t){
   const ms = getTs(t);
   if (isNaN(ms)) return '未提供';
@@ -69,12 +56,10 @@ function timeToString(t){
 }
 
 /* =======================
-   初始化：縣市/區列表
+   初始化：縣市/區 chips
 ======================= */
-// 1) 灌入縣市清單
 (function fillCities() {
-  const cities = Object.keys(cityDistricts);
-  cities.forEach(c => {
+  Object.keys(cityDistricts).forEach(c => {
     const opt = document.createElement("option");
     opt.value = c;
     opt.textContent = c;
@@ -82,50 +67,63 @@ function timeToString(t){
   });
 })();
 
-// 動態載入行政區
-function loadDistricts(city) {
-  districtSelect.innerHTML = '<option value="">全部行政區</option>';
+function loadDistrictChips(city) {
+  chipsWrap.innerHTML = "";
+  selectedDistricts.clear();
+
   if (city && cityDistricts[city]) {
     cityDistricts[city].forEach(d => {
-      const opt = document.createElement("option");
-      opt.value = d;
-      opt.textContent = d;
-      districtSelect.appendChild(opt);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip";
+      btn.textContent = d;
+      btn.dataset.value = d;
+      btn.setAttribute("aria-pressed", "false");
+      btn.addEventListener("click", () => {
+        const v = btn.dataset.value;
+        if (selectedDistricts.has(v)) {
+          selectedDistricts.delete(v);
+          btn.setAttribute("aria-pressed", "false");
+        } else {
+          selectedDistricts.add(v);
+          btn.setAttribute("aria-pressed", "true");
+        }
+        render();
+      });
+      chipsWrap.appendChild(btn);
     });
-    districtSelect.disabled = false;
+    toggleAllBtn.disabled = false;
   } else {
-    districtSelect.disabled = true;
+    const hint = document.createElement("span");
+    hint.textContent = "請先選擇縣市";
+    hint.className = "text-sm";
+    chipsWrap.appendChild(hint);
+    toggleAllBtn.disabled = true;
   }
 }
-
-// 2) 監聽縣市切換 → 動態載入區域 + 重繪
-citySelect.addEventListener("change", () => {
-  loadDistricts(citySelect.value);
-  render(); // 立即根據新條件重繪
-});
-
-// 3) 監聽行政區切換 → 重繪
-districtSelect.addEventListener("change", render);
-
-// 4) 重設
-resetBtn.addEventListener("click", () => {
-  citySelect.value = "";
-  loadDistricts("");
+citySelect.addEventListener("change", () => { loadDistrictChips(citySelect.value); render(); });
+toggleAllBtn.addEventListener("click", () => {
+  const city = citySelect.value;
+  if (!city || !cityDistricts[city]) return;
+  const list = cityDistricts[city];
+  const isAllSelected = list.every(d => selectedDistricts.has(d));
+  selectedDistricts = new Set(isAllSelected ? [] : list);
+  chipsWrap.querySelectorAll("button.chip").forEach(btn => {
+    const v = btn.dataset.value;
+    btn.setAttribute("aria-pressed", selectedDistricts.has(v) ? "true" : "false");
+  });
   render();
 });
+resetBtn.addEventListener("click", () => { citySelect.value = ""; loadDistrictChips(""); render(); });
 
 /* =======================
-   登入 + 初始載入
+   登入 + 即時監聽
 ======================= */
 onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    alert("請先登入");
-    window.location.href = "login.html";
-    return;
-  }
+  if (!user) { alert("請先登入"); location.href = "login.html"; return; }
   currentUser = user;
 
-  // 先帶入使用者 city/district 當初始值（僅初始，不會鎖定）
+  // 初始城市/行政區
   try {
     const userSnap = await getDoc(doc(db, "users", user.uid));
     if (userSnap.exists()) {
@@ -134,28 +132,27 @@ onAuthStateChanged(auth, async (user) => {
       const defaultDistrict = data.district || "";
       if (defaultCity) {
         citySelect.value = defaultCity;
-        loadDistricts(defaultCity);
-        if (defaultDistrict) districtSelect.value = defaultDistrict;
+        loadDistrictChips(defaultCity);
+        if (defaultDistrict) {
+          selectedDistricts.add(defaultDistrict);
+          chipsWrap.querySelectorAll("button.chip").forEach(btn => {
+            if (btn.dataset.value === defaultDistrict) btn.setAttribute("aria-pressed","true");
+          });
+        }
+      } else {
+        loadDistrictChips("");
       }
+    } else {
+      loadDistrictChips("");
     }
-  } catch (e) {
-    console.warn("讀取使用者初始城市失敗：", e);
-  }
+  } catch(e){ console.warn("讀取使用者初始城市失敗：", e); loadDistrictChips(""); }
 
-  // 撈所有 status = pending 的任務
+  // ✅ 改為 onSnapshot 即時監聽，發布後立刻出現
   const qPending = query(collection(db, "requests"), where("status", "==", "pending"));
-  const snapshot = await getDocs(qPending);
-  tasks = snapshot.docs.map(docSnap => ({
-    id: docSnap.id,
-    ...docSnap.data()
-  }));
-
-  render();
-
-  // 每分鐘重算一次（剛過期的會自動從畫面消失）
-  setInterval(() => {
+  onSnapshot(qPending, (snapshot) => {
+    tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     render();
-  }, 60_000);
+  });
 });
 
 /* =======================
@@ -164,27 +161,22 @@ onAuthStateChanged(auth, async (user) => {
 function render() {
   taskContainer.innerHTML = "";
   const selCity = citySelect.value;
-  const selDistrict = districtSelect.value;
+  const selDistricts = Array.from(selectedDistricts);
 
-  // 先依「開放狀態」與「未過期」過濾，再套地區條件
   const filtered = tasks.filter(t =>
     isOpenStatus(t.status) &&
     !isExpired(t) &&
     (!selCity || t.city === selCity) &&
-    (!selDistrict || t.district === selDistrict)
+    (selDistricts.length === 0 || selDistricts.includes(t.district))
   );
 
-  if (filtered.length === 0) {
-    emptyState.classList.remove("hidden");
-    return;
-  }
+  if (filtered.length === 0) { emptyState.classList.remove("hidden"); return; }
   emptyState.classList.add("hidden");
 
   filtered.forEach(t => {
     const card = document.createElement("div");
     card.className = "task-card bg-white p-4 rounded-xl shadow";
-    card.__data = t; // 給可能的後續用途（例如別處需要）
-
+    card.__data = t;
     card.innerHTML = `
       <h2 class="text-lg font-bold">📍 ${t.city || ''}${t.district || ''}${t.road || ''}</h2>
       <p>醫院／藥局：${t.hospital || '未提供'}</p>
@@ -217,8 +209,6 @@ taskContainer.addEventListener("click", async (e) => {
     });
 
     alert(`任務已${status === "accepted" ? "接受" : "拒絕"}`);
-    // 從本地 tasks 移除該筆並重繪
-    tasks = tasks.filter(t => t.id !== taskId);
-    render();
+    // 交由即時監聽自動刷新，不需手動移除
   }
 });

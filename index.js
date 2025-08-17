@@ -69,7 +69,8 @@ const {
 } = require('./OCR_modules/services/reminderCron');
 startReminderCron(db, client);
 startRepeatingReminderGenerator(db);
-
+const processedTokens =
+  globalThis.__processedTokens || (globalThis.__processedTokens = new Set());
 // webhook 事件處理
 app.post('/webhook', line.middleware(config), async (req, res) => {
   console.log('📩 收到 LINE 的 webhook 事件！');
