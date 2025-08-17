@@ -77,7 +77,15 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
   const events = req.body.events;
   if (!events || events.length === 0) return res.status(200).send('OK');
 
-  await Promise.all(events.map(event => handleEvent(event, client)));
+  await Promise.all(
+  events.map(async (event) => {
+    try {
+      await handleEvent(event, client);
+    } catch (err) {
+      console.error('❌ handleEvent failed:', err);
+    }
+  })
+);
   res.status(200).send('OK');
 });
 // 1. 取得最新健康紀錄
@@ -236,10 +244,12 @@ async function handleEvent(event, client) {
         return client.replyMessage(event.replyToken, { type: 'text', text: stepMsg });
       }
 
-      if (msg === '用藥提醒') {
-        const flex = buildTimeMenuFlex(); // 純 UI，功能都在 reminderService 的 postback
-        return client.replyMessage(event.replyToken, flex);
-      }
+if (msg === '用藥提醒') {
+  const flex = buildTimeMenuFlex(); // 純 UI，功能都在 reminderService 的 postback
+  console.log('📤 reply content:', JSON.stringify(flex, null, 2));
+  return client.replyMessage(event.replyToken, flex);
+}
+
 
       if (msg === '志工配對') {
         console.log('✅ 收到志工配對指令');
