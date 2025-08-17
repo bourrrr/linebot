@@ -1,4 +1,5 @@
 // checkinService.js
+const { db } = require('../../firebase');
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
