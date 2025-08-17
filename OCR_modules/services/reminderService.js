@@ -1,123 +1,371 @@
 // reminderService.js
+const admin = require('firebase-admin');
+const { Timestamp } = admin.firestore;
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-const { Timestamp } = require('firebase-admin/firestore');
+const reminderCache = {}; // 暫存使用者選的時間
 
-// 暫存使用者「正在設定」的提醒，只存時間（不再存藥名）
-const reminderCache = {}; // { [userId]: { datetime: dayjs(...) } }
+/* ---------------- Utils ---------------- */
+function parseQuery(q) {
+  return (q || '').split('&').reduce((acc, kv) => {
+    const [k, v] = kv.split('=');
+    if (k) acc[k] = decodeURIComponent(v || '');
+    return acc;
+  }, {});
+}
+function fmtDate(ts) {
+  try { return dayjs.tz(ts.toDate(), 'Asia/Taipei').format('YYYY/MM/DD'); } catch { return ''; }
+}
+function fmtTime(ts) {
+  try { return dayjs.tz(ts.toDate(), 'Asia/Taipei').format('HH:mm'); } catch { return ''; }
+}
+function weekdayFromDateKey(dateKey) {
+  const d = dayjs.tz(dateKey, 'Asia/Taipei');
+  const map = ['週日','週一','週二','週三','週四','週五','週六'];
+  return map[d.day()];
+}
+function fmtWeekdaysFromArray(arr = []) {
+  const map = ['週日','週一','週二','週三','週四','週五','週六'];
+  return arr.sort().map(i => map[i] ?? '').filter(Boolean).join('、');
+}
+function formatTW(d) { return d.tz('Asia/Taipei').format('YYYY/MM/DD HH:mm'); }
 
-function formatTW(dt) {
-  return dayjs.tz(dt, 'Asia/Taipei').format('YYYY/MM/DD HH:mm');
+async function replyOrPush(event, client, message) {
+  if (!Array.isArray(message)) message = [message];
+  const userId = event?.source?.userId;
+
+  if (event?.replyToken) {
+    try { return await client.replyMessage(event.replyToken, message.length === 1 ? message[0] : message); }
+    catch (e) {
+      if (userId) return client.pushMessage(userId, message.length === 1 ? message[0] : message);
+      throw e;
+    }
+  }
+  if (userId) return client.pushMessage(userId, message.length === 1 ? message[0] : message);
+  throw new Error('No replyToken and no userId.');
 }
 
-/**
- * 用藥提醒 Postback 流程（已移除藥名）：
- * - action=select_time   (LINE datetime picker 回傳)
- * - action=confirm_reminder
- */
-async function handleReminderPostback(event, db, client) {
-  if (event.type !== 'postback') return false;
-
+/* ---------------- Step 1: Reminder Carousel ---------------- */
+async function sendReminderCarousel(event, db, client) {
   const userId = event.source?.userId;
-  const data = event.postback?.data || '';
-  const params = event.postback?.params || {};
+  if (!userId) return replyOrPush(event, client, { type:'text', text:'⚠️ 無法取得使用者' });
 
-  // 1) 選時間（從 datetime picker 回傳）
-  if (data.startsWith('action=select_time')) {
-    const dtStr = params.datetime; // e.g. "2025-08-14T08:00"
-    if (!dtStr) {
-      await client.pushMessage(userId,  {
-        type: 'text',
-        text: '請先從日期時間選擇器選擇時間喔。'
-      });
-      return true;
-    }
+  const now = dayjs.tz(new Date(), 'Asia/Taipei');
+  const next3 = now.add(3, 'day');
 
-    const dtTW = dayjs.tz(dtStr, 'Asia/Taipei');
-    reminderCache[userId] = { datetime: dtTW };
+  const timeSnap = await db.collection('time')
+    .where('userId','==', userId)
+    .where('datetime','>=', Timestamp.fromDate(now.startOf('day').toDate()))
+    .where('datetime','<=', Timestamp.fromDate(next3.endOf('day').toDate()))
+    .orderBy('datetime','asc')
+    .get();
 
-    // 給一個「確認提醒」按鈕
-    await client.pushMessage(userId,  {
-      type: 'template',
-      altText: '確認提醒',
-      template: {
-        type: 'buttons',
-        title: '確認提醒',
-        text: `已選時間：${formatTW(dtTW)}（台北時間）\n請按下方「確認提醒」建立。`,
-        actions: [
+  const repSnap = await db.collection('repeatingReminders')
+    .where('userId','==', userId)
+    .where('active','==', true)
+    .get();
+
+  const bubbles = [];
+
+  // 單次 time
+  for (const doc of timeSnap.docs) {
+    const d = doc.data();
+    const dayStr = fmtDate(d.datetime);
+    const timeStr = fmtTime(d.datetime);
+    const weekdayStr = d.dateKey ? weekdayFromDateKey(d.dateKey) : '';
+
+    bubbles.push({
+      type:'bubble',
+      body:{
+        type:'box', layout:'vertical', spacing:'sm',
+        contents:[
+          { type:'text', text:'🔔 單次提醒', weight:'bold', size:'md', color:'#333' },
+          { type:'text', text:`時間：${timeStr}`, size:'sm' },
+          { type:'text', text:`設定日期：${dayStr}`, size:'sm' },
+          { type:'text', text:`設定星期：${weekdayStr}`, size:'sm' },
+        ]
+      },
+      footer:{
+        type:'box', layout:'vertical',
+        contents:[
           {
-            type: 'postback',
-            label: '✅ 確認提醒',
-            data: 'action=confirm_reminder'
+            type:'button', style:'secondary',
+            action:{
+              type:'postback', label:'❌ 取消提醒',
+              data:`action=prepare_delete&kind=time&reminderId=${doc.id}&targetDate=${d.dateKey || ''}`
+            }
           }
         ]
       }
     });
-    return true;
   }
 
-  // 2) 確認提醒（只檢查時間，不再檢查藥名）
-  if (data === 'action=confirm_reminder') {
-    const cache = reminderCache[userId];
-    if (!cache || !cache.datetime) {
-      await client.pushMessage(userId, {
-        type: 'text',
-        text: '⚠️ 尚未選擇時間，請先用時間選擇器選擇時間。'
-      });
-      return true;
+  // 重複 repeating
+  for (const doc of repSnap.docs) {
+    const d = doc.data();
+    const hh = String(d.hour ?? '').padStart(2,'0');
+    const mm = String(d.minute ?? '').padStart(2,'0');
+    const weekdayStr = fmtWeekdaysFromArray(d.weekdays || d.weekDays || []);
+
+    bubbles.push({
+      type:'bubble',
+      body:{
+        type:'box', layout:'vertical', spacing:'sm',
+        contents:[
+          { type:'text', text:'🔁 重複提醒', weight:'bold', size:'md', color:'#333' },
+          { type:'text', text:`時間：${hh}:${mm}`, size:'sm' },
+          { type:'text', text:`設定日期：—`, size:'sm' },
+          { type:'text', text:`設定星期：${weekdayStr || '未設定'}`, size:'sm' },
+        ]
+      },
+      footer:{
+        type:'box', layout:'vertical',
+        contents:[
+          {
+            type:'button', style:'secondary',
+            action:{
+              type:'postback', label:'❌ 取消提醒',
+              data:`action=prepare_delete&kind=repeating&reminderId=${doc.id}`
+            }
+          }
+        ]
+      }
+    });
+  }
+
+  if (!bubbles.length) {
+    bubbles.push({
+      type:'bubble',
+      body:{ type:'box', layout:'vertical', contents:[ { type:'text', text:'目前沒有任何提醒', size:'sm', color:'#666' } ] }
+    });
+  }
+
+  return replyOrPush(event, client, {
+    type:'flex',
+    altText:'提醒清單',
+    contents:{ type:'carousel', contents:bubbles }
+  });
+}
+
+/* ---------------- Step 2: 刪除條件 Flex ---------------- */
+async function handlePrepareDelete(event, db, client) {
+  const p = parseQuery(event.postback?.data || '');
+  const { kind, reminderId, targetDate = '' } = p;
+
+  const btns = [];
+  if (kind === 'time') {
+    btns.push({
+      type:'button', style:'primary',
+      action:{ type:'postback', label:'✅ 僅取消某日', data:`action=confirm_delete&type=time&reminderId=${reminderId}&targetDate=${encodeURIComponent(targetDate)}` }
+    });
+  } else if (kind === 'repeating') {
+    btns.push({
+      type:'button', style:'primary',
+      action:{ type:'postback', label:'📆 僅取消某日', data:`action=confirm_delete&type=time_from_repeating&reminderId=${reminderId}&targetDate=${encodeURIComponent(targetDate)}` }
+    });
+    btns.push({
+      type:'button', style:'secondary',
+      action:{ type:'postback', label:'🗓️ 取消整個重複提醒', data:`action=confirm_delete&type=repeating&reminderId=${reminderId}` }
+    });
+  }
+
+  return replyOrPush(event, client, {
+    type:'flex',
+    altText:'選擇刪除條件',
+    contents:{
+      type:'bubble',
+      body:{
+        type:'box', layout:'vertical', spacing:'md',
+        contents:[
+          { type:'text', text:'刪除設定', weight:'bold', size:'md' },
+          { type:'text', text:'請選擇刪除範圍：', size:'sm', color:'#666' }
+        ]
+      },
+      footer:{ type:'box', layout:'vertical', spacing:'sm', contents:btns }
     }
+  });
+}
 
-    const nowTW = dayjs.tz(new Date(), 'Asia/Taipei');
-    const dtTW = cache.datetime;
-    if (dtTW.isBefore(nowTW)) {
-    await client.pushMessage(userId,  {
-        type: 'text',
-        text: `⚠️ 時間不可早於現在。\n你選的是：${formatTW(dtTW)}`
-      });
-      return true;
-    }
+/* ---------------- Step 3: 確認刪除 ---------------- */
+async function handleConfirmDelete(event, db, client) {
+  const userId = event.source?.userId;
+  const p = parseQuery(event.postback?.data || '');
+  const { type, reminderId, targetDate = '' } = p;
 
-    // 產出今天的 dateKey 與 slot（當日第幾筆）
-    const dateKey = dtTW.format('YYYY-MM-DD');
-    const timeRef = db.collection('time');
+  if (!userId || !type || !reminderId) {
+    return replyOrPush(event, client, { type:'text', text:'⚠️ 缺少確認刪除參數' });
+  }
 
-    const existingTodaySnap = await timeRef
-      .where('userId', '==', userId)
-      .where('dateKey', '==', dateKey)
+  if (type === 'time') {
+    await db.collection('time').doc(reminderId).delete();
+    return replyOrPush(event, client, { type:'text', text:'✅ 已取消該日提醒' });
+  }
+
+  if (type === 'time_from_repeating') {
+    const repRef = db.collection('repeatingReminders').doc(reminderId);
+    const repDoc = await repRef.get();
+    if (!repDoc.exists) return replyOrPush(event, client, { type:'text', text:'⚠️ 找不到重複提醒' });
+    const rep = repDoc.data();
+    const date = targetDate || dayjs().tz('Asia/Taipei').format('YYYY-MM-DD');
+
+    const begin = dayjs.tz(`${date} 00:00`, 'Asia/Taipei');
+    const end = dayjs.tz(`${date} 23:59:59`, 'Asia/Taipei');
+
+    const daySnap = await db.collection('time')
+      .where('userId','==', userId)
+      .where('datetime','>=', Timestamp.fromDate(begin.toDate()))
+      .where('datetime','<=', Timestamp.fromDate(end.toDate()))
       .get();
 
-    const slot = existingTodaySnap.size; // 0,1,2,...
-
-    // 建立 /time（medicine 以空字串/預設值存）
-    await timeRef.add({
-  userId: userId,
-  hour: dtTW.hour(),
-  minute: dtTW.minute(),
-  repeat: "daily",
-  active: true,
-  dateKey: dtTW.format('YYYY-MM-DD'),
-  done: false,
-  createdAt: Timestamp.now()
-});
-
-    // 清掉 cache
-    delete reminderCache[userId];
-
-    await client.pushMessage(userId, {
-      type: 'text',
-      text: `✅ 已設定提醒：${formatTW(dtTW)}（台北時間）`
-    });
-    return true;
+    const batch = db.batch();
+    for (const d of daySnap.docs) {
+      const row = d.data();
+      if (!row.datetime) continue;
+      const h = dayjs.tz(row.datetime.toDate(), 'Asia/Taipei').hour();
+      const m = dayjs.tz(row.datetime.toDate(), 'Asia/Taipei').minute();
+      if (h === rep.hour && m === rep.minute) batch.delete(d.ref);
+    }
+    await batch.commit();
+    return replyOrPush(event, client, { type:'text', text:`✅ 已取消 ${date} 的那筆提醒` });
   }
+
+  if (type === 'repeating') {
+    const repRef = db.collection('repeatingReminders').doc(reminderId);
+    const repDoc = await repRef.get();
+    if (!repDoc.exists) return replyOrPush(event, client, { type:'text', text:'⚠️ 找不到重複提醒' });
+
+    const rep = repDoc.data();
+    await repRef.update({ active:false });
+
+    const now = dayjs.tz(new Date(), 'Asia/Taipei');
+    const futureSnap = await db.collection('time')
+      .where('userId','==', userId)
+      .where('datetime','>=', Timestamp.fromDate(now.startOf('day').toDate()))
+      .get();
+
+    const batch = db.batch();
+    for (const d of futureSnap.docs) {
+      const row = d.data();
+      if (!row.datetime) continue;
+      const h = dayjs.tz(row.datetime.toDate(), 'Asia/Taipei').hour();
+      const m = dayjs.tz(row.datetime.toDate(), 'Asia/Taipei').minute();
+      if (h === rep.hour && m === rep.minute) batch.delete(d.ref);
+    }
+    await batch.commit();
+
+    return replyOrPush(event, client, { type:'text', text:'🗓️ 已取消整個重複提醒' });
+  }
+
+  return replyOrPush(event, client, { type:'text', text:'⚠️ 未支援的刪除類型' });
+}
+
+/* ---------------- 建立單次提醒流程 ---------------- */
+async function replyTimePicker(event, client) {
+  // LINE datetimepicker 用於 select_time
+  return replyOrPush(event, client, {
+    type: 'template',
+    altText: '選擇提醒時間',
+    template: {
+      type: 'buttons',
+      title: '選擇提醒時間',
+      text: '請從下方選擇日期與時間',
+      actions: [
+        {
+          type: 'datetimepicker',
+          label: '選擇日期時間',
+          data: 'action=select_time', // 之後回到 select_time
+          mode: 'datetime'
+        }
+      ]
+    }
+  });
+}
+
+async function handleSelectTime(event, client) {
+  const userId = event.source?.userId;
+  const dtStr = event.postback?.params?.datetime; // "2025-08-21T08:00"
+  if (!userId || !dtStr) {
+    return replyOrPush(event, client, { type:'text', text:'⚠️ 未取得時間，請重新選擇' });
+  }
+  const dtTW = dayjs.tz(dtStr, 'Asia/Taipei');
+  reminderCache[userId] = { datetime: dtTW };
+
+  return replyOrPush(event, client, {
+    type: 'template',
+    altText: '確認提醒',
+    template: {
+      type: 'confirm',
+      text: `已選時間：\n${formatTW(dtTW)}\n是否建立提醒？`,
+      actions: [
+        { type:'postback', label:'✅ 確認', data:'action=confirm_reminder' },
+        { type:'postback', label:'取消', data:'action=cancel_reminder' }
+      ]
+    }
+  });
+}
+
+async function handleConfirmReminder(event, db, client) {
+  const userId = event.source?.userId;
+  const cache = reminderCache[userId];
+  if (!userId || !cache?.datetime) {
+    return replyOrPush(event, client, { type:'text', text:'⚠️ 尚未選擇時間' });
+  }
+
+  const dtTW = cache.datetime;
+  const nowTW = dayjs.tz(new Date(), 'Asia/Taipei');
+  if (dtTW.isBefore(nowTW)) {
+    return replyOrPush(event, client, { type:'text', text:`⚠️ 時間不可早於現在。\n你選的是：${formatTW(dtTW)}` });
+  }
+
+  const dateKey = dtTW.format('YYYY-MM-DD');
+  const timeRef = db.collection('time');
+
+  const existingTodaySnap = await timeRef
+    .where('userId','==', userId)
+    .where('dateKey','==', dateKey)
+    .get();
+  const slot = existingTodaySnap.size;
+
+  await timeRef.add({
+    userId,
+    datetime: Timestamp.fromDate(dtTW.toDate()),
+    dateKey,
+    hour: dtTW.hour(),
+    minute: dtTW.minute(),
+    repeat: 'single',
+    active: true,
+    done: false,
+    createdAt: Timestamp.now(),
+    slot
+  });
+
+  delete reminderCache[userId];
+  return replyOrPush(event, client, { type:'text', text:`✅ 已設定提醒：${formatTW(dtTW)}（台北時間）` });
+}
+
+/* ---------------- Postback Router ---------------- */
+async function handleReminderPostback(event, db, client) {
+  if (event.type !== 'postback') return false;
+  const data = event.postback?.data || '';
+
+  if (data === 'action=open_time_picker')      { await replyTimePicker(event, client); return true; }
+  if (data === 'action=select_time')           { await handleSelectTime(event, client); return true; }
+  if (data === 'action=confirm_reminder')      { await handleConfirmReminder(event, db, client); return true; }
+  if (data === 'action=list_reminders')        { await sendReminderCarousel(event, db, client); return true; }
+  if (data.startsWith('action=prepare_delete')){ await handlePrepareDelete(event, db, client); return true; }
+  if (data.startsWith('action=confirm_delete')){ await handleConfirmDelete(event, db, client); return true; }
+
+  // 忽略 cancel / 其他
+  if (data === 'action=cancel_reminder')       { await replyOrPush(event, client, { type:'text', text:'已取消設定。' }); return true; }
 
   return false;
 }
 
 module.exports = {
-  reminderCache,
   handleReminderPostback,
+  sendReminderCarousel,
 };

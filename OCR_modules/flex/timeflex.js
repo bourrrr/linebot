@@ -1,67 +1,53 @@
 // timeflex.js
 // Flex（互動版）：保留說明，並在 footer 放一顆「選擇時間」按鈕（postback）
 // 按下後，伺服器再回 Template buttons + datetimepicker
-const medicineReminderFlex = {
-  type: 'bubble',
-  body: {
-    type: 'box',
-    layout: 'vertical',
-    contents: [
-      {
-        type: 'text',
-        text: '💊 用藥提醒時間設定',
-        weight: 'bold',
-        size: 'lg',
-        color: '#333333',
-        margin: 'md'
-      },
-      {
-        type: 'text',
-        text: '請依步驟操作：',
-        size: 'md',
-        color: '#222222',
-        margin: 'md'
-      },
-      {
+// timeflex.js
+// 只負責輸出 Flex（按鈕 UI），不包含任何功能邏輯
+function buildTimeMenuFlex() {
+  return {
+    type: 'flex',
+    altText: '用藥提醒操作',
+    contents: {
+      type: 'bubble',
+      body: {
         type: 'box',
         layout: 'vertical',
-        margin: 'sm',
+        spacing: 'md',
+        contents: [
+          { type: 'text', text: '💊 用藥提醒操作', weight: 'bold', size: 'lg', color: '#333' },
+          { type: 'text', text: '請選擇要進行的操作：', size: 'sm', color: '#666' }
+        ]
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
         contents: [
           {
-            type: 'text',
-            text: '1️⃣ 點擊下方按鈕「選擇時間」',
-            size: 'sm',
-            color: '#0084ff',
-            margin: 'xl'
+            type: 'button',
+            style: 'primary',
+            action: {
+              type: 'postback',
+              label: '🕒 新增提醒時間',
+              data: 'action=open_time_picker' // 交給 reminderService.js 處理
+            }
           },
           {
-            type: 'text',
-            text: '2️⃣ 在彈出的視窗按「確認提醒」完成',
-            size: 'sm',
-            color: '#00aa55',
-            margin: 'xl'
+            type: 'button',
+            style: 'secondary',
+            action: {
+              type: 'postback',
+              label: '📋 查看我的提醒',
+              data: 'action=list_reminders' // 交給 reminderService.js 處理
+            }
           }
         ]
       }
-    ]
-  },
-  footer: {
-    type: 'box',
-    layout: 'vertical',
-    spacing: 'md',
-    contents: [
-      {
-        type: 'button',
-        style: 'primary',
-        height: 'sm',
-        action: {
-          type: 'postback',
-          label: '選擇時間',
-          data: 'action=open_time_picker' // 你在 webhook 收到這個後，回一則 Template buttons + datetimepicker
-        }
-      }
-    ]
-  }
-};
+    }
+  };
+}
 
-module.exports = medicineReminderFlex;
+module.exports = { buildTimeMenuFlex };
+
+
+

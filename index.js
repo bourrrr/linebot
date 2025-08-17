@@ -26,15 +26,17 @@ const bpMapFlex = require('./OCR_modules/flex/bpMapFlex');
 const handleRecipeRecommendation = require('./OCR_modules/flex/recipeHandler');
 const generateHealthFlex = require('./OCR_modules/flex/healthDataCard');
 const reminderBubble = require('./OCR_modules/flex/reminderBubble');
-const { handleReminderPostback, reminderCache } = require('./OCR_modules/services/reminderService');
+
 const { handleCheckin } = require('./OCR_modules/services/checkinService');
 const Event = require('./Event');
 const extractHealthData = require('./OCR_modules/extractHealthData');
 const loginFlex = require('./OCR_modules/flex/loginFlex');
 const googleVisionOCR = require('./visionOCR/visionOCR');
 const upload = multer({ dest: 'uploads/' });
-const medicineReminderFlex = require('./OCR_modules/flex/timeflex'); // 或 './OCR_modules/flex.js'
+const { buildTimeMenuFlex } = require('./OCR_modules/flex/timeflex');
+ // 或 './OCR_modules/flex.js'
 const generateRecipeFlex = require('./generateRecipeFlex');
+const { handleReminderPostback, /* reminderCache(可刪) */ sendReminderCarousel } = require('./OCR_modules/services/reminderService');
 
 const cardflex = require('./OCR_modules/flex/cardflex');
 // 環境變數
@@ -150,7 +152,7 @@ async function replyHealthWithDiet(event, client, userId) {
     contents: dietFlex.contents
   });
 }
-async function replyTimePicker(event, client, hintText = '請點選時間（台北時區）：') {
+//async function replyTimePicker(event, client, hintText = '請點選時間（台北時區）：') {
   const now = dayjs.tz(new Date(), 'Asia/Taipei');
   const initial = now.add(10, 'minute').format('YYYY-MM-DDTHH:mm');
   const min = now.format('YYYY-MM-DDTHH:mm');
@@ -179,19 +181,15 @@ async function handleEvent(event, client) {
       // 加 log 看有沒有收到 postback
       console.log('收到 postback:', JSON.stringify(event, null, 2));
 	  const data = event.postback?.data || '';
-	  if (data.startsWith('action=open_time_picker')) {
-    await replyTimePicker(event, client);
-    return;
+	  
   }
-
+ // 再處理用藥提醒
+      const reminderResult = await handleReminderPostback(event, db, client);
+      if (reminderResult) return reminderResult;
       // 先處理 checkin
       const checkinResult = await handleCheckin(event, db, client); // ✅ 只傳 event 和 client
 
       if (checkinResult) return checkinResult;
-
-      // 再處理用藥提醒
-      const reminderResult = await handleReminderPostback(event, db, client);
-      if (reminderResult) return reminderResult;
 
       // 其他 postback 可以加更多分支
       return;
@@ -262,15 +260,10 @@ async function handleEvent(event, client) {
 
 
 	  if (msg === '用藥提醒') {
-		return client.replyMessage(event.replyToken, [
+  const flex = buildTimeMenuFlex(); // 僅 UI，功能交給 reminderService 的 postback
+  return client.replyMessage(event.replyToken, flex);
+}
 
-	  {
-        type: 'flex',
-        altText: '設定用藥提醒',
-        contents: reminderBubble
-	  }
-      ]);
-    }
 	if (msg === '志工配對') {
     console.log("✅ 收到志工配對指令");
     return client.replyMessage(event.replyToken, loginFlex());
