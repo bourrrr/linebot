@@ -6,7 +6,7 @@ const timezone = require('dayjs/plugin/timezone');
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-async function handleCheckin(event, client, db) {
+async function handleCheckin(event, db, client) {
   const userId = event.source.userId;
   const todayKey = dayjs().tz('Asia/Taipei').format('YYYY-MM-DD');
 
