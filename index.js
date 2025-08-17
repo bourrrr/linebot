@@ -152,28 +152,7 @@ async function replyHealthWithDiet(event, client, userId) {
     contents: dietFlex.contents
   });
 }
-//async function replyTimePicker(event, client, hintText = '請點選時間（台北時區）：') {
-  const now = dayjs.tz(new Date(), 'Asia/Taipei');
-  const initial = now.add(10, 'minute').format('YYYY-MM-DDTHH:mm');
-  const min = now.format('YYYY-MM-DDTHH:mm');
-  const max = now.add(90, 'day').format('YYYY-MM-DDTHH:mm');
 
-  return client.replyMessage(event.replyToken, {
-    type: 'template',
-    altText: '選擇提醒時間',
-    template: {
-      type: 'buttons',
-      title: '設定提醒時間',
-      text: hintText,
-      actions: [{
-        type: 'datetimepicker',
-        label: '選擇時間',
-        data: 'action=select_time',
-        mode: 'datetime',
-      }]
-    }
-  });
-}
 // 處理個別事件
 async function handleEvent(event, client) {
   try {
