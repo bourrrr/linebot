@@ -6,7 +6,7 @@ const timezone = require('dayjs/plugin/timezone');
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-async function handleCheckin(event, db, client) {
+async function handleCheckin(event, client, db) {
   const userId = event.source.userId;
   const todayKey = dayjs().tz('Asia/Taipei').format('YYYY-MM-DD');
 
@@ -15,7 +15,6 @@ async function handleCheckin(event, db, client) {
       .where('userId', '==', userId)
       .where('dateKey', '==', todayKey)
       .get();
-	console.log("db typeof:", typeof db, db);
 
     if (snapshot.empty) {
       await client.replyMessage(event.replyToken, {
@@ -35,7 +34,6 @@ async function handleCheckin(event, db, client) {
       if (data.done) {
         completed++;
       } else {
-        // 尚未簽到的提醒 → 設為 done
         await doc.ref.update({ done: true });
         completed++;
         lastReminderId = doc.id;
@@ -45,14 +43,11 @@ async function handleCheckin(event, db, client) {
     const msg = completed === total
       ? `🎉 今日簽到完成 ${completed}/${total}！你可以抽卡囉！`
       : `✅ 今日進度 ${completed}/${total}，繼續加油唷～`;
-
+	console.log(`[checkin] user: ${userId}, ${completed}/${total} 已簽到`);
     await client.replyMessage(event.replyToken, {
       type: 'text',
       text: msg
     });
-
-    // 如果已完成所有提醒，可以推播抽卡 Flex（你可額外實作）
-    // TODO: push 抽卡功能 if needed
 
   } catch (err) {
     console.error('[checkin] 錯誤：', err);
@@ -62,6 +57,7 @@ async function handleCheckin(event, db, client) {
     });
   }
 }
+
 
 module.exports = {
   handleCheckin
