@@ -244,18 +244,19 @@ async function handleEvent(event, client) {
         return client.replyMessage(event.replyToken, { type: 'text', text: stepMsg });
       }
 
-if (msg === '用藥提醒') {
-  const flex = buildTimeMenuFlex(); // UI 組件
-  console.log('📤 reply content:', JSON.stringify(flex, null, 2));
-
-  try {
-    await client.replyMessage(event.replyToken, flex);
-  } catch (err) {
-    console.error('❌ 發送錯誤:', err.response?.data || err.message);
-  }
-
-  return; // ✅ 已經回覆過了，不要再送一次
-}
+	if (msg === '用藥提醒') {
+	  try {
+		const flex = buildTimeMenuFlex();
+		console.log('發送 Flex Message:', JSON.stringify(flex, null, 2));
+		return client.replyMessage(event.replyToken, flex);
+	  } catch (error) {
+		console.error('Flex Message 錯誤:', error);
+		return client.replyMessage(event.replyToken, {
+		  type: 'text',
+		  text: '⚠️ 用藥提醒功能暫時無法使用，請稍後再試。'
+		});
+	  }
+	}
 
 
 
