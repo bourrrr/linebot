@@ -3,6 +3,8 @@ const { db } = require('../../firebase');
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
+const { replyOrPush } = require('./reminderService'); // ✅ 引入共用工具
+
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
@@ -12,7 +14,7 @@ async function handleCheckin(event, db, client) {
 
   if (!userId) {
     console.error('[checkin] 無法取得 userId');
-    return client.replyMessage(event.replyToken, {
+    return replyOrPush(event, client, {
       type: 'text',
       text: '⚠️ 發生錯誤，請確認帳號是否綁定'
     });
@@ -28,11 +30,10 @@ async function handleCheckin(event, db, client) {
 
     if (snapshot.empty) {
       console.log('[checkin] 今日沒有任何提醒');
-      await client.pushMessage(userId, {
+      return replyOrPush(event, client, {
         type: 'text',
         text: '你今天沒有任何提醒紀錄唷。'
       });
-      return;
     }
 
     let completed = 0;
@@ -54,16 +55,17 @@ async function handleCheckin(event, db, client) {
     const msg = completed === total
       ? `🎉 今日簽到完成 ${completed}/${total}！你可以抽卡囉！`
       : `✅ 今日進度 ${completed}/${total}，繼續加油唷～`;
+
     console.log(`[checkin] user: ${userId}, ${completed}/${total} 已簽到`);
-    
-    await client.pushMessage(userId, {
+
+    return replyOrPush(event, client, {
       type: 'text',
       text: msg
     });
 
   } catch (err) {
     console.error('[checkin] 錯誤：', err);
-    await client.replyMessage(event.replyToken, {
+    return replyOrPush(event, client, {
       type: 'text',
       text: '⚠️ 無法完成簽到，請稍後再試。'
     });
