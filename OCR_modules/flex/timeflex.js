@@ -39,7 +39,7 @@ function buildTimeMenuFlex() {
           "style": "primary",
           "action": {
             "type": "postback",
-            "label": "新增提醒時間 🕒",
+            "label": "新增提醒時間 ",
             "data": "action=open_time_picker"
           }
         },
@@ -48,7 +48,7 @@ function buildTimeMenuFlex() {
           "style": "secondary",
           "action": {
             "type": "postback",
-            "label": "查看我的提醒 📋",
+            "label": "查看我的提醒 ",
             "data": "action=list_reminders"
             }
           }
