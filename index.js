@@ -156,98 +156,84 @@ async function replyHealthWithDiet(event, client, userId) {
 // 處理個別事件
 async function handleEvent(event, client) {
   try {
-	   if (event.type === "postback") {
-      // 加 log 看有沒有收到 postback
+    // 1) 先處理 postback 事件
+    if (event.type === "postback") {
       console.log('收到 postback:', JSON.stringify(event, null, 2));
-	  const data = event.postback?.data || '';
-	  
-  }
- // 再處理用藥提醒
+      const data = event.postback?.data || '';
+
+      // 先走提醒路由（刪除/建立/清單）
       const reminderResult = await handleReminderPostback(event, db, client);
-      if (reminderResult) return reminderResult;
-      // 先處理 checkin
-      const checkinResult = await handleCheckin(event, db, client); // ✅ 只傳 event 和 client
+      if (reminderResult) return;
 
-      if (checkinResult) return checkinResult;
+      // 再走簽到路由
+      const checkinResult = await handleCheckin(event, db, client);
+      if (checkinResult) return;
 
-      // 其他 postback 可以加更多分支
+      // 其他 postback 分支可加在這裡
       return;
-	  
-
     }
 
+    // 2) 再處理文字訊息
     if (event.type === "message" && event.message.type === "text") {
       const msg = event.message.text.trim();
-	
-      if (msg === '藥局地圖') {
-        return client.replyMessage(event.replyToken, [
-         
-          madmapflex
-        ]);
-      }
-	  if (msg === '健康AI分析') {
-  return replyHealthWithDiet(event, client, event.source.userId);
-}
 
-	  const checkinResult = await handleCheckin(event, db, client);
-	  if (checkinResult) return checkinResult;
-	const reminderResult = await handleReminderPostback(event, db, client);
-	  if (reminderResult) return reminderResult;
-	  
+      if (msg === '藥局地圖') {
+        return client.replyMessage(event.replyToken, [ madmapflex ]);
+      }
+
+      if (msg === '健康AI分析') {
+        return replyHealthWithDiet(event, client, event.source.userId);
+      }
+
+      // 簽到與提醒（放文字訊息分支內也保留）
+      const checkinResult = await handleCheckin(event, db, client);
+      if (checkinResult) return;
+      const reminderResult = await handleReminderPostback(event, db, client);
+      if (reminderResult) return;
+
       if (msg === '血壓地圖') {
         return client.replyMessage(event.replyToken, bpMapFlex);
       }
 
       if (msg === '紀錄數據') {
-        return client.replyMessage(event.replyToken, {
-          type: 'text',
-          text: '✅ 你輸入了紀錄數據'
-        });
+        return client.replyMessage(event.replyToken, { type: 'text', text: '✅ 你輸入了紀錄數據' });
       }
-	  
+
       if (msg === '健康數據紀錄') {
         console.log("✅ 收到紀錄數據指令");
         return client.replyMessage(event.replyToken, healthCard);
       }
 
-      if (msg === '飲食推薦') 
-	  {
+      if (msg === '飲食推薦') {
         return handleRecipeRecommendation(event, client);
       }
-	  if (msg === '簽到') 
-		{
-			return client.replyMessage(event.replyToken, cardflex());
-		}
-	if (msg.startsWith('步驟 ')) {
-	  const recipeName = msg.replace('步驟 ', '').trim();
-	  // 查 Firestore
-	  const snapshot = await db.collection('recipes').where('name', '==', recipeName).limit(1).get();
-	  if (snapshot.empty) {
-		return client.replyMessage(event.replyToken, {
-		  type: "text",
-		  text: `查無「${recipeName}」的步驟！`
-		});
-	  }
-	  const data = snapshot.docs[0].data();
-	  const steps = data.steps || [];
-	  const stepMsg = steps.map((s, idx) => `步驟${idx + 1}：${s}`).join('\n');
-	  return client.replyMessage(event.replyToken, {
-		type: "text",
-		text: stepMsg
-	  });
-	}
 
+      if (msg === '簽到') {
+        return client.replyMessage(event.replyToken, cardflex());
+      }
 
-	  if (msg === '用藥提醒') {
-  const flex = buildTimeMenuFlex(); // 僅 UI，功能交給 reminderService 的 postback
-  return client.replyMessage(event.replyToken, flex);
-}
+      if (msg.startsWith('步驟 ')) {
+        const recipeName = msg.replace('步驟 ', '').trim();
+        const snapshot = await db.collection('recipes').where('name', '==', recipeName).limit(1).get();
+        if (snapshot.empty) {
+          return client.replyMessage(event.replyToken, { type: "text", text: `查無「${recipeName}」的步驟！` });
+        }
+        const data = snapshot.docs[0].data();
+        const steps = data.steps || [];
+        const stepMsg = steps.map((s, idx) => `步驟${idx + 1}：${s}`).join('\n');
+        return client.replyMessage(event.replyToken, { type: "text", text: stepMsg });
+      }
 
-	if (msg === '志工配對') {
-    console.log("✅ 收到志工配對指令");
-    return client.replyMessage(event.replyToken, loginFlex());
-}
+      if (msg === '用藥提醒') {
+        const flex = buildTimeMenuFlex(); // 純 UI，功能都在 reminderService 的 postback
+        return client.replyMessage(event.replyToken, flex);
+      }
 
+      if (msg === '志工配對') {
+        console.log("✅ 收到志工配對指令");
+        return client.replyMessage(event.replyToken, loginFlex());
+      }
+		return;
 
     }
   } catch (err) {
@@ -256,8 +242,6 @@ async function handleEvent(event, client) {
 }
 
 // 🕗 定時吃藥提醒（每天早上8點、晚上8點）
-cron.schedule('0 8 * * *', () => sendReminder('早安！記得吃早上的藥喔 💊'));
-cron.schedule('0 20 * * *', () => sendReminder('晚安前別忘了吃晚上的藥 💊'));
 
 // index.js
 async function sendReminder(client, userId, messageObject) {
