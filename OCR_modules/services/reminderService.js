@@ -250,6 +250,120 @@ async function handleSelectRepeatingTime(event, client) {
     }
   });
 }
+// 單次提醒：時間選擇 UI
+async function replyTimePicker(event, client) {
+  return replyOrPush(event, client, {
+    type: 'template',
+    altText: '選擇提醒時間',
+    template: {
+      type: 'buttons',
+      title: '⏰ 單次提醒',
+      text: '請選擇提醒的時間',
+      actions: [
+        {
+          type: 'datetimepicker',
+          label: '選擇時間',
+          data: 'action=select_time',
+          mode: 'datetime'
+        }
+      ]
+    }
+  });
+}
+
+// 單次提醒：接收選擇時間
+async function handleSelectTime(event, client) {
+  const timeStr = event.postback?.params?.datetime;
+  const userId = event.source?.userId;
+  if (!timeStr || !userId) {
+    return replyOrPush(event, client, {
+      type: 'text',
+      text: '⚠️ 時間選擇錯誤，請重新選擇'
+    });
+  }
+  // 暫存提醒時間
+  reminderCache[userId] = { datetime: timeStr, type: 'single' };
+
+  return replyOrPush(event, client, {
+    type: 'template',
+    altText: '確認提醒',
+    template: {
+      type: 'confirm',
+      text: `⏰ 你選擇的提醒時間是：${timeStr}\n要儲存這個提醒嗎？`,
+      actions: [
+        {
+          type: 'postback',
+          label: '✅ 確認',
+          data: 'action=confirm_reminder'
+        },
+        {
+          type: 'postback',
+          label: '❌ 取消',
+          data: 'action=cancel_reminder'
+        }
+      ]
+    }
+  });
+}
+
+// 單次提醒：寫入 Firebase
+async function handleConfirmReminder(event, db, client) {
+  const userId = event.source?.userId;
+  const cache = reminderCache[userId];
+  if (!userId || !cache || !cache.datetime) {
+    return replyOrPush(event, client, {
+      type: 'text',
+      text: '⚠️ 無有效時間資訊，請重新設定提醒'
+    });
+  }
+
+  const datetime = new Date(cache.datetime);
+  await db.collection('time').add({
+    userId,
+    datetime,
+    done: false,
+    createdAt: new Date()
+  });
+
+  delete reminderCache[userId]; // 清除暫存
+
+  return replyOrPush(event, client, {
+    type: 'text',
+    text: `✅ 已建立提醒：${datetime.toLocaleString('zh-TW', { hour12: false })}`
+  });
+}
+
+// 用於提醒清單（你可自行實作）
+async function sendReminderCarousel(event, db, client) {
+  return replyOrPush(event, client, {
+    type: 'text',
+    text: '📋 這裡是提醒清單（尚未實作）'
+  });
+}
+
+// 預備刪除提醒
+async function handlePrepareDelete(event, db, client) {
+  return replyOrPush(event, client, {
+    type: 'text',
+    text: '⚠️ 準備刪除提醒（尚未實作）'
+  });
+}
+
+// 確認刪除提醒
+async function handleConfirmDelete(event, db, client) {
+  return replyOrPush(event, client, {
+    type: 'text',
+    text: '✅ 已刪除提醒（尚未實作）'
+  });
+}
+
+// 工具：解析 postback data 為物件（用於 toggle_weekday）
+function parseQuery(queryString) {
+  return Object.fromEntries(new URLSearchParams(queryString));
+}
+
+// 暫存提醒資料（單次 / 重複）
+const reminderCache = {};
 
 // 3. 處理星期選擇切換
 async function handleToggleWeekday(event, client) {
@@ -351,7 +465,13 @@ async function handleReminderPostback(event, db, client) {
 }
 
 module.exports = {
-  buildTimeMenuFlex, // 如果這個函數在這個檔案
+  buildTimeMenuFlex,
   handleReminderPostback,
   replyOrPush,
+  replyTimePicker,
+  handleSelectTime,
+  handleConfirmReminder,
+  sendReminderCarousel,
+  handlePrepareDelete,
+  handleConfirmDelete
 };

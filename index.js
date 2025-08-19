@@ -40,7 +40,8 @@ const { handleReminderPostback } = require('./OCR_modules/services/reminderServi
 const { replyOrPush } = require('./OCR_modules/services/reminderService');
 const { sendReminderCarousel } = require('./OCR_modules/services/reminderService');
 const cardflex = require('./OCR_modules/flex/cardflex');
-// 環境變數
+const {replyTimePicker, handleSelectTime, handleConfirmReminder, handlePrepareDelete, handleConfirmDelete
+} = require('./OCR_modules/services/reminderService');
 require('dotenv').config();
 
 
