@@ -28,7 +28,7 @@ function loginFlex() {
           },
           {
             type: "text",
-            text: "🠋 請選擇您的角色進行登入 🠋",
+            text: "👇 請選擇您的角色進行登入 👇",
             size: "sm",
             color: "#666666",
             wrap: true,
@@ -45,7 +45,7 @@ function loginFlex() {
             type: "button",
             flex: 1,
             style: "secondary",
-			color: "#efede9",
+			color: "#588157",
             action: {
               type: "uri",
               label: "我是患者",
