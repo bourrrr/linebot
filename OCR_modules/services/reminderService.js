@@ -305,7 +305,7 @@ async function sendReminderCarousel(event, db, client) {
         layout:'vertical',
         spacing:'sm',
         contents:[
-          { type:'text', text:'🔄 重複提醒', weight:'bold', size:'lg' color:'#efede9 '},
+          { type:'text', text:'🔄 重複提醒', weight:'bold', size:'lg'},
           { type:'text', text:`時間：${timeStr}`, size:'sm', color:'#666666' },
           { type:'text', text:`重複：每週 ${days}`, size:'sm', color:'#666666', wrap:true }
         ]
