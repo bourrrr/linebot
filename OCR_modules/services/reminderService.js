@@ -159,25 +159,70 @@ async function replyTimePicker(event, client) {
   });
 }
 
-async function handleSelectTime(event, client) {
-  const timeStr = event.postback?.params?.datetime;
-  const userId = event.source?.userId;
-  if (!timeStr || !userId) {
-    return replyOrPush(event, client, { type:'text', text:'⚠️ 時間選擇錯誤，請重新選擇' });
-  }
-  reminderCache[userId] = { datetime: timeStr, type: 'single' };
+// 單次提醒：時間選擇 UI
+async function replyTimePicker(event, client) {
   return replyOrPush(event, client, {
-    type: 'template', altText: '確認提醒',
+    type: 'template',
+    altText: '選擇提醒時間',
     template: {
-      type:'confirm',
-      text:`⏰ 你選擇的提醒時間是：${timeStr}\n要儲存這個提醒嗎？`,
-      actions:[
-        { type:'postback', label:'✅ 確認', data:'action=confirm_reminder' },
-        { type:'postback', label:'❌ 取消', data:'action=cancel_reminder' }
+      type: 'buttons',
+      title: '⏰ 單次提醒',
+      text: '請選擇提醒的時間',
+      actions: [
+        { type: 'datetimepicker', label: '選擇時間', data: 'action=select_time', mode: 'datetime' }
       ]
     }
   });
 }
+
+// 單次提醒：接收時間 → 出確認框
+async function handleSelectTime(event, client) {
+  const timeStr = event.postback?.params?.datetime; // e.g. "2025-08-19T19:40"
+  const userId = event.source?.userId;
+  if (!timeStr || !userId) {
+    return replyOrPush(event, client, { type:'text', text:'⚠️ 時間選擇錯誤，請重新選擇' });
+  }
+
+  reminderCache[userId] = { datetime: timeStr, type: 'single' };
+
+  return replyOrPush(event, client, {
+    type: 'template',
+    altText: '確認提醒',
+    template: {
+      type: 'confirm',
+      text: `⏰ 你選擇的提醒時間是：${timeStr}\n要儲存這個提醒嗎？`,
+      actions: [
+        { type: 'postback', label: '✅ 確認', data: 'action=confirm_reminder' },
+        { type: 'postback', label: '❌ 取消', data: 'action=cancel_reminder' }
+      ]
+    }
+  });
+}
+
+// 單次提醒：寫入 Firestore
+async function handleConfirmReminder(event, db, client) {
+  const userId = event.source?.userId;
+  const cache = reminderCache[userId];
+  if (!userId || !cache?.datetime) {
+    return replyOrPush(event, client, { type:'text', text:'⚠️ 無有效時間資訊，請重新設定提醒' });
+  }
+
+  const dt = new Date(cache.datetime);
+  await db.collection('time').add({
+    userId,
+    datetime: dt,
+    done: false,
+    createdAt: new Date()
+  });
+
+  delete reminderCache[userId];
+
+  return replyOrPush(event, client, {
+    type: 'text',
+    text: `✅ 已建立提醒：${dayjs(dt).tz('Asia/Taipei').format('YYYY/MM/DD HH:mm')}`
+  });
+}
+
 
 // ===== 取代版：查看提醒清單（最保守 Flex）=====
 async function sendReminderCarousel(event, db, client) {
@@ -260,7 +305,7 @@ async function sendReminderCarousel(event, db, client) {
         layout:'vertical',
         spacing:'sm',
         contents:[
-          { type:'text', text:'🔄 重複提醒', weight:'bold', size:'lg' },
+          { type:'text', text:'🔄 重複提醒', weight:'bold', size:'lg' color:'#efede9 '},
           { type:'text', text:`時間：${timeStr}`, size:'sm', color:'#666666' },
           { type:'text', text:`重複：每週 ${days}`, size:'sm', color:'#666666', wrap:true }
         ]
