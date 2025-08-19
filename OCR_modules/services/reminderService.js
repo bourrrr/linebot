@@ -86,7 +86,6 @@ async function replyTimePicker(event, client) {
       text: [
 		  '請選擇提醒的時間',
 		  '• 單次提醒不會累積抽卡機會',
-		  '• 以台灣時間（GMT+8）',
 		  '• 設定後可在「提醒清單」查看/刪除'
 		].join('\n'),
       
