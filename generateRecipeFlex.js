@@ -83,7 +83,7 @@ function generateRecipeFlex(recipe) {
                 size: 'lg'        // 字體加大
               }
             ],
-            paddingAll: 'md'  // 增加內距讓按鈕更大
+
           }
         ]
       }
