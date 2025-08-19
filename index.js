@@ -36,8 +36,9 @@ const upload = multer({ dest: 'uploads/' });
 const { buildTimeMenuFlex } = require('./OCR_modules/flex/timeflex');
  // 或 './OCR_modules/flex.js'
 const generateRecipeFlex = require('./generateRecipeFlex');
-const { handleReminderPostback, /* reminderCache(可刪) */ sendReminderCarousel } = require('./OCR_modules/services/reminderService');
-
+const { handleReminderPostback } = require('./OCR_modules/services/reminderService');
+const { replyOrPush } = require('./OCR_modules/flex/timeflex');
+const { sendReminderCarousel } = require('./OCR_modules/flex/timeflex');
 const cardflex = require('./OCR_modules/flex/cardflex');
 // 環境變數
 require('dotenv').config();
