@@ -61,11 +61,16 @@
           return;
         }
         const data = snap.data() || {};
-        if (data.role !== 'volunteer') {
-          // 角色不符時導去患者首頁
+        const role = (data.role || '').trim();
+        const isPatient   = role === '患者' || role === 'patient';
+        const isVolunteer = role === '志工' || role === 'volunteer';
+
+        if (!isVolunteer) {
+          // 不是志工 → 導去患者首頁（若也不是患者，仍先導患者頁）
           location.href = "home.html";
           return;
         }
+
       } catch (e) {
         console.error('[VOLUNTEER] Guard error:', e);
         alert('登入狀態檢查失敗，將返回登入頁。' + (e?.message || ''));

@@ -64,7 +64,7 @@ function buildTimeMenuFlex() {
       footer: {
         type: "box",
         layout: "vertical",
-        spacing: "16px",
+        spacing: "18px",
         contents: [
           pill('📅 單次提醒', 'action=create_single_reminder', '#659963', '#ffffff'),
           pill('🔄 重複提醒', 'action=create_repeating_reminder', '#efede9', '#363636'),
@@ -172,12 +172,37 @@ async function handleSelectRepeatingTime(event, client) {
         ]
       },
 	  
-    footer: 
-	{ type:'box', layout:'horizontal', spacing:'xs', contents:[
-  btnDay(4,'四'), btnDay(5,'五'), btnDay(6,'六'),
-  // 完成：綠色膠囊鈕（#659963）白字
-  Object.assign({}, pill('完成', 'action=confirm_repeating_reminder', '#659963', '#ffffff'), { flex: 1 })
-]}
+    // 取代 handleSelectRepeatingTime 裡 replyOrPush(...) 的 footer 整段
+footer: {
+  type: 'box',
+  layout: 'vertical',   // ✅ 垂直，底下兩排
+  spacing: 'xs',
+  contents: [
+    {
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'xs',
+      contents: [
+        btnDay(0, '日'), btnDay(1, '一'), btnDay(2, '二'), btnDay(3, '三')
+      ]
+    },
+    {
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'xs',
+      contents: [
+        btnDay(4, '四'), btnDay(5, '五'), btnDay(6, '六'),
+        // 完成：綠色膠囊鈕（白字）
+        Object.assign(
+          {},
+          pill('完成', 'action=confirm_repeating_reminder', '#659963', '#ffffff'),
+          { flex: 1 }
+        )
+      ]
+    }
+  ]
+}
+
     }
   });
 }
