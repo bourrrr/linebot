@@ -1,0 +1,26 @@
+{
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs18",
+    "region": "us-central1",
+    "secrets": [
+      "VOLLINE_LINE_CHANNEL_SECRET",
+      "VOLLINE_LINE_CHANNEL_ACCESS_TOKEN"
+    ],
+    "endpoints": {
+      "lineWebhook": {
+        "rawBody": true
+      }
+    },
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log"
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

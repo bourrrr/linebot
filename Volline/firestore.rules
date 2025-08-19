@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 參數化判斷：是否為系統管理員（需以自訂 Claims 設定 request.auth.token.role）
+    function isStaff() {
+      return request.auth != null &&
+             request.auth.token.role in ['admin', 'staff'];
+    }
+
+    // 只有參與該配對（patient 或 volunteer）的使用者能讀取
+    function isParticipant(matchId) {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/matches/$(matchId)) &&
+             (
+               // 將本人 uid 與 matches 文件裡的 authUids 比對（若你有用 Firebase Auth 綁定）
+               // 或者在你的前端以 Cloud Functions 代理讀取，避免直接曝露給使用者端。
+               // 這裡提供較寬鬆的示例：只要此 uid 曾被加入 participantsAuthUids 即可讀。
+               get(/databases/$(database)/documents/matches/$(matchId)).data.participantsAuthUids
+                 .hasAny([request.auth.uid])
+             );
+    }
+
+    // 預設全部拒絕
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // matches 主集合：僅允許讀取；建立/更新/刪除一律交由 Cloud Functions（Admin SDK）處理
+    match /matches/{matchId} {
+      allow read: if isStaff() || isParticipant(matchId);
+      allow create, update, delete: if false;
+
+      // 子集合：messages
+      match /messages/{messageId} {
+        // 參與者與工作人員均可讀
+        allow read: if isStaff() || isParticipant(matchId);
+
+        // 客戶端禁止寫入訊息（避免繞過你的文字/圖片檢查與關閉邏輯）
+        allow create, update, delete: if false;
+      }
+    }
+  }
+}
