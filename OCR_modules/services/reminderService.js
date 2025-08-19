@@ -1,73 +1,55 @@
-// 修改後的 timeflex.js - 提供更完整的選項
 const admin = require('firebase-admin');
+const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc); dayjs.extend(timezone);
+
+const weekdayNames = ['日','一','二','三','四','五','六'];
+function pad2(n){ return String(n).padStart(2,'0'); }
+function parseQuery(q){ return Object.fromEntries(new URLSearchParams(q || '')); }
+const reminderCache = (global.reminderCache ||= {});
+
+// ===== 主單選單（含單次/重複/清單）=====
 function buildTimeMenuFlex() {
   return {
-    "type": "flex",
-    "altText": "用藥提醒操作",
-    "contents": {
-      "type": "bubble",
-      "body": {
-        "type": "box",
-        "layout": "vertical",
-        "spacing": "md",
-        "contents": [
-          {
-            "type": "text",
-            "text": "💊 用藥提醒設定",
-            "weight": "bold",
-            "size": "lg",
-            "color": "#333333"
-          },
-          {
-            "type": "text",
-            "text": "請選擇提醒類型：",
-            "size": "sm",
-            "color": "#666666",
-            "wrap": true
-          }
+    type: "flex",
+    altText: "用藥提醒操作",
+    contents: {
+      type: "bubble",
+      body: {
+        type: "box",
+        layout: "vertical",
+        spacing: "md",
+        contents: [
+          { type: "text", text: "💊 用藥提醒設定", weight: "bold", size: "lg", color: "#333333" },
+          { type: "text", text: "請選擇提醒類型：", size: "sm", color: "#666666", wrap: true }
         ]
       },
-      "footer": {
-        "type": "box",
-        "layout": "vertical",
-        "spacing": "sm",
-        "contents": [
-          {
-            "type": "button",
-            "style": "primary",
-            "action": {
-              "type": "postback",
-              "label": "📅 單次提醒",
-              "data": "action=create_single_reminder"
-            }
-          },
-          {
-            "type": "button",
-            "style": "secondary",
-            "action": {
-              "type": "postback",
-              "label": "🔄 重複提醒",
-              "data": "action=create_repeating_reminder"
-            }
-          },
-          {
-            "type": "button",
-            "style": "secondary",
-            "action": {
-              "type": "postback",
-              "label": "📋 查看我的提醒",
-              "data": "action=list_reminders"
-            }
-          }
+      footer: {
+        type: "box",
+        layout: "vertical",
+        spacing: "sm",
+        contents: [
+          { type: "button", style: "primary",
+            action: { type:"postback", label:"📅 單次提醒", data:"action=create_single_reminder" } },
+          { type: "button", style: "secondary",
+            action: { type:"postback", label:"🔄 重複提醒", data:"action=create_repeating_reminder" } },
+          { type: "button", style: "secondary",
+            action: { type:"postback", label:"📋 查看我的提醒", data:"action=list_reminders" } }
         ]
       }
     }
   };
 }
 
-// 新增到 reminderService.js 的功能
+async function replyOrPush(event, client, message) {
+  if (event.replyToken) return client.replyMessage(event.replyToken, message);
+  const userId = event?.source?.userId;
+  if (!userId) throw new Error('replyOrPush: no replyToken or userId');
+  return client.pushMessage(userId, message);
+}
 
-// 1. 建立重複提醒的時間選擇
+// ===== 重複提醒：選時間 → 選星期 → 確認 =====
 async function replyRepeatingTimeSetup(event, client) {
   return replyOrPush(event, client, {
     type: 'template',
@@ -76,348 +58,78 @@ async function replyRepeatingTimeSetup(event, client) {
       type: 'buttons',
       title: '⏰ 設定重複提醒',
       text: '請先選擇提醒的時間',
-      actions: [
-        {
-          type: 'datetimepicker',
-          label: '選擇時間',
-          data: 'action=select_repeating_time',
-          mode: 'time' // 只選時間，不選日期
-        }
-      ]
+      actions: [{ type: 'datetimepicker', label: '選擇時間', data: 'action=select_repeating_time', mode: 'time' }]
     }
   });
 }
-async function replyOrPush(event, client, message) {
-  if (event.replyToken) {
-    return client.replyMessage(event.replyToken, message);
-  }
-  const userId = event?.source?.userId;
-  if (!userId) throw new Error('replyOrPush: no replyToken or userId');
-  return client.pushMessage(userId, message);
-}
-// 2. 處理重複提醒時間選擇
+
 async function handleSelectRepeatingTime(event, client) {
   const userId = event.source?.userId;
-  const timeStr = event.postback?.params?.time; // "08:00"
-  
+  const timeStr = event.postback?.params?.time; // "HH:mm"
   if (!userId || !timeStr) {
-    return replyOrPush(event, client, { 
-      type: 'text', 
-      text: '⚠️ 未取得時間，請重新選擇' 
-    });
+    return replyOrPush(event, client, { type:'text', text:'⚠️ 未取得時間，請重新選擇' });
   }
-
   const [hour, minute] = timeStr.split(':').map(Number);
-  
-  // 暫存到 cache
-  reminderCache[userId] = { 
-    hour, 
-    minute, 
-    type: 'repeating' 
-  };
+  reminderCache[userId] = { hour, minute, type:'repeating' };
 
-  // 顯示星期選擇介面
   return replyOrPush(event, client, {
-    type: 'flex',
-    altText: '選擇重複的星期',
+    type: 'flex', altText: '選擇重複的星期',
     contents: {
       type: 'bubble',
       body: {
-        type: 'box',
-        layout: 'vertical',
-        spacing: 'md',
+        type: 'box', layout: 'vertical', spacing: 'md',
         contents: [
-          {
-            type: 'text',
-            text: '📅 選擇重複的星期',
-            weight: 'bold',
-            size: 'md'
-          },
-          {
-            type: 'text',
-            text: `提醒時間：${timeStr}`,
-            size: 'sm',
-            color: '#666666'
-          },
-          {
-            type: 'text',
-            text: '請選擇要在哪些天重複提醒：',
-            size: 'sm',
-            wrap: true
-          }
+          { type:'text', text:'📅 選擇重複的星期', weight:'bold', size:'md' },
+          { type:'text', text:`提醒時間：${timeStr}`, size:'sm', color:'#666666' },
+          { type:'text', text:'請選擇要在哪些天重複提醒：', size:'sm', wrap:true }
         ]
       },
       footer: {
-        type: 'box',
-        layout: 'vertical',
-        spacing: 'xs',
+        type:'box', layout:'vertical', spacing:'xs',
         contents: [
-          {
-            type: 'box',
-            layout: 'horizontal',
-            spacing: 'xs',
-            contents: [
-              {
-                type: 'button',
-                flex: 1,
-                style: 'secondary',
-                action: {
-                  type: 'postback',
-                  label: '日',
-                  data: 'action=toggle_weekday&day=0'
-                }
-              },
-              {
-                type: 'button',
-                flex: 1,
-                style: 'secondary',
-                action: {
-                  type: 'postback',
-                  label: '一',
-                  data: 'action=toggle_weekday&day=1'
-                }
-              },
-              {
-                type: 'button',
-                flex: 1,
-                style: 'secondary',
-                action: {
-                  type: 'postback',
-                  label: '二',
-                  data: 'action=toggle_weekday&day=2'
-                }
-              },
-              {
-                type: 'button',
-                flex: 1,
-                style: 'secondary',
-                action: {
-                  type: 'postback',
-                  label: '三',
-                  data: 'action=toggle_weekday&day=3'
-                }
-              }
-            ]
-          },
-          {
-            type: 'box',
-            layout: 'horizontal',
-            spacing: 'xs',
-            contents: [
-              {
-                type: 'button',
-                flex: 1,
-                style: 'secondary',
-                action: {
-                  type: 'postback',
-                  label: '四',
-                  data: 'action=toggle_weekday&day=4'
-                }
-              },
-              {
-                type: 'button',
-                flex: 1,
-                style: 'secondary',
-                action: {
-                  type: 'postback',
-                  label: '五',
-                  data: 'action=toggle_weekday&day=5'
-                }
-              },
-              {
-                type: 'button',
-                flex: 1,
-                style: 'secondary',
-                action: {
-                  type: 'postback',
-                  label: '六',
-                  data: 'action=toggle_weekday&day=6'
-                }
-              },
-              {
-                type: 'button',
-                flex: 1,
-                style: 'primary',
-                action: {
-                  type: 'postback',
-                  label: '完成',
-                  data: 'action=confirm_repeating_reminder'
-                }
-              }
-            ]
-          }
+          { type:'box', layout:'horizontal', spacing:'xs', contents:[
+            btnDay(0,'日'), btnDay(1,'一'), btnDay(2,'二'), btnDay(3,'三')
+          ]},
+          { type:'box', layout:'horizontal', spacing:'xs', contents:[
+            btnDay(4,'四'), btnDay(5,'五'), btnDay(6,'六'),
+            { type:'button', flex:1, style:'primary',
+              action:{ type:'postback', label:'完成', data:'action=confirm_repeating_reminder' } }
+          ]}
         ]
       }
     }
   });
 }
-// 單次提醒：時間選擇 UI
-async function replyTimePicker(event, client) {
-  return replyOrPush(event, client, {
-    type: 'template',
-    altText: '選擇提醒時間',
-    template: {
-      type: 'buttons',
-      title: '⏰ 單次提醒',
-      text: '請選擇提醒的時間',
-      actions: [
-        {
-          type: 'datetimepicker',
-          label: '選擇時間',
-          data: 'action=select_time',
-          mode: 'datetime'
-        }
-      ]
-    }
-  });
-}
+function btnDay(d,label){ return { type:'button', flex:1, style:'secondary',
+  action:{ type:'postback', label, data:`action=toggle_weekday&day=${d}` } }; }
 
-// 單次提醒：接收選擇時間
-async function handleSelectTime(event, client) {
-  const timeStr = event.postback?.params?.datetime;
-  const userId = event.source?.userId;
-  if (!timeStr || !userId) {
-    return replyOrPush(event, client, {
-      type: 'text',
-      text: '⚠️ 時間選擇錯誤，請重新選擇'
-    });
-  }
-  // 暫存提醒時間
-  reminderCache[userId] = { datetime: timeStr, type: 'single' };
-
-  return replyOrPush(event, client, {
-    type: 'template',
-    altText: '確認提醒',
-    template: {
-      type: 'confirm',
-      text: `⏰ 你選擇的提醒時間是：${timeStr}\n要儲存這個提醒嗎？`,
-      actions: [
-        {
-          type: 'postback',
-          label: '✅ 確認',
-          data: 'action=confirm_reminder'
-        },
-        {
-          type: 'postback',
-          label: '❌ 取消',
-          data: 'action=cancel_reminder'
-        }
-      ]
-    }
-  });
-}
-
-// 單次提醒：寫入 Firebase
-async function handleConfirmReminder(event, db, client) {
-  const userId = event.source?.userId;
-  const cache = reminderCache[userId];
-  if (!userId || !cache || !cache.datetime) {
-    return replyOrPush(event, client, {
-      type: 'text',
-      text: '⚠️ 無有效時間資訊，請重新設定提醒'
-    });
-  }
-
-  const datetime = new Date(cache.datetime);
-  await db.collection('time').add({
-    userId,
-    datetime,
-    done: false,
-    createdAt: new Date()
-  });
-
-  delete reminderCache[userId]; // 清除暫存
-
-  return replyOrPush(event, client, {
-    type: 'text',
-    text: `✅ 已建立提醒：${datetime.toLocaleString('zh-TW', { hour12: false })}`
-  });
-}
-
-// 用於提醒清單（你可自行實作）
-async function sendReminderCarousel(event, db, client) {
-  return replyOrPush(event, client, {
-    type: 'text',
-    text: '📋 這裡是提醒清單（尚未實作）'
-  });
-}
-
-// 預備刪除提醒
-async function handlePrepareDelete(event, db, client) {
-  return replyOrPush(event, client, {
-    type: 'text',
-    text: '⚠️ 準備刪除提醒（尚未實作）'
-  });
-}
-
-// 確認刪除提醒
-async function handleConfirmDelete(event, db, client) {
-  return replyOrPush(event, client, {
-    type: 'text',
-    text: '✅ 已刪除提醒（尚未實作）'
-  });
-}
-
-// 工具：解析 postback data 為物件（用於 toggle_weekday）
-function parseQuery(queryString) {
-  return Object.fromEntries(new URLSearchParams(queryString));
-}
-
-// 暫存提醒資料（單次 / 重複）
-const reminderCache = {};
-
-// 3. 處理星期選擇切換
 async function handleToggleWeekday(event, client) {
   const userId = event.source?.userId;
   const params = parseQuery(event.postback?.data || '');
   const day = parseInt(params.day);
-  
-  if (!userId || isNaN(day)) {
-    return replyOrPush(event, client, { 
-      type: 'text', 
-      text: '⚠️ 選擇錯誤，請重試' 
-    });
+  if (!userId || Number.isNaN(day)) {
+    return replyOrPush(event, client, { type:'text', text:'⚠️ 選擇錯誤，請重試' });
   }
-
   const cache = reminderCache[userId];
-  if (!cache) {
-    return replyOrPush(event, client, { 
-      type: 'text', 
-      text: '⚠️ 請重新設定提醒' 
-    });
-  }
+  if (!cache) return replyOrPush(event, client, { type:'text', text:'⚠️ 請重新設定提醒' });
 
-  // 切換星期選擇狀態
   if (!cache.weekdays) cache.weekdays = [];
   const idx = cache.weekdays.indexOf(day);
-  if (idx >= 0) {
-    cache.weekdays.splice(idx, 1); // 移除
-  } else {
-    cache.weekdays.push(day); // 添加
-  }
+  if (idx >= 0) cache.weekdays.splice(idx,1); else cache.weekdays.push(day);
 
-  const weekdayNames = ['日', '一', '二', '三', '四', '五', '六'];
   const selectedDays = cache.weekdays.sort().map(d => weekdayNames[d]).join('、');
-  
   return replyOrPush(event, client, {
-    type: 'text',
-    text: `已選擇：星期${selectedDays || '(無)'}\n\n請繼續選擇或按「完成」確認設定。`
+    type:'text',
+    text:`已選擇：星期${selectedDays || '(無)'}\n\n請繼續選擇或按「完成」確認設定。`
   });
 }
 
-// 4. 確認建立重複提醒
 async function handleConfirmRepeatingReminder(event, db, client) {
   const userId = event.source?.userId;
   const cache = reminderCache[userId];
-  
   if (!userId || !cache || !cache.weekdays || cache.weekdays.length === 0) {
-    return replyOrPush(event, client, { 
-      type: 'text', 
-      text: '⚠️ 請至少選擇一個星期' 
-    });
+    return replyOrPush(event, client, { type:'text', text:'⚠️ 請至少選擇一個星期' });
   }
-
-  // 建立重複提醒記錄
   await db.collection('repeatingReminders').add({
     userId,
     hour: cache.hour,
@@ -426,41 +138,195 @@ async function handleConfirmRepeatingReminder(event, db, client) {
     active: true,
     createdAt: admin.firestore.Timestamp.now()
   });
-
-  // 清除 cache
   delete reminderCache[userId];
 
-  const weekdayNames = ['日', '一', '二', '三', '四', '五', '六'];
-  const selectedDays = cache.weekdays.sort().map(d => weekdayNames[d]).join('、');
-  const timeStr = `${String(cache.hour).padStart(2, '0')}:${String(cache.minute).padStart(2, '0')}`;
-  
+  const timeStr = `${pad2(cache.hour)}:${pad2(cache.minute)}`;
+  const days = cache.weekdays.sort().map(d => weekdayNames[d]).join('、');
+  return replyOrPush(event, client, { type:'text', text:`✅ 已設定重複提醒！\n⏰ 時間：${timeStr}\n📅 重複：每週${days}` });
+}
+
+// ===== 單次提醒：時間選擇 → 確認 → 寫入 =====
+async function replyTimePicker(event, client) {
   return replyOrPush(event, client, {
-    type: 'text',
-    text: `✅ 已設定重複提醒！\n⏰ 時間：${timeStr}\n📅 重複：每週${selectedDays}`
+    type: 'template',
+    altText: '選擇提醒時間',
+    template: {
+      type: 'buttons',
+      title: '⏰ 單次提醒',
+      text: '請選擇提醒的時間',
+      actions: [{ type:'datetimepicker', label:'選擇時間', data:'action=select_time', mode:'datetime' }]
+    }
   });
 }
 
-// 5. 更新 postback router
+async function handleSelectTime(event, client) {
+  const timeStr = event.postback?.params?.datetime;
+  const userId = event.source?.userId;
+  if (!timeStr || !userId) {
+    return replyOrPush(event, client, { type:'text', text:'⚠️ 時間選擇錯誤，請重新選擇' });
+  }
+  reminderCache[userId] = { datetime: timeStr, type: 'single' };
+  return replyOrPush(event, client, {
+    type: 'template', altText: '確認提醒',
+    template: {
+      type:'confirm',
+      text:`⏰ 你選擇的提醒時間是：${timeStr}\n要儲存這個提醒嗎？`,
+      actions:[
+        { type:'postback', label:'✅ 確認', data:'action=confirm_reminder' },
+        { type:'postback', label:'❌ 取消', data:'action=cancel_reminder' }
+      ]
+    }
+  });
+}
+
+async function handleConfirmReminder(event, db, client) {
+  const userId = event.source?.userId;
+  const cache = reminderCache[userId];
+  if (!userId || !cache?.datetime) {
+    return replyOrPush(event, client, { type:'text', text:'⚠️ 無有效時間資訊，請重新設定提醒' });
+  }
+  const datetime = new Date(cache.datetime);
+  await db.collection('time').add({
+    userId,
+    datetime,
+    done: false,
+    createdAt: new Date()
+  });
+  delete reminderCache[userId];
+
+  return replyOrPush(event, client, {
+    type:'text',
+    text:`✅ 已建立提醒：${dayjs(datetime).tz('Asia/Taipei').format('YYYY/MM/DD HH:mm')}`
+  });
+}
+
+// ===== 清單（可刪除）=====
+async function sendReminderCarousel(event, db, client) {
+  const userId = event.source?.userId;
+  if (!userId) return replyOrPush(event, client, { type:'text', text:'⚠️ 取得 userId 失敗' });
+
+  // 只列出未來、未完成的單次提醒
+  const now = dayjs().tz('Asia/Taipei').toDate();
+  const singleSnap = await db.collection('time')
+    .where('userId','==',userId)
+    .where('done','==',false)
+    .where('datetime','>=', now)
+    .orderBy('datetime','asc')
+    .limit(10).get();
+
+  // 活動中的重複提醒
+  const repeatSnap = await db.collection('repeatingReminders')
+    .where('userId','==',userId)
+    .where('active','==',true)
+    .limit(10).get();
+
+  const bubbles = [];
+
+  for (const dref of singleSnap.docs) {
+    const d = dref.data();
+    const tw = dayjs(d.datetime.toDate ? d.datetime.toDate() : d.datetime).tz('Asia/Taipei');
+    bubbles.push({
+      type:'bubble',
+      body:{ type:'box', layout:'vertical', spacing:'sm', contents:[
+        { type:'text', text:'📅 單次提醒', weight:'bold', size:'lg' },
+        { type:'text', text:`時間：${tw.format('YYYY/MM/DD HH:mm')}`, size:'sm', color:'#666' },
+        d.medicine ? { type:'text', text:`藥名：${d.medicine}`, size:'sm', color:'#666', wrap:true } : { type:'filler' }
+      ]},
+      footer:{ type:'box', layout:'vertical', spacing:'sm', contents:[
+        { type:'button', style:'secondary',
+          action:{ type:'postback', label:'🗑 刪除', data:`action=prepare_delete&type=time&id=${dref.id}` } }
+      ]}
+    });
+  }
+
+  for (const dref of repeatSnap.docs) {
+    const d = dref.data();
+    const timeStr = `${pad2(d.hour)}:${pad2(d.minute)}`;
+    const days = Array.isArray(d.weekdays) ? d.weekdays.sort().map(i=>weekdayNames[i]).join('、') : '(未設定)';
+    bubbles.push({
+      type:'bubble',
+      body:{ type:'box', layout:'vertical', spacing:'sm', contents:[
+        { type:'text', text:'🔄 重複提醒', weight:'bold', size:'lg' },
+        { type:'text', text:`時間：${timeStr}`, size:'sm', color:'#666' },
+        { type:'text', text:`重複：每週 ${days}`, size:'sm', color:'#666', wrap:true }
+      ]},
+      footer:{ type:'box', layout:'vertical', spacing:'sm', contents:[
+        { type:'button', style:'secondary',
+          action:{ type:'postback', label:'🗑 刪除', data:`action=prepare_delete&type=repeat&id=${dref.id}` } }
+      ]}
+    });
+  }
+
+  if (bubbles.length === 0) {
+    return replyOrPush(event, client, { type:'text', text:'目前沒有即將到來的提醒或重複提醒。' });
+  }
+
+  return replyOrPush(event, client, {
+    type:'flex', altText:'提醒清單',
+    contents:{ type:'carousel', contents: bubbles.slice(0,12) }
+  });
+}
+
+async function handlePrepareDelete(event, db, client) {
+  const p = parseQuery(event.postback?.data);
+  const { type, id } = p;
+  if (!type || !id) {
+    return replyOrPush(event, client, { type:'text', text:'⚠️ 刪除參數缺失' });
+  }
+  const label = type === 'repeat' ? '重複提醒' : '單次提醒';
+  return replyOrPush(event, client, {
+    type:'template', altText:'確認刪除提醒',
+    template:{
+      type:'confirm',
+      text:`要刪除這筆「${label}」嗎？`,
+      actions:[
+        { type:'postback', label:'✅ 確認', data:`action=confirm_delete&type=${type}&id=${id}` },
+        { type:'postback', label:'取消', data:'action=cancel_reminder' }
+      ]
+    }
+  });
+}
+
+async function handleConfirmDelete(event, db, client) {
+  const p = parseQuery(event.postback?.data);
+  const { type, id } = p;
+  if (!type || !id) {
+    return replyOrPush(event, client, { type:'text', text:'⚠️ 刪除參數缺失' });
+  }
+  try {
+    if (type === 'repeat') {
+      await db.collection('repeatingReminders').doc(id).delete();
+    } else {
+      await db.collection('time').doc(id).delete();
+    }
+    return replyOrPush(event, client, { type:'text', text:'✅ 已刪除提醒' });
+  } catch (e) {
+    console.error('[delete] error:', e);
+    return replyOrPush(event, client, { type:'text', text:'⚠️ 刪除失敗，請稍後再試' });
+  }
+}
+
+// ===== Postback Router =====
 async function handleReminderPostback(event, db, client) {
   if (event.type !== 'postback') return false;
   const data = event.postback?.data || '';
 
-  // 原有的單次提醒流程
-  if (data === 'action=create_single_reminder')    { await replyTimePicker(event, client); return true; }
-  if (data === 'action=select_time')               { await handleSelectTime(event, client); return true; }
-  if (data === 'action=confirm_reminder')          { await handleConfirmReminder(event, db, client); return true; }
-  
-  // 新增的重複提醒流程
+  // 單次提醒
+  if (data === 'action=create_single_reminder') { await replyTimePicker(event, client); return true; }
+  if (data === 'action=select_time')            { await handleSelectTime(event, client); return true; }
+  if (data === 'action=confirm_reminder')       { await handleConfirmReminder(event, db, client); return true; }
+
+  // 重複提醒
   if (data === 'action=create_repeating_reminder') { await replyRepeatingTimeSetup(event, client); return true; }
   if (data === 'action=select_repeating_time')     { await handleSelectRepeatingTime(event, client); return true; }
   if (data.startsWith('action=toggle_weekday'))    { await handleToggleWeekday(event, client); return true; }
   if (data === 'action=confirm_repeating_reminder'){ await handleConfirmRepeatingReminder(event, db, client); return true; }
-  
-  // 其他既有功能
-  if (data === 'action=list_reminders')            { await sendReminderCarousel(event, db, client); return true; }
-  if (data.startsWith('action=prepare_delete'))    { await handlePrepareDelete(event, db, client); return true; }
-  if (data.startsWith('action=confirm_delete'))    { await handleConfirmDelete(event, db, client); return true; }
-  if (data === 'action=cancel_reminder')           { await replyOrPush(event, client, { type:'text', text:'已取消設定。' }); return true; }
+
+  // 清單 / 刪除
+  if (data === 'action=list_reminders')         { await sendReminderCarousel(event, db, client); return true; }
+  if (data.startsWith('action=prepare_delete')) { await handlePrepareDelete(event, db, client); return true; }
+  if (data.startsWith('action=confirm_delete')) { await handleConfirmDelete(event, db, client); return true; }
+  if (data === 'action=cancel_reminder')        { await replyOrPush(event, client, { type:'text', text:'已取消設定。' }); return true; }
 
   return false;
 }

@@ -1,15 +1,56 @@
-// Step 2: Basic profile form and Firestore save
+// Step 2: Basic profile form and Firestore save (LINE-only identity)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { getAuth, onAuthStateChanged, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 import { firebaseConfig } from "./firebase-config.js";
 import { cityDistricts } from "./district-data.js";
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = getAuth(app);
 const storage = getStorage(app);
+
+// ===== LIFF =====
+const LIFF_ID = "2007877199-Y5R2LenL";
+async function ensureLIFF(){
+  try{
+    if(!window.liff) throw new Error("LIFF SDK 未載入");
+    if(!window.MW_LIFF_READY){
+      await liff.init({ liffId: LIFF_ID });
+      window.MW_LIFF_READY = true;
+    }
+    return true;
+  }catch(e){
+    alert("無法初始化 LINE LIFF，請回上一步重新登入。");
+    return false;
+  }
+}
+
+let CURRENT_LIFF = { uid: "", name: "" };
+
+async function requireLineIdentity(){
+  const ok = await ensureLIFF();
+  if(!ok) return false;
+  if(!liff.isLoggedIn()){
+    document.getElementById('authWarn')?.classList.remove('hidden');
+    (document.getElementById('saveBtn')).disabled = true;
+    return false;
+  }
+  try{
+    const p = await liff.getProfile();
+    CURRENT_LIFF.uid = `liff:${p.userId}`;
+    CURRENT_LIFF.name = p.displayName || "";
+    document.getElementById('authWarn')?.classList.add('hidden');
+    (document.getElementById('saveBtn')).disabled = false;
+    // 預填姓名 placeholder
+    const nameEl = document.getElementById('name');
+    if(nameEl && !nameEl.value) nameEl.placeholder = `姓名（LINE：${CURRENT_LIFF.name}）`;
+    return true;
+  }catch(e){
+    document.getElementById('authWarn')?.classList.remove('hidden');
+    (document.getElementById('saveBtn')).disabled = true;
+    return false;
+  }
+}
 
 // ====== UI helpers ======
 function setActiveRole(role){
@@ -66,36 +107,16 @@ volCitySel?.addEventListener("change", () => {
   }
 });
 
-// ====== Auth state ======
-let CURRENT_USER = null;
-const authWarn = document.getElementById('authWarn');
-onAuthStateChanged(auth, async (user) => {
-  CURRENT_USER = user || null;
-  if(!user){
-    authWarn?.classList.remove('hidden');
-    (document.getElementById('saveBtn')).disabled = true;
-  }else{
-    authWarn?.classList.add('hidden');
-    (document.getElementById('saveBtn')).disabled = false;
-    // Prefill name/email if available
-    try{
-      const email = user.email || localStorage.getItem('MW_REG_EMAIL') || "";
-      if(email) (document.getElementById('name')).placeholder = `姓名（登入：${email}）`;
-      if(user.email && !user.emailVerified){
-        try{ await sendEmailVerification(user); }catch{}
-        document.getElementById('saveTip')?.classList.remove('hidden');
-      }
-    }catch{}
-  }
-});
-
 // ====== Save profile ======
 document.getElementById('saveBtn')?.addEventListener('click', async () => {
-  if(!CURRENT_USER){ alert("請先完成第 1 步（Email 建立帳號）"); return; }
-  const uid = CURRENT_USER.uid;
+  if(!CURRENT_LIFF.uid){
+    alert("請先完成第 1 步（使用 LINE 登入）");
+    return;
+  }
+  const uid = CURRENT_LIFF.uid;
 
   const role = (document.getElementById('role')).value;
-  const name = (document.getElementById('name')).value.trim();
+  const name = (document.getElementById('name')).value.trim() || CURRENT_LIFF.name || "";
   const phone = (document.getElementById('phone')).value.trim();
   const emergencyName = (document.getElementById('emergencyName')).value.trim();
   const emergencyPhone = (document.getElementById('emergencyPhone')).value.trim();
@@ -104,8 +125,8 @@ document.getElementById('saveBtn')?.addEventListener('click', async () => {
 
   const baseData = {
     uid, role, name, phone, emergencyName, emergencyPhone,
-    provider: localStorage.getItem('MW_REG_PROVIDER') || 'password',
-    liffUid: localStorage.getItem('MW_LIFF_UID') || '',
+    provider: 'line',
+    liffUid: CURRENT_LIFF.uid.replace(/^liff:/,''),
     createdAt: serverTimestamp()
   };
 
@@ -149,7 +170,6 @@ document.getElementById('saveBtn')?.addEventListener('click', async () => {
       }
     }
 
-    // Save to "users/{uid}"
     await setDoc(doc(db, "users", uid), baseData, { merge: true });
     alert("✅ 基本資料已儲存，請回登入頁登入。");
     window.location.href = "login.html";
@@ -159,13 +179,7 @@ document.getElementById('saveBtn')?.addEventListener('click', async () => {
   }
 });
 
-// Show/hide cert upload
-const hasCertSel = document.getElementById("hasCert");
-const certUploadSection = document.getElementById("certUploadSection");
-hasCertSel?.addEventListener('change', () => {
-  if ((hasCertSel).value === '有'){
-    certUploadSection?.classList.remove('hidden');
-  }else{
-    certUploadSection?.classList.add('hidden');
-  }
-});
+// 初始化：需要偵測 LINE 登入
+(async () => {
+  await requireLineIdentity();
+})();

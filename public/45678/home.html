@@ -29,37 +29,66 @@
     .h-divider{ height:1px; width:100%; background:linear-gradient(to right, transparent, var(--border), transparent); }
   </style>
 
-  <!-- Auth 守門與登出 -->
+  <!-- LIFF SDK -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <!-- 改為：LIFF + Firestore 守門 & 登出 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import { firebaseConfig } from './firebase-config.js';
 
     const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
     const auth = getAuth(app);
 
-    onAuthStateChanged(auth, (user) => {
-      if (!user) location.href = "login.html";
-    });
+    const LIFF_ID = "2007877199-Y5R2LenL"; // 你的 LIFF ID
 
-    window.addEventListener('DOMContentLoaded', () => {
-      const btn = document.getElementById('logoutBtn');
-      btn?.addEventListener('click', async () => {
-        try{
-          await signOut(auth);
+    async function guard() {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+        if (!liff.isLoggedIn()) {
           location.href = "login.html";
-        }catch(err){
-          alert('❌ 登出失敗：' + err.message);
+          return;
         }
+        const profile = await liff.getProfile();
+        const uid = `liff:${profile.userId}`;
+
+        const snap = await getDoc(doc(db, "users", uid));
+        if (!snap.exists()) {
+          // 還沒寫入 users：帶去完成第二步註冊
+          location.href = "register-profile.html";
+          return;
+        }
+        const data = snap.data() || {};
+        if (data.role !== 'patient') {
+          // 角色不符時導去志工首頁
+          location.href = "volunteer.html";
+          return;
+        }
+      } catch (e) {
+        console.error('[HOME] Guard error:', e);
+        alert('登入狀態檢查失敗，將返回登入頁。' + (e?.message || ''));
+        location.href = "login.html";
+      }
+    }
+
+    guard();
+
+    // 登出：同時嘗試 Firebase 與 LIFF
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+        try { await signOut(auth); } catch(e) { /* 可能未登入 Firebase，忽略 */ }
+        try { liff.logout(); } catch(e) { /* 忽略 */ }
+        location.href = "login.html";
       });
     });
   </script>
 </head>
 <body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
   <div class="mx-auto max-w-[1120px]">
-    <!-- 卡片維持高佔比，桌面更飽滿 -->
     <div class="card rounded-3xl p-8 md:p-12 min-h-[82vh] md:min-h-[86vh] flex flex-col">
-      <!-- 頂部：Logo / 標題 / 登出 -->
       <div class="flex items-center justify-between gap-6">
         <div class="flex items-center gap-5">
           <img src="MakeWell.jpg" alt="MakeWell Logo" class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
@@ -74,14 +103,12 @@
       <div class="mt-8 md:mt-10 h-divider"></div>
 
       <main class="flex-1 flex flex-col">
-        <!-- Hero 說明區 -->
         <section class="mt-8 md:mt-10">
           <p class="text-lg md:text-xl leading-relaxed md:leading-8 max-w-3xl" style="color:var(--muted)">
             歡迎回來！在這裡你可以快速發布協助請求、查看歷史紀錄、回饋服務，並維護個人資料。
           </p>
         </section>
 
-        <!-- 功能網格：手機 1 欄、桌面固定 2 欄 -->
         <section class="mt-8 md:mt-12 grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
           <a href="publish.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
             <span class="feature-badge">📝</span>

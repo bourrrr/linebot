@@ -14,12 +14,8 @@ function startReminderCron(db, client) {
     const minAfter = nowTW.add(1, 'minute');
 
     console.log('[cron] 現在台灣時間:', nowTW.format('YYYY-MM-DD HH:mm:ss Z'));
-	
-    try {
-      const ONLY_USER_IDS = [
-        'U4627fdb2f24e8784b75faac9d0ce178a'
-      ];
 
+    try {
       const snapshot = await db.collection('time')
         .where('done', '==', false)
         .where('datetime', '>=', admin.firestore.Timestamp.fromDate(minBefore.toDate()))
@@ -31,7 +27,7 @@ function startReminderCron(db, client) {
       for (const doc of snapshot.docs) {
         const data = doc.data();
         const userId = data.userId;
-        if (!userId || (ONLY_USER_IDS.length && !ONLY_USER_IDS.includes(userId))) continue;
+        if (!userId) continue;
 
         const text = data.medicine
           ? `請記得服用藥物：${data.medicine}`
@@ -65,7 +61,7 @@ function startReminderCron(db, client) {
   });
 }
 
-// ✅ 每天 00:01 自動建立當日提醒（來自 repeatingReminders 設定）
+// ✅ 每天 00:01 自動建立當日提醒（只為「有包含今天星期」的重複提醒建立 time）
 function startRepeatingReminderGenerator(db) {
   cron.schedule('1 0 * * *', async () => {
     const now = dayjs().tz('Asia/Taipei');
@@ -83,13 +79,19 @@ function startRepeatingReminderGenerator(db) {
         const userId = data.userId;
         if (!userId) continue;
 
-        const reminderTime = dayjs(`${todayStr} ${data.hour}:${data.minute}`, 'YYYY-MM-DD HH:mm').tz('Asia/Taipei');
+        // ✅ 僅今天應提醒者才建立
+        if (!Array.isArray(data.weekdays) || !data.weekdays.includes(now.day())) {
+          continue;
+        }
+
+        const reminderTime = dayjs(`${todayStr} ${String(data.hour).padStart(2,'0')}:${String(data.minute).padStart(2,'0')}`,
+          'YYYY-MM-DD HH:mm').tz('Asia/Taipei');
 
         await db.collection('time').add({
           userId,
           datetime: admin.firestore.Timestamp.fromDate(reminderTime.toDate()),
           done: false,
-          medicine: data.medicine || '' // 可選：也儲存藥名
+          medicine: data.medicine || ''
         });
 
         console.log(`[每日生成提醒] 為 ${userId} 建立 ${reminderTime.format()}`);

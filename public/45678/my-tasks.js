@@ -91,10 +91,22 @@ function getMeetingNavUrl(data){
   const address = composeAddress(data) || null;
   return makeMapsUrl({ lat, lng, query: address });
 }
+
+// 加強醫院定位：優先經緯度；否則用「醫院名稱 + 城市」；再不行退回任務地址
 function getHospitalNavUrl(data){
   const lat = (typeof data.hospitalLat === "number") ? data.hospitalLat : undefined;
   const lng = (typeof data.hospitalLng === "number") ? data.hospitalLng : undefined;
-  const query = safe(data.hospital) || composeAddress(data) || null;
+
+  // 以醫院/診所/藥局名稱為主
+  const hospitalName = safe(data.hospital).trim();
+  // 加上城市提升命中率（例如「高雄榮民總醫院 高雄」）
+  const cityHint = safe(data.city).trim();
+  const nameWithCity = hospitalName && cityHint ? `${hospitalName} ${cityHint}` : hospitalName;
+
+  // 如果前兩者都沒有，再退回任務地址
+  const fallbackAddr = composeAddress(data) || null;
+
+  const query = nameWithCity || fallbackAddr || null;
   return makeMapsUrl({ lat, lng, query });
 }
 
@@ -136,11 +148,10 @@ function renderTaskCard(docSnap){
     <p>時間：${fmtTime(data.time)}</p>
     <p>備註：${safe(data.note) || "無"}</p>
 
-    <!-- 導航按鈕列（改成溫暖配色） -->
+    <!-- 導航按鈕列（溫暖配色 + 正確 data-url） -->
     <div class="mt-2 flex flex-wrap gap-2">
       <button class="nav-meet ${NAV_BTN_CLASS}" style="${NAV_BTN_STYLE}" data-url="${meetUrl || ""}" ${disableMeet ? "disabled" : ""}>🧭 導航到會合地點</button>
-      <button class="nav-hospital ${NAV_BTN_CLASS}" style="background: var(--chip); color: var(--primary);" ...>🏥 導航到醫院</button>
-
+      <button class="nav-hospital ${NAV_BTN_CLASS}" style="background: var(--chip); color: var(--primary);" data-url="${hospUrl || ""}" ${disableHosp ? "disabled" : ""}>🏥 導航到醫院</button>
     </div>
 
     <!-- 上傳回報 -->
