@@ -31,7 +31,11 @@ function pill(label, data, bg, textColor = '#363636') {
 }
 
 // 星期切換小按鈕（secondary 風格）
-return pill(label, `action=toggle_weekday&day=${d}`, '#efede9', '#363636');
+// 星期切換：奶黃膠囊鈕
+function btnDay(d, label){
+  return pill(label, `action=toggle_weekday&day=${d}`, '#efede9', '#363636');
+}
+
 
 // Reply or Push
 async function replyOrPush(event, client, message) {
