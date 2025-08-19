@@ -82,7 +82,7 @@ function generateRecipeFlex(recipe) {
                 size: 'md'
               }
             ],
-            paddingAll: 'sm'
+            paddingAll: '18px'
           }
         ]
       }
