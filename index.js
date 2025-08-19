@@ -33,7 +33,7 @@ const extractHealthData = require('./OCR_modules/extractHealthData');
 const loginFlex = require('./OCR_modules/flex/loginFlex');
 const googleVisionOCR = require('./visionOCR/visionOCR');
 const upload = multer({ dest: 'uploads/' });
-const { buildTimeMenuFlex } = require('./OCR_modules/flex/timeflex');
+const { buildTimeMenuFlex } = require('./OCR_modules/services/reminderService');
  // 或 './OCR_modules/flex.js'
 const generateRecipeFlex = require('./generateRecipeFlex');
 const { handleReminderPostback } = require('./OCR_modules/services/reminderService');
