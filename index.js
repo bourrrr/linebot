@@ -37,8 +37,8 @@ const { buildTimeMenuFlex } = require('./OCR_modules/flex/timeflex');
  // 或 './OCR_modules/flex.js'
 const generateRecipeFlex = require('./generateRecipeFlex');
 const { handleReminderPostback } = require('./OCR_modules/services/reminderService');
-const { replyOrPush } = require('./OCR_modules/flexreminderService');
-const { sendReminderCarousel } = require('./OCR_modules/flex/reminderService');
+const { replyOrPush } = require('./OCR_modules/services/reminderService');
+const { sendReminderCarousel } = require('./OCR_modules/services/reminderService');
 const cardflex = require('./OCR_modules/flex/cardflex');
 // 環境變數
 require('dotenv').config();
