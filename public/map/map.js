@@ -20,7 +20,7 @@ let rawData = [];
 let currentMode = null;
 let userLocation = null;
 let suppressNextZoomCollapse = false; // 🔧 用來跳過一次 zoomend 收起
-
+let showDistance = false;
 //資料來源
 const dataSources = {
   pharmacy: 'points.json',
@@ -76,18 +76,31 @@ map.on('zoomend', () => {
     document.getElementById('results-list').innerHTML = '<div class="no-result">請先搜尋</div>';
   });
 
-document.getElementById('locateBtn').addEventListener('click', () => {
-    if (window.innerWidth <= 700) return;
+document.getElementById('locateBtn').addEventListener('click', async () => {
   if (!currentMode) {
     alert('⚠️ 請先選擇「就醫掛號」或「就近領藥」');
     return;
   }
 
+  // 這個變數會判斷是否在 LINE LIFF 環境
+  const inLiff = (typeof liff !== 'undefined');
+
+  try {
+    if (inLiff) {
+      // 初始化 LIFF（替換成你的 LIFF ID）
+      await liff.init({ liffId: '2007877199-bPxeDZLD' });
+    }
+  } catch (err) {
+    console.warn('⚠️ LIFF 初始化失敗，改用一般定位', err);
+  }
+
+  // 直接用 geolocation（在 LIFF WebView 或一般瀏覽器都可以）
   navigator.geolocation.getCurrentPosition(
     pos => {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
       userLocation = { lat, lng };
+      showDistance = true; // ✅ 只有定位才開啟距離顯示
 
       const nearest = allMarkers
         .map(m => {
@@ -114,7 +127,6 @@ document.getElementById('locateBtn').addEventListener('click', () => {
 
       if (err.code === err.PERMISSION_DENIED) {
         tip = "❌ 您拒絕了定位權限，請至設定手動允許定位。";
-
         const ua = navigator.userAgent;
         if (ua.includes("Chrome")) {
           tip += "\n請至設定 > 隱私與安全性 > 網站設定 > 位置 > 本網站 > 允許";
@@ -239,22 +251,34 @@ function initFilterOptions() {
     districtSelect.disabled = false;
   });
 
-  document.getElementById('filterButton').addEventListener('click', applyFilter);
+  // ✅ 搜尋按鈕
+  document.getElementById('filterButton').addEventListener('click', () => {
+    showDistance = false; // 搜尋不顯示距離
+    applyFilter();
+  });
 
-  document.getElementById('clearButton').addEventListener('click', () => {
+ document.getElementById('clearButton').addEventListener('click', () => {
+    showDistance = false; // 清除不顯示距離
     citySelect.value = '';
     districtSelect.value = '';
     districtSelect.disabled = true;
     document.getElementById('keywordInput').value = '';
+
     document.getElementById('results-list').innerHTML = '<div class="no-result">請先搜尋</div>';
     document.getElementById('bottom-sheet').classList.add('collapsed');
-    allMarkers.forEach(m => map.removeLayer(m));
+
+    allMarkers.forEach(m => {
+      map.removeLayer(m);
+      m.meta.distance = undefined;
+    });
     allMarkers = [];
     rawData = [];
-     activeMarker = null;
-  activePopup = null;
-  map.closePopup();
-  map.setView([23.5, 121], 7.2);
+    currentMode = null;
+    updateModeButtonStyle();
+    activeMarker = null;
+    activePopup = null;
+    map.closePopup();
+    map.setView([23.5, 121], 7.2);
   });
 }
 
@@ -284,13 +308,14 @@ function applyFilter() {
            (!district || mDistrict === district) &&
            (!keyword || address.includes(keyword) || name.includes(keyword));
   });
-  // ✅ 距離排序
-  if (userLocation) {
+ if (showDistance && userLocation) {
     matched.forEach(m => {
       const dist = getDistanceInKm(userLocation.lat, userLocation.lng, m.meta.lat, m.meta.lng);
       m.meta.distance = dist;
     });
     matched.sort((a, b) => a.meta.distance - b.meta.distance);
+  } else {
+    matched.forEach(m => m.meta.distance = undefined);
   }
 
 if (matched.length > 0) {
@@ -339,24 +364,29 @@ function renderClinicResults(markers) {
     resultList.innerHTML = '<div class="no-result">查無資料</div>';
     return;
   }
-   markers.forEach(marker => {
+  markers.forEach(marker => {
     const { name, address, distance, service_periods } = marker.meta;
     let openStatus = getNowOpenStatus(service_periods);
     let statusTag = '';
+
+    // 距離顯示處理
+    const distanceText = distance !== undefined
+      ? (distance < 1
+          ? `(${Math.round(distance * 1000)} 公尺)`
+          : `(${distance.toFixed(2)} 公里)`)
+      : '';
 
     const card = document.createElement('div');
     card.className = 'result-card clinic';
     card.innerHTML = `
       <img src="4.png" alt="就醫地點">
-<div class="info">
-  <strong>
-    ${name} ${statusTag}
-    ${distance !== undefined ? `<span class="distance" style="font-weight:normal;font-size:12px;margin-left:8px;">(${distance.toFixed(2)} 公里)</span>` : ''}
-
-  </strong><br>
-  <span class="address">${address}</span><br>
-</div>
-
+      <div class="info">
+        <strong>
+          ${name} ${statusTag}
+          ${distanceText ? `<span class="distance" style="font-weight:normal;font-size:12px;margin-left:3px;">${distanceText}</span>` : ''}
+        </strong><br>
+        <span class="address">${address}</span><br>
+      </div>
       <button class="more-btn">詳細</button>
     `;
     card.addEventListener('click', (e) => {
@@ -383,12 +413,20 @@ function renderPharmacyResults(markers) {
   }
   markers.forEach(marker => {
     const { name, address, distance } = marker.meta;
+
+    // 距離顯示處理
+    const distanceText = distance !== undefined
+      ? (distance < 1
+          ? `(${Math.round(distance * 1000)} 公尺)`
+          : `(${distance.toFixed(2)} 公里)`)
+      : '';
+
     const card = document.createElement('div');
     card.className = 'result-card pharmacy';
     card.innerHTML = `
       <img src="5.png" alt="藥局">
       <div class="info">
-        <strong>${name}${distance !== undefined ? `<span class="distance" style="font-weight:normal;font-size:12px;margin-left:8px;">(${distance.toFixed(2)} 公里)</span>` : ''}</strong><br>
+        <strong>${name}${distanceText ? `<span class="distance" style="font-weight:normal;font-size:12px;margin-left:3px;">${distanceText}</span>` : ''}</strong><br>
         <span class="address">${address}</span><br>
       </div>
       <button class="more-btn">詳細</button>
@@ -407,6 +445,7 @@ function renderPharmacyResults(markers) {
   });
   bindMarkerClickEvents(markers);
 }
+
 
 function bindMarkerClickEvents(markers) {
   markers.forEach(marker => {

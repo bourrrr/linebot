@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+    <script src="https://medwell-test1.web.app/map/madmap.html"></script>
+
   <style>
     html, body { height: 100%; margin: 0; font-family: "Noto Sans TC", sans-serif;}
     body, #app { height: 100vh; background: #f8f9fa; }
@@ -65,7 +67,7 @@ color: #fff;; border: none; padding: 7px 18px; border-radius: 5px;
     .sheet-title { text-align: left;
     font-size: 19.5px;
     color: #588157;
-  margin: 5px 16px 10px 16px;}
+  margin: 7px 16px 10px 16px;}
     .result-card {
       background: #f3f3f3;
     border-radius: 12px;
@@ -73,8 +75,8 @@ color: #fff;; border: none; padding: 7px 18px; border-radius: 5px;
     padding: 11px 13px 10px 12px;
     margin-bottom: 9px;
     display: flex;
-    align-items: flex-start;
-    gap: 20px;
+    align-items: center;
+    gap: 18px;
     cursor: pointer;
     transition: border .15s, background .15s;
 
@@ -108,7 +110,7 @@ color: #fff;; border: none; padding: 7px 18px; border-radius: 5px;
   bottom: 18px;
   transform: translateX(-50%);
   z-index: 9999;
-  background: #8e8c8c8f;
+  background: #dad7cdd1;
   color: white;
   border: none;
   border-radius: 22px;
@@ -171,7 +173,7 @@ background: #f7f7f1;
 
     /* 營業中/休息中 標籤樣式 */
     .open-tag {
-      background: #22c55e;
+      background: #9cc29b;
       color: #fff;
       border-radius: 10px;
       padding: 2px 8px;
@@ -190,7 +192,7 @@ background: #f7f7f1;
     }
     /* 表格統一勾叉 */
     .period-check {
-      color: #22c55e;
+      color: #659963de;
       font-size: 21px;
       font-weight: bold;
       display: inline-block;
@@ -299,11 +301,7 @@ background: #f7f7f1;
     color: #659963;
     font-weight: 100px;
 }
-@media (max-width: 700px) {
-  #locateBtn {
-    display: none !important;
-  }
-}
+
 .leaflet-popup-content-wrapper, .leaflet-popup-tip {
     background: white;
     box-shadow: 0 3px 14px rgba(0, 0, 0, 0.4);
@@ -311,7 +309,8 @@ background: #f7f7f1;
     color: #363636;
   }
 #locateBtn:hover {
-  color: #0d47a1;
+  color: #588157;
+  font-weight: 430;
 }
 
 @media (min-width: 701px) {
@@ -359,12 +358,13 @@ background: #f7f7f1;
 .input-group button {
   background: none;
   border: none;
-  color: #1976d2;
+  color: #588157;
   font-size: 14px;
   padding: 0 12px;
   cursor: pointer;
   white-space: nowrap;
   transition: color 0.2s;
+  font-weight: 430;
 }
 
 .input-group button:hover,
@@ -407,7 +407,13 @@ background: #f7f7f1;
 .leaflet-control-zoom {
   top: 40px;  /* ← 調整這個數字來控制下移程度 */
 }
-
+.input-group button:hover, .input-group button:active, .input-group button:focus
+{
+    color: #588157;
+    background: none;
+    outline: none;
+    box-shadow: none;
+}
 
   </style>
 </head>

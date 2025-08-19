@@ -347,5 +347,5 @@ module.exports = {
   buildTimeMenuFlex, // 如果這個函數在這個檔案
   handleReminderPostback,
   
-  replyOrPush,
+  
 };
