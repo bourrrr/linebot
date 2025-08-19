@@ -65,7 +65,7 @@ function generateRecipeFlex(recipe) {
             backgroundColor: '#efede9', // 小奶黃底
             cornerRadius: 'xl',          // 圓角加大
             borderWidth: '2px',
-            borderColor: '#588157',      // 深綠框線
+     // 深綠框線
             action: {
               type: 'message',
               label: '查看步驟',
