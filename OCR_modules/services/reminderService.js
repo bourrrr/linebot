@@ -149,10 +149,9 @@ async function replyRepeatingTimeSetup(event, client) {
       title: '⏰ 設定重複提醒',
        text: [
       '請選擇提醒的時間',
-     // '• 重複提醒可累積抽卡機會',
-      //'• 每日最高可累積 3 次抽卡機會',
-     // '• 當日最後簽到 → 自動發送抽卡按鈕',
-      //'• 設定後可在「提醒清單」查看/刪除'
+      '• 可累積抽卡機會，每日最高可累積 3 次抽卡機會',
+	  '• 當日最後簽到 → 自動發送抽卡按鈕',
+      '• 設定後可在「提醒清單」查看/刪除'
     ].join('\n'),
       
       actions: [
@@ -177,12 +176,12 @@ async function handleSelectRepeatingTime(event, client) {
       type: 'bubble',
       body: {
         type: 'box', layout: 'vertical', spacing: 'md',
-        contents: [
-          { type:'text', text:'📅 選擇重複的星期', weight:'bold', size:'md' },
-          { type:'text', text:`提醒時間：${timeStr}`, size:'sm', color:'#666666' },
-          { type:'text', text:'請選擇要在哪些天重複提醒：', size:'sm', wrap:true },
-		 // { type:'text', text:'點選一下即選取，再次點選即可取消', size:'sm', wrap:true }
-        ]
+		   contents: [
+	  { type:'text', text:'📅 選擇重複的星期', weight:'bold', size:'md' },
+	  { type:'text', text:`提醒時間：${timeStr}`, size:'sm', color:'#666666' },
+	  { type:'text', text:'請選擇要在哪些天重複提醒：', size:'sm', wrap:true },
+	  { type:'text', text:'💡 點選一下即選取，再次點選即可取消', size:'xs', color:'#999999', wrap:true }
+	]
       },
 	  
     // 取代 handleSelectRepeatingTime 裡 replyOrPush(...) 的 footer 整段
