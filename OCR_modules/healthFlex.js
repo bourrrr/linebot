@@ -39,7 +39,8 @@ const healthCard = {
       contents: [
         {
           type: 'button',
-          style: 'primary',
+            style: "secondary",
+			color: "#efede9"
           action: {
             type: 'uri',
             label: '查看紀錄', 

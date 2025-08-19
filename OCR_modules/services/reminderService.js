@@ -31,14 +31,7 @@ function pill(label, data, bg, textColor = '#363636') {
 }
 
 // 星期切換小按鈕（secondary 風格）
-function btnDay(d, label){
-  return {
-    type: 'button',
-    flex: 1,
-    style: 'secondary',
-    action: { type: 'postback', label, data: `action=toggle_weekday&day=${d}` }
-  };
-}
+return pill(label, `action=toggle_weekday&day=${d}`, '#efede9', '#363636');
 
 // Reply or Push
 async function replyOrPush(event, client, message) {
@@ -67,7 +60,7 @@ function buildTimeMenuFlex() {
       footer: {
         type: "box",
         layout: "vertical",
-        spacing: "sm",
+        spacing: "md",
         contents: [
           pill('📅 單次提醒', 'action=create_single_reminder', '#659963', '#ffffff'),
           pill('🔄 重複提醒', 'action=create_repeating_reminder', '#efede9', '#363636'),
@@ -174,19 +167,11 @@ async function handleSelectRepeatingTime(event, client) {
           { type:'text', text:'請選擇要在哪些天重複提醒：', size:'sm', wrap:true }
         ]
       },
-      footer: {
-        type:'box', layout:'vertical', spacing:'xs',
-        contents: [
-          { type:'box', layout:'horizontal', spacing:'xs', contents:[
-            btnDay(0,'日'), btnDay(1,'一'), btnDay(2,'二'), btnDay(3,'三')
-          ]},
-          { type:'box', layout:'horizontal', spacing:'xs', contents:[
-            btnDay(4,'四'), btnDay(5,'五'), btnDay(6,'六'),
-            // 完成：綠色膠囊鈕
-            Object.assign({}, pill('完成', 'action=confirm_repeating_reminder', '#659963', '#ffffff'), { flex: 1 })
-          ]}
-        ]
-      }
+     { type:'box', layout:'horizontal', spacing:'xs', contents:[
+  btnDay(4,'四'), btnDay(5,'五'), btnDay(6,'六'),
+  // 完成：綠色膠囊鈕（#659963）白字
+  Object.assign({}, pill('完成', 'action=confirm_repeating_reminder', '#659963', '#ffffff'), { flex: 1 })
+]}
     }
   });
 }
