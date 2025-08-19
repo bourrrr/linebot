@@ -148,12 +148,12 @@ async function replyRepeatingTimeSetup(event, client) {
       type: 'buttons',
       title: '⏰ 設定重複提醒',
        text: [
-		  '請選擇提醒的時間',
-		  '• 重複提醒可累積抽卡機會',
-		  '• 每日最高可累積 3 次抽卡機會',
-		  '• 當日最後簽到 → 自動發送抽卡按鈕',
-		  '• 設定後可在「提醒清單」查看/刪除'
-		].join('\n'),
+      '請選擇提醒的時間',
+     // '• 重複提醒可累積抽卡機會',
+      //'• 每日最高可累積 3 次抽卡機會',
+     // '• 當日最後簽到 → 自動發送抽卡按鈕',
+      //'• 設定後可在「提醒清單」查看/刪除'
+    ].join('\n'),
       
       actions: [
         { type: 'datetimepicker', label: '選擇時間', data: 'action=select_repeating_time', mode: 'time' }
@@ -181,7 +181,7 @@ async function handleSelectRepeatingTime(event, client) {
           { type:'text', text:'📅 選擇重複的星期', weight:'bold', size:'md' },
           { type:'text', text:`提醒時間：${timeStr}`, size:'sm', color:'#666666' },
           { type:'text', text:'請選擇要在哪些天重複提醒：', size:'sm', wrap:true },
-		  { type:'text', text:'點選一下即選取，再次點選即可取消', size:'sm', wrap:true }
+		 // { type:'text', text:'點選一下即選取，再次點選即可取消', size:'sm', wrap:true }
         ]
       },
 	  
