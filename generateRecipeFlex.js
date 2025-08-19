@@ -63,9 +63,9 @@ function generateRecipeFlex(recipe) {
             type: 'box',
             layout: 'vertical',
             backgroundColor: '#efede9', // 小奶黃底
-            cornerRadius: 'md',
-            borderWidth: '1px',
-            borderColor: '#588157', // 深綠框線
+            cornerRadius: 'xl',          // 圓角加大
+            borderWidth: '2px',
+            borderColor: '#588157',      // 深綠框線
             action: {
               type: 'message',
               label: '查看步驟',
@@ -79,10 +79,10 @@ function generateRecipeFlex(recipe) {
                 gravity: 'center',
                 weight: 'bold',
                 color: '#588157', // 深綠字
-                size: 'md'
+                size: 'lg'        // 字體加大
               }
             ],
-            paddingAll: 'sm'
+            paddingAll: 'md'  // 增加內距讓按鈕更大
           }
         ]
       }
