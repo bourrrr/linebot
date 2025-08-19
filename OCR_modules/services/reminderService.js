@@ -1,4 +1,5 @@
 // 修改後的 timeflex.js - 提供更完整的選項
+const admin = require('firebase-admin');
 function buildTimeMenuFlex() {
   return {
     "type": "flex",
