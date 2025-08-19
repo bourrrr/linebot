@@ -64,7 +64,7 @@ function buildTimeMenuFlex() {
       footer: {
         type: "box",
         layout: "vertical",
-        spacing: "md",
+        spacing: "lg",
         contents: [
           pill('📅 單次提醒', 'action=create_single_reminder', '#659963', '#ffffff'),
           pill('🔄 重複提醒', 'action=create_repeating_reminder', '#efede9', '#363636'),
