@@ -10,7 +10,6 @@ function generateRecipeFlex(recipe) {
       hero: {
         type: 'image',
         url: 'https://medwell-test1.web.app/photo/food.png',
-
         size: 'full',
         aspectRatio: '20:13',
         aspectMode: 'cover'
@@ -61,13 +60,29 @@ function generateRecipeFlex(recipe) {
         spacing: 'sm',
         contents: [
           {
-            type: 'button',
-            style: 'primary',
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: '#efede9', // 小奶黃底
+            cornerRadius: 'md',
+            borderWidth: '1px',
+            borderColor: '#588157', // 深綠框線
             action: {
               type: 'message',
               label: '查看步驟',
               text: `步驟 ${recipe.name}`
-            }
+            },
+            contents: [
+              {
+                type: 'text',
+                text: '查看步驟',
+                align: 'center',
+                gravity: 'center',
+                weight: 'bold',
+                color: '#588157', // 深綠字
+                size: 'md'
+              }
+            ],
+            paddingAll: 'sm'
           }
         ]
       }
