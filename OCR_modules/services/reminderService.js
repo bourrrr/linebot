@@ -22,7 +22,7 @@ function pill(label, data, bg, textColor = '#363636') {
     layout: 'vertical',
     backgroundColor: bg,
     cornerRadius: 'xl',
-    paddingAll: '10px',
+    paddingAll: '18px',
     action: { type: 'postback', label, data },
     contents: [
       { type: 'text', text: label, align: 'center', weight: 'bold', color: textColor }
@@ -64,7 +64,7 @@ function buildTimeMenuFlex() {
       footer: {
         type: "box",
         layout: "vertical",
-        spacing: "18px",
+        spacing: "14px",
         contents: [
           pill('📅 單次提醒', 'action=create_single_reminder', '#659963', '#ffffff'),
           pill('🔄 重複提醒', 'action=create_repeating_reminder', '#efede9', '#363636'),
