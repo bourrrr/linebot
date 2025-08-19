@@ -45,7 +45,7 @@ function loginFlex() {
             type: "button",
             flex: 1,
             style: "secondary",
-			color: "#efede9"
+			color: "#efede9",
             action: {
               type: "uri",
               label: "我是患者",
@@ -56,7 +56,7 @@ function loginFlex() {
             type: "button",
             flex: 1,
             style: "secondary",
-			color: "#dad7cd"
+			color: "#dad7cd",
             action: {
               type: "uri",
               label: "我是志工",
