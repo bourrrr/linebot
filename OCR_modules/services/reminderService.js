@@ -86,7 +86,7 @@ async function replyTimePicker(event, client) {
        text:
       `請選擇提醒的時間\n` +
       `• 這是單次提醒（不重複提醒）\n` +
-      `• 單次提醒不會累積抽卡機會。\n` +
+      `• 單次提醒不會累積抽卡機會。\n` +,
       
       actions: [
         { type: 'datetimepicker', label: '選擇時間', data: 'action=select_time', mode: 'datetime' }
