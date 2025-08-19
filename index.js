@@ -273,8 +273,9 @@ async function handleEvent(event, client) {
 
     // 其他事件型別如需處理可在這裡加
   } catch (err) {
-    console.error('❌ handleEvent error:', err.response?.data || err.message || err);
-  }
+  const detail = err.response?.data ? JSON.stringify(err.response.data, null, 2) : (err.message || String(err));
+  console.error('❌ handleEvent error:', detail);
+}
 }
 
 

@@ -179,81 +179,108 @@ async function handleSelectTime(event, client) {
   });
 }
 
-async function handleConfirmReminder(event, db, client) {
-  const userId = event.source?.userId;
-  const cache = reminderCache[userId];
-  if (!userId || !cache?.datetime) {
-    return replyOrPush(event, client, { type:'text', text:'⚠️ 無有效時間資訊，請重新設定提醒' });
-  }
-  const datetime = new Date(cache.datetime);
-  await db.collection('time').add({
-    userId,
-    datetime,
-    done: false,
-    createdAt: new Date()
-  });
-  delete reminderCache[userId];
-
-  return replyOrPush(event, client, {
-    type:'text',
-    text:`✅ 已建立提醒：${dayjs(datetime).tz('Asia/Taipei').format('YYYY/MM/DD HH:mm')}`
-  });
-}
-
-// ===== 清單（可刪除）=====
+// ===== 取代版：查看提醒清單（最保守 Flex）=====
 async function sendReminderCarousel(event, db, client) {
   const userId = event.source?.userId;
-  if (!userId) return replyOrPush(event, client, { type:'text', text:'⚠️ 取得 userId 失敗' });
+  if (!userId) {
+    return replyOrPush(event, client, { type:'text', text:'⚠️ 取得 userId 失敗' });
+  }
 
-  // 只列出未來、未完成的單次提醒
   const now = dayjs().tz('Asia/Taipei').toDate();
-  const singleSnap = await db.collection('time')
-    .where('userId','==',userId)
-    .where('done','==',false)
-    .where('datetime','>=', now)
-    .orderBy('datetime','asc')
-    .limit(10).get();
 
-  // 活動中的重複提醒
+  // 單次提醒（僅未來、未完成）
+  const singleSnap = await db.collection('time')
+    .where('userId', '==', userId)
+    .where('done', '==', false)
+    .where('datetime', '>=', now)
+    .orderBy('datetime', 'asc')
+    .limit(10)
+    .get();
+
+  // 重複提醒（啟用中）
   const repeatSnap = await db.collection('repeatingReminders')
-    .where('userId','==',userId)
-    .where('active','==',true)
-    .limit(10).get();
+    .where('userId', '==', userId)
+    .where('active', '==', true)
+    .limit(10)
+    .get();
 
   const bubbles = [];
 
-  for (const dref of singleSnap.docs) {
-    const d = dref.data();
-    const tw = dayjs(d.datetime.toDate ? d.datetime.toDate() : d.datetime).tz('Asia/Taipei');
+  // === 單次提醒 bubbles ===
+  for (const doc of singleSnap.docs) {
+    const d = doc.data();
+    const dt = d.datetime?.toDate ? d.datetime.toDate() : d.datetime;
+    const timeStr = dayjs(dt).tz('Asia/Taipei').format('YYYY/MM/DD HH:mm');
+
+    const bodyContents = [
+      { type:'text', text:'📅 單次提醒', weight:'bold', size:'lg' },
+      { type:'text', text:`時間：${timeStr}`, size:'sm', color:'#666666' }
+    ];
+    if (d.medicine) {
+      bodyContents.push({ type:'text', text:`藥名：${String(d.medicine).slice(0,60)}`, size:'sm', color:'#666666', wrap:true });
+    }
+
     bubbles.push({
       type:'bubble',
-      body:{ type:'box', layout:'vertical', spacing:'sm', contents:[
-        { type:'text', text:'📅 單次提醒', weight:'bold', size:'lg' },
-        { type:'text', text:`時間：${tw.format('YYYY/MM/DD HH:mm')}`, size:'sm', color:'#666' },
-        d.medicine ? { type:'text', text:`藥名：${d.medicine}`, size:'sm', color:'#666', wrap:true } : { type:'filler' }
-      ]},
-      footer:{ type:'box', layout:'vertical', spacing:'sm', contents:[
-        { type:'button', style:'secondary',
-          action:{ type:'postback', label:'🗑 刪除', data:`action=prepare_delete&type=time&id=${dref.id}` } }
-      ]}
+      body:{
+        type:'box',
+        layout:'vertical',
+        spacing:'sm',
+        contents: bodyContents
+      },
+      footer:{
+        type:'box',
+        layout:'vertical',
+        spacing:'sm',
+        contents:[
+          {
+            type:'button',
+            style:'secondary',
+            action:{
+              type:'postback',
+              label:'🗑 刪除',
+              data:`action=prepare_delete&type=time&id=${doc.id}`
+            }
+          }
+        ]
+      }
     });
   }
 
-  for (const dref of repeatSnap.docs) {
-    const d = dref.data();
-    const timeStr = `${pad2(d.hour)}:${pad2(d.minute)}`;
-    const days = Array.isArray(d.weekdays) ? d.weekdays.sort().map(i=>weekdayNames[i]).join('、') : '(未設定)';
+  // === 重複提醒 bubbles ===
+  for (const doc of repeatSnap.docs) {
+    const d = doc.data();
+    const timeStr = `${String(d.hour).padStart(2,'0')}:${String(d.minute).padStart(2,'0')}`;
+    const days = Array.isArray(d.weekdays) ? d.weekdays.sort().map(i => weekdayNames[i]).join('、') : '(未設定)';
+
     bubbles.push({
       type:'bubble',
-      body:{ type:'box', layout:'vertical', spacing:'sm', contents:[
-        { type:'text', text:'🔄 重複提醒', weight:'bold', size:'lg' },
-        { type:'text', text:`時間：${timeStr}`, size:'sm', color:'#666' },
-        { type:'text', text:`重複：每週 ${days}`, size:'sm', color:'#666', wrap:true }
-      ]},
-      footer:{ type:'box', layout:'vertical', spacing:'sm', contents:[
-        { type:'button', style:'secondary',
-          action:{ type:'postback', label:'🗑 刪除', data:`action=prepare_delete&type=repeat&id=${dref.id}` } }
-      ]}
+      body:{
+        type:'box',
+        layout:'vertical',
+        spacing:'sm',
+        contents:[
+          { type:'text', text:'🔄 重複提醒', weight:'bold', size:'lg' },
+          { type:'text', text:`時間：${timeStr}`, size:'sm', color:'#666666' },
+          { type:'text', text:`重複：每週 ${days}`, size:'sm', color:'#666666', wrap:true }
+        ]
+      },
+      footer:{
+        type:'box',
+        layout:'vertical',
+        spacing:'sm',
+        contents:[
+          {
+            type:'button',
+            style:'secondary',
+            action:{
+              type:'postback',
+              label:'🗑 刪除',
+              data:`action=prepare_delete&type=repeat&id=${doc.id}`
+            }
+          }
+        ]
+      }
     });
   }
 
@@ -261,12 +288,21 @@ async function sendReminderCarousel(event, db, client) {
     return replyOrPush(event, client, { type:'text', text:'目前沒有即將到來的提醒或重複提醒。' });
   }
 
-  return replyOrPush(event, client, {
-    type:'flex', altText:'提醒清單',
-    contents:{ type:'carousel', contents: bubbles.slice(0,12) }
-  });
+  const message = {
+    type:'flex',
+    altText:'提醒清單',
+    contents:{ type:'carousel', contents: bubbles.slice(0,12) } // LINE 上限 12
+  };
+
+  // ⛏ 送出前印 payload（幫助之後定位 400）
+  try {
+    console.log('[list_reminders] payload =', JSON.stringify(message));
+  } catch (_) {}
+
+  return replyOrPush(event, client, message);
 }
 
+// ===== 刪除流程：確認框 =====
 async function handlePrepareDelete(event, db, client) {
   const p = parseQuery(event.postback?.data);
   const { type, id } = p;
@@ -275,7 +311,8 @@ async function handlePrepareDelete(event, db, client) {
   }
   const label = type === 'repeat' ? '重複提醒' : '單次提醒';
   return replyOrPush(event, client, {
-    type:'template', altText:'確認刪除提醒',
+    type:'template',
+    altText:'確認刪除提醒',
     template:{
       type:'confirm',
       text:`要刪除這筆「${label}」嗎？`,
@@ -287,6 +324,7 @@ async function handlePrepareDelete(event, db, client) {
   });
 }
 
+// ===== 刪除流程：實際刪除 =====
 async function handleConfirmDelete(event, db, client) {
   const p = parseQuery(event.postback?.data);
   const { type, id } = p;
@@ -305,6 +343,7 @@ async function handleConfirmDelete(event, db, client) {
     return replyOrPush(event, client, { type:'text', text:'⚠️ 刪除失敗，請稍後再試' });
   }
 }
+
 
 // ===== Postback Router =====
 async function handleReminderPostback(event, db, client) {
