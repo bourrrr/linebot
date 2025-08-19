@@ -167,7 +167,9 @@ async function handleSelectRepeatingTime(event, client) {
           { type:'text', text:'請選擇要在哪些天重複提醒：', size:'sm', wrap:true }
         ]
       },
-     { type:'box', layout:'horizontal', spacing:'xs', contents:[
+	  
+    footer: 
+	{ type:'box', layout:'horizontal', spacing:'xs', contents:[
   btnDay(4,'四'), btnDay(5,'五'), btnDay(6,'六'),
   // 完成：綠色膠囊鈕（#659963）白字
   Object.assign({}, pill('完成', 'action=confirm_repeating_reminder', '#659963', '#ffffff'), { flex: 1 })
