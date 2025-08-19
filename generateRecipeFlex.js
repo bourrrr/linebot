@@ -78,7 +78,7 @@ function generateRecipeFlex(recipe) {
                 align: 'center',
                 gravity: 'center',
                 weight: 'bold',
-				height: 'md'
+				height: 'md',
                 color: '#588157', // 深綠字
                 size: 'lg'        // 字體加大
               }
