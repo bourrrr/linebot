@@ -86,7 +86,14 @@ async function replyRepeatingTimeSetup(event, client) {
     }
   });
 }
-
+async function replyOrPush(event, client, message) {
+  if (event.replyToken) {
+    return client.replyMessage(event.replyToken, message);
+  }
+  const userId = event?.source?.userId;
+  if (!userId) throw new Error('replyOrPush: no replyToken or userId');
+  return client.pushMessage(userId, message);
+}
 // 2. 處理重複提醒時間選擇
 async function handleSelectRepeatingTime(event, client) {
   const userId = event.source?.userId;
@@ -347,5 +354,5 @@ module.exports = {
   buildTimeMenuFlex, // 如果這個函數在這個檔案
   handleReminderPostback,
   
- 
+  replyOrPush,
 };
