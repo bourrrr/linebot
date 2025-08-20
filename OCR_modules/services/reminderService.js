@@ -125,11 +125,8 @@ async function handleConfirmReminder(event, db, client) {
     return replyOrPush(event, client, { type:'text', text:'⚠️ 無有效時間資訊，請重新設定提醒' });
   }
 
-  // ✅ 修正：直接將 postback 的時間字串視為台北時間解析
-  // dayjs.tz(字串, 格式, 時區)
   const dt = dayjs.tz(cache.datetime, 'YYYY-MM-DDTHH:mm', 'Asia/Taipei').toDate();
   
-  // 檢查解析後的日期是否為有效日期
   if (!dayjs(dt).isValid()) {
     console.error(`[handleConfirmReminder] 無法解析時間字串: ${cache.datetime}`);
     return replyOrPush(event, client, { type:'text', text:'⚠️ 時間格式不正確，請重新設定提醒' });
@@ -140,13 +137,39 @@ async function handleConfirmReminder(event, db, client) {
     datetime: dt,
     done: false,
     createdAt: new Date(),
-    dateKey: dayjs(dt).tz('Asia/Taipei').format('YYYY-MM-DD')
+    dateKey: dayjs(dt).tz('Asia/Taipei').format('YYYY-MM-DD'),
+    type: 'single' // ✅ 新增 type 欄位
   });
   delete reminderCache[userId];
 
   return replyOrPush(event, client, {
     type: 'text',
     text: `✅ 已建立提醒：${dayjs(dt).tz('Asia/Taipei').format('YYYY/MM/DD HH:mm')}`
+  });
+}
+
+// ... (handleConfirmRepeatingReminder 函式) ...
+async function handleConfirmRepeatingReminder(event, db, client) {
+  const userId = event.source?.userId;
+  const cache = reminderCache[userId];
+  if (!userId || !cache || !cache.weekdays || cache.weekdays.length === 0) {
+    return replyOrPush(event, client, { type:'text', text:'⚠️ 請至少選擇一個星期' });
+  }
+  await db.collection('repeatingReminders').add({
+    userId,
+    hour: cache.hour,
+    minute: cache.minute,
+    weekdays: cache.weekdays,
+    active: true,
+    createdAt: admin.firestore.Timestamp.now()
+  });
+  delete reminderCache[userId];
+
+  const timeStr = `${pad2(cache.hour)}:${pad2(cache.minute)}`;
+  const days = cache.weekdays.sort().map(d => weekdayNames[d]).join('、');
+  return replyOrPush(event, client, {
+    type:'text',
+    text:`✅ 已設定重複提醒！\n⏰ 時間：${timeStr}\n📅 重複：每週${days}`
   });
 }
 

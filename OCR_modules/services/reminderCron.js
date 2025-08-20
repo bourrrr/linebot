@@ -65,44 +65,58 @@ function startReminderCron(db, client) {
 }
 
 // ✅ 每天 00:01 自動建立當日提醒
-function startRepeatingReminderGenerator(db) {
-  cron.schedule('1 0 * * *', async () => {
-    const now = dayjs().tz('Asia/Taipei');
-    const todayStr = now.format('YYYY-MM-DD');
+function startReminderCron(db, client) {
+  cron.schedule('* * * * *', async () => {
+    const nowTW = dayjs().tz('Asia/Taipei');
+    const minBefore = nowTW.subtract(1, 'minute');
+    const minAfter = nowTW.add(1, 'minute');
 
     try {
-      const repeatingSnapshot = await db.collection('repeatingReminders')
-        .where('active', '==', true)
+      const snapshot = await db.collection('time')
+        .where('done', '==', false)
+        .where('datetime', '>=', admin.firestore.Timestamp.fromDate(minBefore.toDate()))
+        .where('datetime', '<=', admin.firestore.Timestamp.fromDate(minAfter.toDate()))
         .get();
 
-      console.log(`[每日生成提醒] 準備建立 ${repeatingSnapshot.size} 筆`);
-
-      for (const doc of repeatingSnapshot.docs) {
+      for (const doc of snapshot.docs) {
         const data = doc.data();
         const userId = data.userId;
         if (!userId) continue;
 
-        // ✅ 僅今天應提醒者才建立
-        if (!Array.isArray(data.weekdays) || !data.weekdays.includes(now.day())) {
-          continue;
+        // ✅ 根據提醒類型決定按鈕文字
+        // 您需要在 Firestore 記錄中加入一個 type 欄位來區分單次或重複
+        const isRepeating = data.repeatingId ? true : false;
+        const buttonLabel = isRepeating ? '✅ 簽到' : '✅ 確認';
+
+        const text = data.medicine
+          ? `請記得服用藥物：${data.medicine}`
+          : '⏰ 到時間囉，請記得用藥！';
+
+        try {
+          await client.pushMessage(userId, {
+            type: 'template',
+            altText: '用藥提醒',
+            template: {
+              type: 'buttons',
+              title: '💊 用藥提醒',
+              text,
+              actions: [
+                {
+                  type: 'postback',
+                  label: buttonLabel,
+                  data: `action=checkin&reminderId=${doc.id}`
+                }
+              ]
+            }
+          });
+          // ✅ 成功推播後，立即將提醒標記為已完成，避免重複推播
+          await doc.ref.update({ done: true });
+        } catch (err) {
+          console.error('[cron] ❌ 推播錯誤:', err);
         }
-
-        const reminderTime = dayjs(`${todayStr} ${String(data.hour).padStart(2,'0')}:${String(data.minute).padStart(2,'0')}`,
-          'YYYY-MM-DD HH:mm').tz('Asia/Taipei');
-
-        await db.collection('time').add({
-          userId,
-          datetime: admin.firestore.Timestamp.fromDate(reminderTime.toDate()),
-          done: false,
-          medicine: data.medicine || '',
-          dateKey: todayStr, // 新增 dateKey 欄位
-          repeatingId: doc.id // 關聯至重複提醒的 ID
-        });
-
-        console.log(`[每日生成提醒] 為 ${userId} 建立 ${reminderTime.format()}`);
       }
     } catch (err) {
-      console.error('[每日生成提醒] 發生錯誤：', err);
+      console.error('[cron] ❌ 定時提醒錯誤:', err);
     }
   });
 }
