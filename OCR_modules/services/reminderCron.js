@@ -122,6 +122,5 @@ function startReminderCron(db, client) {
 }
 
 module.exports = {
-  startReminderCron,
-  startRepeatingReminderGenerator
+  startReminderCron
 };
