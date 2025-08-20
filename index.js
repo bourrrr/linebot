@@ -70,7 +70,7 @@ const {
   startRepeatingReminderGenerator
 } = require('./OCR_modules/services/reminderCron');
 startReminderCron(db, client);
-startRepeatingReminderGenerator(db);
+
 const processedTokens =
   globalThis.__processedTokens || (globalThis.__processedTokens = new Set());
 // webhook 事件處理
