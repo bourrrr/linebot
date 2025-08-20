@@ -68,7 +68,7 @@ function startReminderCron(db, client) {
 function startReminderCron(db, client) {
   cron.schedule('* * * * *', async () => {
     const nowTW = dayjs().tz('Asia/Taipei');
-    const minBefore = nowTW.subtract(1, 'minute');
+    const minBefore = nowTW
     const minAfter = nowTW.add(1, 'minute');
 
     try {
