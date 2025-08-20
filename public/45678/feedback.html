@@ -142,76 +142,44 @@
     </div>
   </div>
 
-  <!-- Firebase & 互動邏輯 -->
+  <!-- head 末端新增 LIFF SDK（務必在 module 之前） -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
     import { getFirestore, collection, addDoc, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-    import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
     import { firebaseConfig } from './firebase-config.js';
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    const auth = getAuth(app);
+    const LIFF_ID = "2007877199-Y5R2LenL";
 
+    // UI refs（保留你原有星等互動程式，僅示意抓到幾個元素）
     const form = document.getElementById('feedbackForm');
     const resultMsg = document.getElementById('result');
-    const counter = document.getElementById('counter');
     const submitBtn = document.getElementById('submitBtn');
-    const commentEl = /** @type {HTMLTextAreaElement} */(document.getElementById('comment'));
-
-    // 左→右星星互動
     const group = document.getElementById('ratingGroup');
     const stars = Array.from(group.querySelectorAll('.star'));
     const radios = stars.map(s => document.getElementById('rate' + s.dataset.value));
+    const commentEl = document.getElementById('comment');
+    const counter = document.getElementById('counter');
 
-    function highlight(val){
-      stars.forEach(s => {
-        const v = Number(s.dataset.value||0);
-        s.classList.toggle('filled', v <= val);
-      });
-    }
-    function currentValue(){
-      const checked = radios.find(r => r && r.checked);
-      return checked ? Number(checked.value) : 0;
-    }
-
-    // 滑過即時高亮、離開回到目前選取
-    stars.forEach(s => {
-      s.addEventListener('mouseenter', () => highlight(Number(s.dataset.value||0)));
-    });
-    group.addEventListener('mouseleave', () => highlight(currentValue()));
-
-    // 點擊選取
-    stars.forEach(s => {
-      s.addEventListener('click', () => {
-        const v = Number(s.dataset.value||0);
-        const r = document.getElementById('rate'+v);
-        if (r) r.checked = true;
-        highlight(v);
-      });
-    });
-
-    // 鍵盤左右鍵
-    group.addEventListener('keydown', (e) => {
-      const key = e.key;
-      if (key !== 'ArrowRight' && key !== 'ArrowLeft') return;
-      e.preventDefault();
-      let v = currentValue() || 0;
-      if (key === 'ArrowRight') v = Math.min(5, v + 1);
-      if (key === 'ArrowLeft')  v = Math.max(1, v - 1);
-      const r = document.getElementById('rate'+v);
-      if (r){ r.checked = true; highlight(v); }
-    });
-
-    // 初始高亮
+    // 星星互動（沿用你原本的程式）
+    function highlight(val){ stars.forEach(s => s.classList.toggle('filled', Number(s.dataset.value||0) <= val)); }
+    function currentValue(){ const r = radios.find(r => r && r.checked); return r ? Number(r.value) : 0; }
+    stars.forEach(s => { s.addEventListener('mouseenter', ()=>highlight(Number(s.dataset.value||0))); s.addEventListener('click', ()=>{ const v = Number(s.dataset.value||0); document.getElementById('rate'+v).checked=true; highlight(v); }); });
+    group.addEventListener('mouseleave', ()=>highlight(currentValue()));
+    group.addEventListener('keydown', (e)=>{ if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft') return; e.preventDefault(); let v=currentValue()||0; v=e.key==='ArrowRight'?Math.min(5,v+1):Math.max(1,v-1); document.getElementById('rate'+v).checked=true; highlight(v); });
     highlight(currentValue());
-
-    // 文字計數
-    const syncCounter = () => { counter.textContent = String(commentEl.value.length); };
+    const syncCounter = ()=> counter.textContent = String(commentEl.value.length);
     commentEl.addEventListener('input', syncCounter); syncCounter();
 
-    // 送出
-    form.addEventListener('submit', (e) => {
+    async function ensureLIFF(){
+      try{ await liff.init({ liffId: LIFF_ID }); return true; }
+      catch(e){ console.error(e); alert('LIFF 初始化失敗'); return false; }
+    }
+
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (submitBtn.hasAttribute('disabled')) return;
 
@@ -220,32 +188,27 @@
       if (rating === 0 || comment.length === 0) return;
 
       submitBtn.setAttribute('disabled','true');
-      const origText = submitBtn.textContent;
-      submitBtn.textContent = '提交中…';
+      const orig = submitBtn.textContent; submitBtn.textContent = '提交中…';
 
-      onAuthStateChanged(auth, async (user) => {
-        if (!user) {
-          alert('⚠️ 請先登入後再提供回饋！');
-          window.location.href = 'login.html';
-          return;
-        }
-        try{
-          await addDoc(collection(db, 'feedbacks'), {
-            userId: user.uid, rating, comment, createdAt: Timestamp.now()
-          });
-          resultMsg.classList.remove('hidden');
-          form.reset();
-          highlight(0);
-          syncCounter();
-        }catch(err){
-          console.error('回饋提交失敗', err);
-          alert('❌ 提交失敗，請稍後再試。');
-        }finally{
-          submitBtn.removeAttribute('disabled');
-          submitBtn.textContent = origText;
-        }
-      });
+      try{
+        if (!(await ensureLIFF()) || !liff.isLoggedIn()) { location.href='login.html'; return; }
+        const p = await liff.getProfile();
+        const uid = `liff:${p.userId}`;
+
+        await addDoc(collection(db, 'feedbacks'), {
+          userId: uid, rating, comment, createdAt: Timestamp.now()
+        });
+
+        resultMsg.classList.remove('hidden');
+        form.reset(); highlight(0); syncCounter();
+      }catch(err){
+        console.error('回饋提交失敗', err);
+        alert('❌ 提交失敗，請稍後再試。');
+      }finally{
+        submitBtn.removeAttribute('disabled'); submitBtn.textContent = orig;
+      }
     });
   </script>
+
 </body>
 </html>

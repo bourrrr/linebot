@@ -1,158 +1,197 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>註冊 - 填寫基本資料</title>
-  <link rel="stylesheet" href="styles.css" />
-
-  <!-- ✅ 先載入 LIFF SDK，避免 JS 找不到 window.liff -->
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
-  <!-- Firebase SDK（使用你專案的版本/設定即可） -->
-  <script type="module">
-    // 這段不做事，只是確保瀏覽器先預連線 CDN，主程式在 register-profile.js 載
-    /* noop */
-  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --bg:#efede9; --bg-2:#dad7cd;
+      --text:#363636; --muted:#6e746e;
+      --primary:#588157; --primary-weak:#659963de;
+      --surface:#ffffff; --chip:#f4f3ef; --border:#e7e5dc;
+    }
+    body{ background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%); color:var(--text); }
+    .card{ background:var(--surface); border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,.06); }
+    .pill{ background:var(--chip); border:1px solid var(--border); }
+    .seg-btn{ color:var(--text); }
+    .seg-btn.active{ background:var(--primary); color:#fff; box-shadow:0 6px 14px rgba(88,129,87,.25); }
+    .btn{ width:100%; border-radius:1.25rem; padding:1.05rem 1rem; font-weight:800; letter-spacing:.02em; transition:.15s transform,.15s filter; }
+    .btn:hover{ transform:translateY(-1px); }
+    .btn-primary{ background:var(--primary); color:#fff; }
+    .input{ border:1px solid var(--border); background:#fff; transition:.2s; }
+    .input::placeholder{ color:#a0a6a0; }
+    .input:focus{ outline:none; border-color:var(--primary-weak); box-shadow:0 0 0 4px rgba(101,153,99,.18); }
+    .banner{ border:1px dashed #eab308; background:#fef9c3; color:#854d0e; }
+    .tip{ background:var(--chip); border:1px solid var(--border); }
+  </style>
 </head>
-<body class="bg-gray-50">
-  <main class="max-w-xl mx-auto p-4">
-    <h1 class="text-2xl font-bold mb-4">註冊 - 填寫基本資料</h1>
+<body class="min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-xl card rounded-3xl overflow-hidden p-7 sm:p-10">
+    <div class="text-center">
+      <div class="w-48 sm:w-56 mx-auto">
+        <img src="MakeWell.jpg" alt="MakeWell Logo" class="block w-full h-auto object-contain">
+      </div>
+      <h1 class="mt-4 text-3xl sm:text-4xl font-extrabold tracking-tight" style="color:var(--primary)">填寫基本資料</h1>
+      <p class="mt-2 text-[15px]" style="color:var(--muted)">第 2 步：完成資料後即可登入使用。</p>
+    </div>
 
-    <!-- 登入警示 -->
-    <div id="authWarn" class="mb-4 hidden text-red-600">
-      需要先用 LINE 登入才能完成註冊，請從官方帳號選單進入。
+    <div id="authWarn" class="banner p-3 rounded-lg text-sm hidden mt-4">
+      ⚠️ 尚未偵測到 LINE 登入。請先回到
+      <a href="register-auth.html" class="underline font-semibold">上一步</a> 使用 LINE 登入。
     </div>
 
     <!-- 角色切換 -->
-    <div class="mb-4 flex gap-2">
-      <button id="patientBtn" type="button" class="tab-btn active">患者</button>
-      <button id="volunteerBtn" type="button" class="tab-btn">志工</button>
-      <input id="role" type="hidden" value="患者" />
+    <div class="mt-5 pill rounded-full p-1 flex">
+      <button id="patientBtn" class="seg-btn active flex-1 rounded-full text-base font-semibold py-2">患者</button>
+      <button id="volunteerBtn" class="seg-btn flex-1 rounded-full text-base font-semibold py-2">志工</button>
     </div>
+    <input id="role" type="hidden" value="患者"/>
 
     <!-- 共用欄位 -->
-    <section class="card mb-6">
-      <div class="field">
-        <label for="name">姓名</label>
-        <input id="name" type="text" placeholder="姓名" />
+    <div class="mt-4 grid grid-cols-1 gap-3">
+      <input id="name" class="input w-full rounded-xl px-3 py-3" placeholder="姓名"/>
+      <input id="phone" class="input w-full rounded-xl px-3 py-3" placeholder="手機號碼"/>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <input id="emergencyName" class="input w-full rounded-xl px-3 py-3" placeholder="緊急聯絡人姓名"/>
+        <input id="emergencyPhone" class="input w-full rounded-xl px-3 py-3" placeholder="緊急聯絡人電話"/>
       </div>
-      <div class="field">
-        <label for="phone">聯絡電話</label>
-        <input id="phone" type="tel" placeholder="09xx-xxx-xxx" />
-      </div>
-      <div class="field">
-        <label for="emergencyName">緊急聯絡人</label>
-        <input id="emergencyName" type="text" placeholder="家屬 / 朋友" />
-      </div>
-      <div class="field">
-        <label for="emergencyPhone">緊急聯絡人電話</label>
-        <input id="emergencyPhone" type="tel" placeholder="市話或手機" />
-      </div>
-    </section>
+    </div>
 
     <!-- 患者欄位 -->
-    <section id="patientFields" class="card mb-6">
-      <h2 class="card-title">患者資料</h2>
-
-      <div class="field">
-        <label for="city">縣市</label>
-        <select id="city">
-          <option value="">請選擇縣市</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="district">行政區</label>
-        <select id="district" disabled>
-          <option value="">請選擇行政區</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="road">道路/地址</label>
-        <input id="road" type="text" placeholder="xx路xx巷xx號" />
-      </div>
-      <div class="field">
-        <label for="disability">身心障礙別（若有）</label>
-        <input id="disability" type="text" placeholder="選填" />
-      </div>
-
-      <div class="field">
-        <div class="label">慢性病史（可複選）</div>
-        <div class="grid grid-cols-2 gap-2">
-          <label><input type="checkbox" name="chronic" value="高血壓"> 高血壓</label>
-          <label><input type="checkbox" name="chronic" value="糖尿病"> 糖尿病</label>
-          <label><input type="checkbox" name="chronic" value="高血脂"> 高血脂</label>
-          <label><input type="checkbox" name="chronic" value="腎臟病"> 腎臟病</label>
+    <div id="patientFields" class="mt-4 space-y-3">
+      <div>
+        <div class="text-sm font-semibold mb-1">慢性病史（可複選）</div>
+        <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+          <label><input type="checkbox" value="高血壓" name="chronic" class="mr-1">高血壓</label>
+          <label><input type="checkbox" value="糖尿病" name="chronic" class="mr-1">糖尿病</label>
+          <label><input type="checkbox" value="高血脂" name="chronic" class="mr-1">高血脂</label>
+          <label><input type="checkbox" value="心臟病" name="chronic" class="mr-1">心臟病</label>
+          <label><input type="checkbox" value="慢性腎病" name="chronic" class="mr-1">慢性腎病</label>
+          <label><input type="checkbox" value="氣喘" name="chronic" class="mr-1">氣喘</label>
+        </div>
+        <div class="flex items-center gap-2 mt-2">
+          <label class="text-sm"><input type="checkbox" value="其他" name="chronic" class="mr-1">其他：</label>
+          <input id="chronicOther" name="chronicOther" placeholder="請輸入" class="input flex-1 rounded-xl px-3 py-2"/>
         </div>
       </div>
-      <div class="field">
-        <label for="chronicOther">其他慢性病（選填）</label>
-        <input id="chronicOther" type="text" placeholder="自由填寫" />
+
+      <div>
+        <div class="text-sm font-semibold mb-1">是否為身心障礙者</div>
+        <select id="disability" class="input w-full rounded-xl px-3 py-3">
+          <option value="">請選擇</option>
+          <option value="無">無</option>
+          <option value="輕度">輕度</option>
+          <option value="中度">中度</option>
+          <option value="重度">重度</option>
+        </select>
       </div>
-    </section>
+
+      <div>
+        <div class="text-sm font-semibold mb-1">居住地址</div>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <select id="city" class="input rounded-xl px-3 py-3">
+            <option value="">請選擇縣市</option>
+            <option value="基隆市">基隆市</option><option value="臺北市">臺北市</option><option value="新北市">新北市</option>
+            <option value="桃園市">桃園市</option><option value="新竹市">新竹市</option><option value="新竹縣">新竹縣</option>
+            <option value="苗栗縣">苗栗縣</option><option value="臺中市">臺中市</option><option value="彰化縣">彰化縣</option>
+            <option value="南投縣">南投縣</option><option value="雲林縣">雲林縣</option><option value="嘉義市">嘉義市</option>
+            <option value="嘉義縣">嘉義縣</option><option value="臺南市">臺南市</option><option value="高雄市">高雄市</option>
+            <option value="屏東縣">屏東縣</option><option value="宜蘭縣">宜蘭縣</option><option value="花蓮縣">花蓮縣</option>
+            <option value="臺東縣">臺東縣</option><option value="澎湖縣">澎湖縣</option><option value="金門縣">金門縣</option>
+            <option value="連江縣">連江縣</option>
+          </select>
+          <select id="district" class="input rounded-xl px-3 py-3" disabled>
+            <option value="">請選擇行政區</option>
+          </select>
+        </div>
+        <input id="road" class="input w-full rounded-xl px-3 py-3" placeholder="請輸入詳細地址（如 XX 路 100 號）"/>
+      </div>
+    </div>
 
     <!-- 志工欄位 -->
-    <section id="volunteerFields" class="card mb-6 hidden">
-      <h2 class="card-title">志工資料</h2>
-
-      <div class="field">
-        <label for="idCard">身分證字號</label>
-        <input id="idCard" type="text" placeholder="A123456789" />
-      </div>
-
-      <div class="field">
-        <label>是否有志工專業執照</label>
-        <select id="hasCert">
+    <div id="volunteerFields" class="mt-4 space-y-3 hidden">
+      <input id="idCard" class="input w-full rounded-xl px-3 py-3" placeholder="身分證號"/>
+      <div>
+        <div class="text-sm font-semibold mb-1">是否有志工專業執照</div>
+        <select id="hasCert" class="input w-full rounded-xl px-3 py-3">
+          <option value="">請選擇</option>
           <option value="無">無</option>
           <option value="有">有</option>
         </select>
       </div>
-
-      <div class="field">
-        <label for="police">良民證編號</label>
-        <input id="police" type="text" placeholder="W123456789" />
+      <div id="certUploadSection" class="hidden">
+        <div class="text-sm font-semibold mb-1">上傳志工證明（有執照時）</div>
+        <input id="certFile" type="file" accept="image/*" class="input w-full rounded-xl px-3 py-2"/>
       </div>
-
-      <div class="field">
-        <label>上傳良民證照片（必填）</label>
-        <input id="policeFile" type="file" accept="image/*" />
-      </div>
-
-      <div class="field">
-        <label>上傳駕照照片（必填）</label>
-        <input id="licenseFile" type="file" accept="image/*" />
-      </div>
-
-      <div class="field">
-        <label>上傳志工證明（若有）</label>
-        <input id="certFile" type="file" accept="image/*,application/pdf" />
-      </div>
-
-      <div class="grid grid-cols-2 gap-2">
-        <div class="field">
-          <label for="volCity">服務縣市</label>
-          <select id="volCity">
-            <option value="">請選擇縣市</option>
-          </select>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <div class="text-sm font-semibold mb-1">良民證編號</div>
+          <input id="police" class="input w-full rounded-xl px-3 py-3" placeholder="良民證編號" required/>
         </div>
-        <div class="field">
-          <label for="volDistrict">服務行政區</label>
-          <select id="volDistrict" disabled>
-            <option value="">請選擇行政區</option>
-          </select>
+        <div>
+          <div class="text-sm font-semibold mb-1">上傳良民證照片（必填）</div>
+          <input id="policeFile" type="file" accept="image/*" class="input w-full rounded-xl px-3 py-2" required/>
         </div>
       </div>
-    </section>
+      <div>
+        <div class="text-sm font-semibold mb-1">上傳駕照照片（必填）</div>
+        <input id="licenseFile" type="file" accept="image/*" class="input w-full rounded-xl px-3 py-2" required/>
+      </div>
 
-    <!-- ✅ 按鈕加上 type="button"，避免預設 submit 造成整頁重整 -->
-    <button id="saveBtn" type="button" class="btn-primary w-full">儲存並完成註冊</button>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <select id="volCity" class="input rounded-xl px-3 py-3">
+          <option value="">志工服務縣市</option>
+          <option value="基隆市">基隆市</option><option value="臺北市">臺北市</option><option value="新北市">新北市</option>
+          <option value="桃園市">桃園市</option><option value="新竹市">新竹市</option><option value="新竹縣">新竹縣</option>
+          <option value="苗栗縣">苗栗縣</option><option value="臺中市">臺中市</option><option value="彰化縣">彰化縣</option>
+          <option value="南投縣">南投縣</option><option value="雲林縣">雲林縣</option><option value="嘉義市">嘉義市</option>
+          <option value="嘉義縣">嘉義縣</option><option value="臺南市">臺南市</option><option value="高雄市">高雄市</option>
+          <option value="屏東縣">屏東縣</option><option value="宜蘭縣">宜蘭縣</option><option value="花蓮縣">花蓮縣</option>
+          <option value="臺東縣">臺東縣</option><option value="澎湖縣">澎湖縣</option><option value="金門縣">金門縣</option>
+          <option value="連江縣">連江縣</option>
+        </select>
+        <select id="volDistrict" class="input rounded-xl px-3 py-3" disabled>
+          <option value="">志工服務行政區</option>
+        </select>
+      </div>
+    </div>
 
-    <p class="text-sm text-gray-500 mt-4">
-      完成後請回登入頁繼續（志工會自動導向志工首頁；患者導向患者首頁）。
-    </p>
-  </main>
+    <!-- 動作 -->
+    <div class="mt-6">
+      <button id="saveBtn" class="btn btn-primary">儲存並完成註冊</button>
+      <div class="mt-2 flex items-center justify-between gap-3">
+        <a href="register-auth.html" class="underline text-sm whitespace-nowrap" style="color:var(--muted)">← 回上一步</a>
+        <div id="saveTip" class="text-xs text-right" style="color:var(--muted)">完成後請回登入頁繼續。</div>
+      </div>
+    </div>
 
-  <!-- 你的主程式（模組） -->
+    <!-- 小提醒 -->
+    <div class="tip rounded-2xl p-4 mt-6 text-sm">
+      <div class="font-semibold mb-1">小提醒</div>
+      <ul class="list-disc pl-5 space-y-1" style="color:var(--muted)">
+        <li>志工需上傳：良民證、駕照。</li>
+        <li>資料送出後可於「個人資料」頁再修改。</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 模組腳本 -->
   <script type="module" src="./register-profile.js"></script>
+  <script type="module" src="./district-data.js"></script>
+  <!-- LIFF SDK（供第二步讀取 LINE 身分） -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <!-- 小互動：切換有/無執照時顯示上傳區 -->
+  <script>
+    document.addEventListener('change', (e)=>{
+      if(e.target && e.target.id === 'hasCert'){
+        const sec = document.getElementById('certUploadSection');
+        if(e.target.value === '有'){ sec.classList.remove('hidden'); }
+        else{ sec.classList.add('hidden'); }
+      }
+    });
+  </script>
 </body>
 </html>

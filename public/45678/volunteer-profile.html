@@ -6,38 +6,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root{
-      --bg:#efede9; --bg-2:#dad7cd;
-      --text:#363636; --muted:#6e746e;
-      --primary:#588157; --primary-weak:#659963de;
-      --surface:#ffffff; --chip:#f4f3ef; --border:#e7e5dc;
-    }
+    :root{ --bg:#efede9; --bg-2:#dad7cd; --text:#363636; --muted:#6e746e; --primary:#588157; --primary-weak:#659963de; --surface:#ffffff; --chip:#f4f3ef; --border:#e7e5dc; }
     body{ background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%); color:var(--text); }
     .card{ background:var(--surface); border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,.06); }
     .h-divider{ height:1px; width:100%; background:linear-gradient(to right, transparent, var(--border), transparent); }
     .field{ display:flex; flex-direction:column; gap:.35rem; }
     .label{ font-weight:800; }
-    .input, .select{
-      width:100%; border:1px solid var(--border); background:#fff; border-radius:14px;
-      padding:.7rem .9rem; font-size:15px; outline:none;
-    }
-    .input:focus, .select:focus{ box-shadow:0 0 0 3px rgba(101,153,99,.25); border-color:var(--primary-weak); }
+    .input,.select{ width:100%; border:1px solid var(--border); background:#fff; border-radius:14px; padding:.7rem .9rem; font-size:15px; outline:none; }
+    .input:focus,.select:focus{ box-shadow:0 0 0 3px rgba(101,153,99,.25); border-color:var(--primary-weak); }
     .badge{ display:inline-flex; align-items:center; gap:.4rem; padding:.35rem .6rem; border-radius:999px; font-weight:800; font-size:.8rem; background:var(--chip); border:1px solid var(--border); color:var(--primary); }
-    .btn-ghost{
-      border:1px solid var(--border); background:#fff; border-radius:9999px;
-      padding:.6rem .9rem; font-weight:800; transition:.15s transform,.15s filter;
-    }
+    .btn-ghost{ border:1px solid var(--border); background:#fff; border-radius:9999px; padding:.6rem .9rem; font-weight:800; transition:.15s transform,.15s filter; }
     .btn-ghost:hover{ transform:translateY(-1px); filter:brightness(.98); }
-    .btn-primary{
-      background:var(--primary); color:#fff; font-weight:800;
-      padding:.9rem 1.1rem; border-radius:9999px; transition:.15s transform,.15s filter;
-    }
+    .btn-primary{ background:var(--primary); color:#fff; font-weight:800; padding:.9rem 1.1rem; border-radius:9999px; transition:.15s transform,.15s filter; }
     .btn-primary:hover{ transform:translateY(-1px); filter:brightness(.98); }
     .btn-primary[disabled]{ opacity:.55; cursor:not-allowed; transform:none; filter:none; }
     .section-title{ font-weight:900; display:flex; align-items:center; gap:.6rem; }
     .dot{ width:.55rem; height:.55rem; border-radius:999px; background:var(--primary); opacity:.8; }
-
-    /* 上傳清單樣式 */
     .preview-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
     @media (min-width:768px){ .preview-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
     .file-card{ border:1px solid var(--border); border-radius:14px; padding:10px; background:#fff; }
@@ -47,6 +31,9 @@
     .subtle{ color:var(--muted); font-size:12px; }
     .banner{ border:1px dashed #eab308; background:#fef9c3; color:#854d0e; }
   </style>
+
+  <!-- LIFF SDK（一定要在 module 之前） -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
   <div class="mx-auto max-w-[1120px]">
@@ -54,8 +41,7 @@
       <!-- Header -->
       <header class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div class="flex items-center gap-5">
-          <img src="MakeWell.jpg" alt="MakeWell Logo"
-               class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
+          <img src="MakeWell.jpg" alt="MakeWell Logo" class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
           <div>
             <h1 class="text-3xl md:text-4xl font-extrabold leading-tight">志工個人資訊</h1>
             <p class="text-sm md:text-base mt-1" style="color:var(--muted)">更新你的聯絡方式與可服務地區。</p>
@@ -66,64 +52,28 @@
 
       <div class="mt-8 h-divider"></div>
 
-      <!-- 表單 -->
+      <!-- 表單（僅志工） -->
       <main class="mt-8 md:mt-10">
-        <!-- 登入提示（若未橋接成功會顯示） -->
-        <div id="authWarn" class="banner p-3 rounded-lg text-sm hidden">
-          ⚠️ 尚未完成登入，請回<a href="login.html" class="underline font-semibold">登入頁</a>使用 LINE 登入。
-        </div>
+        <div id="authWarn" class="banner p-3 rounded-lg text-sm hidden">⚠️ 尚未完成登入，請回<a href="login.html" class="underline font-semibold">登入頁</a>使用 LINE 登入。</div>
 
-        <!-- 基本資料 -->
         <section class="mt-4">
           <h2 class="section-title text-xl"><span class="dot"></span> 基本資料 <span id="roleBadge" class="badge hidden">志工</span></h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
-            <div class="field">
-              <label for="name" class="label">姓名</label>
-              <input id="name" type="text" class="input" placeholder="王志工">
-            </div>
-            <div class="field">
-              <label for="phone" class="label">手機號碼</label>
-              <input id="phone" type="tel" class="input" placeholder="0912-345-678">
-            </div>
-            <div class="field">
-              <label for="emergencyName" class="label">緊急聯絡人姓名</label>
-              <input id="emergencyName" type="text" class="input" placeholder="王媽媽">
-            </div>
-            <div class="field">
-              <label for="emergencyPhone" class="label">緊急聯絡人電話</label>
-              <input id="emergencyPhone" type="tel" class="input" placeholder="0912-000-000">
-            </div>
+            <div class="field"><label for="name" class="label">姓名</label><input id="name" class="input" placeholder="王志工"></div>
+            <div class="field"><label for="phone" class="label">手機號碼</label><input id="phone" class="input" inputmode="tel" placeholder="0912-345-678"></div>
+            <div class="field"><label for="emergencyName" class="label">緊急聯絡人姓名</label><input id="emergencyName" class="input" placeholder="王媽媽"></div>
+            <div class="field"><label for="emergencyPhone" class="label">緊急聯絡人電話</label><input id="emergencyPhone" class="input" inputmode="tel" placeholder="0912-000-000"></div>
           </div>
         </section>
 
-        <!-- 志工資訊 -->
         <section class="mt-10">
           <h2 class="section-title text-xl"><span class="dot"></span> 志工資訊</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
-            <div class="field">
-              <label for="city" class="label">縣市</label>
-              <select id="city" class="select">
-                <option value="" disabled selected>請選擇縣市</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="district" class="label">行政區</label>
-              <select id="district" class="select" disabled>
-                <option value="" disabled selected>請先選縣市</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="idCard" class="label">身分證字號</label>
-              <input id="idCard" type="text" class="input" placeholder="A123456789">
-            </div>
-            <div class="field">
-              <label for="police" class="label">良民證編號</label>
-              <input id="police" type="text" class="input" placeholder="POL-2025-XXXX">
-            </div>
-            <div class="field">
-              <label for="hours" class="label">志工時數</label>
-              <input id="hours" type="number" min="0" class="input" placeholder="0">
-            </div>
+            <div class="field"><label for="city" class="label">縣市</label><select id="city" class="select"><option value="" disabled selected>請選擇縣市</option></select></div>
+            <div class="field"><label for="district" class="label">行政區</label><select id="district" class="select" disabled><option value="" disabled selected>請先選縣市</option></select></div>
+            <div class="field"><label for="idCard" class="label">身分證字號</label><input id="idCard" class="input" placeholder="A123456789"></div>
+            <div class="field"><label for="police" class="label">良民證編號</label><input id="police" class="input" placeholder="POL-2025-XXXX"></div>
+            <div class="field"><label for="hours" class="label">志工時數</label><input id="hours" type="number" min="0" class="input" placeholder="0"></div>
 
             <!-- 良民證檔案 -->
             <div class="field md:col-span-2">
@@ -155,7 +105,6 @@
           </div>
         </section>
 
-        <!-- 儲存 -->
         <div class="mt-12 text-center">
           <button id="saveBtn" class="btn-primary inline-flex items-center justify-center px-8">儲存變更</button>
           <p id="saveHint" class="mt-3 text-sm" style="color:var(--muted)"></p>
@@ -164,276 +113,185 @@
     </div>
   </div>
 
-  <!-- LIFF SDK（橋接登入可能會用到） -->
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
-  <!-- 主腳本：橋接登入 + Firestore + Storage -->
+  <!-- 主腳本：LIFF → Firebase Auth（Custom Token）＋ Firestore + Storage -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import {
-      getFirestore, doc, getDoc, setDoc, serverTimestamp,
-      collection, query, where, getDocs, limit
-    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import {
-      getAuth, onAuthStateChanged, signInWithCustomToken
-    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import {
-      getStorage, ref, listAll, uploadBytes, getDownloadURL
-    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-
+    import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getAuth, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getStorage, ref, listAll, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
     import { firebaseConfig } from "./firebase-config.js";
     import { cityDistricts } from "./district-data.js";
 
-    /* ========= 必改參數 =========
-       CUSTOM_TOKEN_URL：你部署在 Firebase Functions 的 lineCustomToken API 網址
-       LIFF_ID：你的 LIFF ID（你之前用的是 2007877199-Y5R2LenL）
-    ================================= */
-    const CUSTOM_TOKEN_URL = "https://us-central1-medwell-test1.cloudfunctions.net/lineCustomToken"; // ← 換成你的 Functions URL
-    const LIFF_ID = "2007877199-Y5R2LenL";
+    // ======= 參數（請改成你的 Functions 網址） =======
+    const CUSTOM_TOKEN_URL = "https://<你的雲端函式域名>/getFirebaseCustomToken"; // ← 必改
+    const LIFF_ID = "2007877199-Y5R2LenL"; // 你的 LIFF ID
 
-    // === 初始化 Firebase（注意：Storage 綁定正確 bucket） ===
+    // ======= 初始化 =======
     const app = initializeApp(firebaseConfig);
-    const db  = getFirestore(app);
+    const db = getFirestore(app);
     const auth = getAuth(app);
-    const storage = getStorage(app, "gs://medwell-test1.appspot.com");
+    const storage = getStorage(app); // 用預設 bucket
 
-    // === DOM 快捷 ===
+    // ======= DOM =======
     const $ = (id) => document.getElementById(id);
-    const roleBadge = $('roleBadge');
-    const citySel = $('city');
-    const districtSel = $('district');
-    const saveBtn = $('saveBtn');
-    const saveHint = $('saveHint');
-    const policePrev = $('policePrev');
-    const licensePrev = $('licensePrev');
+    const roleBadge = $("roleBadge");
+    const saveBtn = $("saveBtn");
+    const saveHint = $("saveHint");
+    const citySel = $("city");
+    const districtSel = $("district");
+    const policePrev = $("policePrev");
+    const licensePrev = $("licensePrev");
+    $("refreshPoliceList")?.addEventListener("click", () => listPrevFiles("police"));
+    $("refreshLicenseList")?.addEventListener("click", () => listPrevFiles("license"));
 
-    $('refreshPoliceList')?.addEventListener('click', () => listPrevFiles('police'));
-    $('refreshLicenseList')?.addEventListener('click', () => listPrevFiles('license'));
+    // ======= 工具 =======
+    function escapeHtml(s){ return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
+    function fillCities(){ citySel.innerHTML='<option value="" disabled selected>請選擇縣市</option>'; Object.keys(cityDistricts).forEach(c=>citySel.appendChild(new Option(c,c))); }
+    function fillDistricts(city, selected=""){ districtSel.innerHTML=""; const list=cityDistricts[city]||[]; if(!list.length){ districtSel.innerHTML='<option value="" disabled selected>請先選縣市</option>'; districtSel.disabled=true; return; } districtSel.disabled=false; districtSel.appendChild(new Option("請選擇行政區","",true,false)); list.forEach(d=>districtSel.appendChild(new Option(d,d,false,d===selected))); }
+    citySel.addEventListener("change",()=>{ fillDistricts(citySel.value); districtSel.focus(); });
 
-    // === 城市/行政區 ===
-    function fillCities(){
-      citySel.innerHTML = '<option value="" disabled selected>請選擇縣市</option>';
-      Object.keys(cityDistricts).forEach(c => citySel.appendChild(new Option(c, c)));
+    // ======= LIFF → Custom Token 登入 =======
+    async function ensureLiffReady(){
+      try{ await liff.init({ liffId: LIFF_ID }); return true; }
+      catch(e){ console.error(e); alert("LIFF 初始化失敗"); return false; }
     }
-    function fillDistricts(city, selected=''){
-      districtSel.innerHTML = '';
-      const list = cityDistricts[city] || [];
-      if (!list.length){
-        districtSel.innerHTML = '<option value="" disabled selected>請先選縣市</option>';
-        districtSel.disabled = true; return;
-      }
-      districtSel.disabled = false;
-      districtSel.appendChild(new Option('請選擇行政區', '', true, false));
-      list.forEach(d => districtSel.appendChild(new Option(d, d, false, d===selected)));
-    }
-    citySel.addEventListener('change', () => { fillDistricts(citySel.value); districtSel.focus(); });
-
-    // === 橋接：LINE → Firebase Auth ===
-    async function getLineIdToken() {
-      let idToken = localStorage.getItem('MW_LIFF_ID_TOKEN') || "";
-      if (idToken) return idToken;
-      if (window.liff) {
-        try {
-          if (!window.__LIFF_READY__) { await liff.init({ liffId: LIFF_ID }); window.__LIFF_READY__ = true; }
-          if (liff.isLoggedIn()) { idToken = liff.getIDToken() || ""; }
-        } catch {}
-      }
-      return idToken;
-    }
-    async function ensureFirebaseAuthFromLINE() {
-      if (auth.currentUser) return auth.currentUser;
-      const idToken = await getLineIdToken();
-      if (!idToken) {
-        $('authWarn').classList.remove('hidden');
-        return null;
-      }
+    async function signInWithLine(){
+      if (!(await ensureLiffReady())) return null;
+      if (!liff.isLoggedIn()) { location.href = "login.html"; return null; }
+      const idToken = liff.getIDToken();
+      if (!idToken) { $("authWarn").classList.remove("hidden"); return null; }
       try{
-        const resp = await fetch(CUSTOM_TOKEN_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken })
-        });
+        const resp = await fetch(CUSTOM_TOKEN_URL, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ idToken }) });
         const data = await resp.json();
-        if (!resp.ok || !data.customToken) throw new Error('custom token missing');
-        const cred = await signInWithCustomToken(auth, data.customToken);
-        return cred.user;
-      }catch(e){
-        console.error('[BRIDGE_ERR]', e);
-        $('authWarn').classList.remove('hidden');
+        if (!resp.ok || !data.token) throw new Error(data.error||"custom token error");
+        const cred = await signInWithCustomToken(auth, data.token);
+        return cred.user; // uid 會是 liff:<LINE userId>
+      }catch(err){
+        console.error("[Bridge Error]", err);
+        $("authWarn").classList.remove("hidden");
         return null;
       }
     }
 
-    // === 兼容舊資料：找到/建立 users/{uid} ===
-    async function locateUserDoc(user){
-      const uidRef = doc(db, 'users', user.uid);
-      let snap = await getDoc(uidRef);
-      if (snap.exists()) return { ref: uidRef, data: snap.data() };
-
-      // 用欄位 uid 搜一次
-      const q1 = query(collection(db,'users'), where('uid','==', user.uid), limit(1));
-      const r1 = await getDocs(q1);
-      if (!r1.empty){
-        const old = r1.docs[0].data();
-        await setDoc(uidRef, { ...old, uid:user.uid, migratedAt:serverTimestamp() }, { merge:true });
-        return { ref: uidRef, data: { ...old, uid:user.uid } };
-      }
-      // 用 email 搜一次（若有）
-      if (user.email){
-        const q2 = query(collection(db,'users'), where('email','==', user.email), limit(1));
-        const r2 = await getDocs(q2);
-        if (!r2.empty){
-          const old = r2.docs[0].data();
-          await setDoc(uidRef, { ...old, uid:user.uid, email:user.email, migratedAt:serverTimestamp() }, { merge:true });
-          return { ref: uidRef, data: { ...old, uid:user.uid, email:user.email } };
-        }
-      }
-      // 都沒有就建立最小文件
-      await setDoc(uidRef, { uid:user.uid, role:'volunteer', createdAt:serverTimestamp() }, { merge:true });
-      return { ref: uidRef, data: { uid:user.uid, role:'volunteer' } };
-    }
-
-    // === 歷史檔案清單 ===
-    async function listPrevFiles(kind /* 'police' | 'license' */){
-      const user = auth.currentUser;
-      const container = kind === 'police' ? policePrev : licensePrev;
-      if (!user || !container) return;
-
+    // ======= 檔案列表 / 上傳 =======
+    async function listPrevFiles(kind){
+      const user = auth.currentUser; if (!user) return;
+      const container = kind==="police" ? policePrev : licensePrev;
       container.innerHTML = '<p class="subtle">讀取中…</p>';
-      const folder = kind === 'police'
-        ? `police_certificates/${user.uid}`
-        : `licenses/${user.uid}`;
+      const folder = kind==="police" ? `police_certificates/${user.uid}` : `licenses/${user.uid}`;
       try{
-        const listRef = ref(storage, folder);
-        const res = await listAll(listRef);
-        if (!res.items.length){ container.innerHTML = '<p class="subtle">尚無上傳紀錄</p>'; return; }
+        const res = await listAll(ref(storage, folder));
+        if (!res.items.length){ container.innerHTML='<p class="subtle">尚無上傳紀錄</p>'; return; }
         const rows = await Promise.all(res.items.map(async it=>{
           try{
             const url = await getDownloadURL(it);
             const name = it.name;
             const isImg = /\.(jpe?g|png|webp|gif|bmp)$/i.test(name);
             const isPdf = /\.pdf$/i.test(name);
-            const thumb = isImg
-              ? `<img class="thumb" src="${url}" alt="${name}">`
-              : `<div class="thumb flex items-center justify-center text-sm subtle">${isPdf?'PDF 檔案':'檔案'}</div>`;
-            return `<div class="file-card">${thumb}<div class="file-name">${name}</div>
-                    <div class="file-actions mt-1"><a href="${url}" target="_blank" rel="noopener">開啟</a>
-                    <a href="${url}" download>下載</a></div></div>`;
-          }catch{ return `<div class="file-card"><div class="thumb flex items-center justify-center text-sm subtle">無法預覽</div><div class="file-name">${it.name}</div></div>`; }
+            const thumb = isImg ? `<img class="thumb" src="${url}" alt="${escapeHtml(name)}">`
+                                : `<div class="thumb flex items-center justify-center text-sm subtle">${isPdf?'PDF 檔案':'檔案'}</div>`;
+            return `<div class="file-card">${thumb}<div class="file-name">${escapeHtml(name)}</div><div class="file-actions mt-1"><a href="${url}" target="_blank" rel="noopener">開啟</a><a href="${url}" download>下載</a></div></div>`;
+          }catch{ return `<div class="file-card"><div class="thumb flex items-center justify-center text-sm subtle">無法預覽</div><div class="file-name">${escapeHtml(it.name)}</div></div>`; }
         }));
-        container.innerHTML = rows.join('');
-      }catch(err){
-        console.error('[LIST_ERR]', err);
-        container.innerHTML = '<p class="subtle">讀取失敗，請確認已登入與 Storage 規則</p>';
+        container.innerHTML = rows.join("");
+      }catch(e){
+        console.error(e);
+        container.innerHTML = '<p class="subtle">讀取失敗，請確認登入與 Storage 規則</p>';
       }
     }
-
-    // === 若選檔就上傳 ===
     async function uploadIfSelected(kind){
-      const user = auth.currentUser;
-      if (!user) throw new Error('未登入');
-
-      const input = document.getElementById(kind === 'police' ? 'policeFile' : 'licenseFile');
-      const file  = input?.files?.[0];
-      if (!file) return null;
-
+      const user = auth.currentUser; if (!user) throw new Error("未登入");
+      const input = document.getElementById(kind==="police" ? "policeFile" : "licenseFile");
+      const file = input?.files?.[0]; if (!file) return null;
       const ts = Date.now();
-      const safeName = file.name.replace(/\s+/g,'_');
-      const path = kind === 'police'
-        ? `police_certificates/${user.uid}/police_${ts}_${safeName}`
-        : `licenses/${user.uid}/license_${ts}_${safeName}`;
-
-      const fileRef = ref(storage, path);
-      await uploadBytes(fileRef, file);
-      const url = await getDownloadURL(fileRef);
-      return { name:file.name, path, url, updatedAt:new Date().toISOString() };
+      const safeName = file.name.replace(/\s+/g,"_");
+      const path = kind==="police" ? `police_certificates/${user.uid}/police_${ts}_${safeName}`
+                                   : `licenses/${user.uid}/license_${ts}_${safeName}`;
+      const snap = await uploadBytes(ref(storage, path), file);
+      const url = await getDownloadURL(snap.ref);
+      return { name: file.name, path, url, updatedAt: new Date().toISOString() };
     }
 
-    // === 載入流程 ===
+    // ======= 主流程 =======
     let userDocRef = null;
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) return; // 等待橋接完成
+    (async () => {
       fillCities();
-      try{
-        const { ref, data } = await locateUserDoc(user);
-        userDocRef = ref;
 
-        roleBadge.textContent = (data.role === 'volunteer') ? '志工' : (data.role || '使用者');
-        roleBadge.classList.remove('hidden');
+      const user = await signInWithLine();
+      if (!user) return; // 顯示 authWarn 了
 
-        $('name').value           = data.name || '';
-        $('phone').value          = data.phone || '';
-        $('emergencyName').value  = data.emergencyName || '';
-        $('emergencyPhone').value = data.emergencyPhone || '';
-        $('idCard').value         = data.idCard || '';
-        $('police').value         = data.police || '';
-        $('hours').value          = (data.hours ?? 0);
-
-        if (data.city){
-          citySel.value = data.city;
-          fillDistricts(data.city, data.district || '');
-        } else { fillDistricts('', ''); }
-
-        await Promise.all([listPrevFiles('police'), listPrevFiles('license')]);
-
-        if (data.policeCert?.name)  $('policeFileHint').textContent  = `目前最新：${data.policeCert.name}`;
-        if (data.licenseFile?.name) $('licenseFileHint').textContent = `目前最新：${data.licenseFile.name}`;
-      }catch(err){
-        console.error('[LOAD_ERR]', err);
-        saveHint.textContent = '讀取個人資料失敗，請稍後再試';
+      // users/{uid} 檢查 & 必要時建立
+      userDocRef = doc(db, "users", user.uid);
+      let snap = await getDoc(userDocRef);
+      if (!snap.exists()) {
+        await setDoc(userDocRef, { uid: user.uid, role: "志工", createdAt: serverTimestamp() }, { merge: true });
+        snap = await getDoc(userDocRef);
       }
-    });
 
-    // === 儲存 ===
-    saveBtn.addEventListener('click', async () => {
-      if (!userDocRef) { saveHint.textContent = '尚未登入'; return; }
+      const data = snap.data() || {};
+      const role = String(data.role||"").trim();
+      const isVolunteer = (role === "志工" || role === "volunteer");
+      if (!isVolunteer) { location.href = "home.html"; return; } // 僅志工可進
+
+      roleBadge.textContent = "志工";
+      roleBadge.classList.remove("hidden");
+
+      // 帶值
+      $("name").value           = data.name || "";
+      $("phone").value          = data.phone || "";
+      $("emergencyName").value  = data.emergencyName || "";
+      $("emergencyPhone").value = data.emergencyPhone || "";
+      $("idCard").value         = data.idCard || "";
+      $("police").value         = data.police || "";
+      $("hours").value          = (data.hours ?? 0);
+
+      if (data.city) { citySel.value = data.city; fillDistricts(data.city, data.district || ""); }
+      else { fillDistricts("", ""); }
+
+      await Promise.all([listPrevFiles("police"), listPrevFiles("license")]);
+    })();
+
+    // ======= 儲存 =======
+    saveBtn.addEventListener("click", async () => {
+      if (!userDocRef) { saveHint.textContent = "尚未登入"; return; }
 
       try{
-        saveBtn.setAttribute('disabled','true');
-        saveHint.textContent = '儲存中…';
+        saveBtn.setAttribute("disabled","true");
+        saveHint.textContent = "儲存中…";
 
         const updates = {
-          name: $('name').value.trim(),
-          phone: $('phone').value.trim(),
-          emergencyName: $('emergencyName').value.trim(),
-          emergencyPhone: $('emergencyPhone').value.trim(),
-          idCard: $('idCard').value.trim(),
-          police: $('police').value.trim(),
-          hours: Number($('hours').value || 0),
-          city: citySel.value || '',
-          district: districtSel.disabled ? '' : (districtSel.value || ''),
+          name: $("name").value.trim(),
+          phone: $("phone").value.trim(),
+          emergencyName: $("emergencyName").value.trim(),
+          emergencyPhone: $("emergencyPhone").value.trim(),
+          idCard: $("idCard").value.trim(),
+          police: $("police").value.trim(),
+          hours: Number($("hours").value || 0),
+          city: citySel.value || "",
+          district: districtSel.disabled ? "" : (districtSel.value || ""),
           updatedAt: serverTimestamp()
         };
-        if (!updates.city){ saveHint.textContent = '⚠️ 請選擇縣市'; saveBtn.removeAttribute('disabled'); return; }
-        if (!updates.district){ saveHint.textContent = '⚠️ 請選擇行政區'; saveBtn.removeAttribute('disabled'); return; }
+        if (!updates.city){ saveHint.textContent = "⚠️ 請選擇縣市"; saveBtn.removeAttribute("disabled"); return; }
+        if (!updates.district){ saveHint.textContent = "⚠️ 請選擇行政區"; saveBtn.removeAttribute("disabled"); return; }
 
-        const [policeCert, licenseFile] = await Promise.all([
-          uploadIfSelected('police'),
-          uploadIfSelected('license')
-        ]);
+        const [policeCert, licenseFile] = await Promise.all([ uploadIfSelected("police"), uploadIfSelected("license") ]);
         if (policeCert)  updates.policeCert  = policeCert;
         if (licenseFile) updates.licenseFile = licenseFile;
 
-        await setDoc(userDocRef, updates, { merge:true });
+        await setDoc(userDocRef, updates, { merge: true });
 
-        if (policeCert)  { await listPrevFiles('police');  $('policeFile').value='';  $('policeFileHint').textContent  = `已更新：${policeCert.name}`; }
-        if (licenseFile) { await listPrevFiles('license'); $('licenseFile').value=''; $('licenseFileHint').textContent = `已更新：${licenseFile.name}`; }
+        if (policeCert)  { await listPrevFiles("police");  $("policeFile").value="";  $("policeFileHint").textContent  = `已更新：${policeCert.name}`; }
+        if (licenseFile) { await listPrevFiles("license"); $("licenseFile").value=""; $("licenseFileHint").textContent = `已更新：${licenseFile.name}`; }
 
-        saveHint.textContent = '✅ 資料已更新！';
-        setTimeout(()=> saveHint.textContent='', 2000);
+        saveHint.textContent = "✅ 資料已更新！";
+        setTimeout(()=> saveHint.textContent = "", 1800);
       }catch(err){
-        console.error('[SAVE_ERR]', err);
-        saveHint.textContent = '❌ 儲存失敗：' + (err?.message || '請稍後再試');
+        console.error(err);
+        saveHint.textContent = "❌ 儲存失敗，請稍後重試";
       }finally{
-        saveBtn.removeAttribute('disabled');
+        saveBtn.removeAttribute("disabled");
       }
     });
-
-    // === 啟動：先完成 LINE→Firebase 橋接，再觸發 onAuthStateChanged ===
-    (async () => {
-      const user = await ensureFirebaseAuthFromLINE();
-      if (!user) $('authWarn').classList.remove('hidden');
-    })();
   </script>
 </body>
 </html>

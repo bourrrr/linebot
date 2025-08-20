@@ -124,12 +124,14 @@ async function handleConfirmReminder(event, db, client) {
   if (!userId || !cache?.datetime) {
     return replyOrPush(event, client, { type:'text', text:'⚠️ 無有效時間資訊，請重新設定提醒' });
   }
-  const dt = new Date(cache.datetime);
+  // ✅ 修正時差：將時間字串轉換為 Day.js 物件並設定時區，再轉回 Date 物件
+  const dt = dayjs(cache.datetime).tz('Asia/Taipei').toDate();
   await db.collection('time').add({
     userId,
     datetime: dt,
     done: false,
-    createdAt: new Date()
+    createdAt: new Date(),
+    dateKey: dayjs(dt).tz('Asia/Taipei').format('YYYY-MM-DD') // 新增 dateKey 欄位
   });
   delete reminderCache[userId];
 
@@ -294,7 +296,7 @@ async function sendReminderCarousel(event, db, client) {
 
   const singleSnap = await db.collection('time')
     .where('userId','==',userId)
-    .where('done','==',false)
+    .where('done','==',false) // 僅顯示尚未完成的單次提醒
     .where('datetime','>=',now)
     .orderBy('datetime','asc')
     .limit(10).get();

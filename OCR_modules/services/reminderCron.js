@@ -1,3 +1,4 @@
+// reminderCron.js
 const cron = require('node-cron');
 const admin = require('firebase-admin');
 const dayjs = require('dayjs');
@@ -17,7 +18,7 @@ function startReminderCron(db, client) {
 
     try {
       const snapshot = await db.collection('time')
-        .where('done', '==', false)
+        .where('done', '==', false) // 只處理尚未完成的提醒
         .where('datetime', '>=', admin.firestore.Timestamp.fromDate(minBefore.toDate()))
         .where('datetime', '<=', admin.firestore.Timestamp.fromDate(minAfter.toDate()))
         .get();
@@ -50,6 +51,8 @@ function startReminderCron(db, client) {
               ]
             }
           });
+          // ✅ 成功推播後，立即將提醒標記為已完成，避免重複推播
+          await doc.ref.update({ done: true });
           console.log('[cron] ✅ 已推播給', userId, '提醒 ID:', doc.id);
         } catch (err) {
           console.error('[cron] ❌ 推播錯誤:', err);
@@ -61,7 +64,7 @@ function startReminderCron(db, client) {
   });
 }
 
-// ✅ 每天 00:01 自動建立當日提醒（只為「有包含今天星期」的重複提醒建立 time）
+// ✅ 每天 00:01 自動建立當日提醒
 function startRepeatingReminderGenerator(db) {
   cron.schedule('1 0 * * *', async () => {
     const now = dayjs().tz('Asia/Taipei');
@@ -91,7 +94,9 @@ function startRepeatingReminderGenerator(db) {
           userId,
           datetime: admin.firestore.Timestamp.fromDate(reminderTime.toDate()),
           done: false,
-          medicine: data.medicine || ''
+          medicine: data.medicine || '',
+          dateKey: todayStr, // 新增 dateKey 欄位
+          repeatingId: doc.id // 關聯至重複提醒的 ID
         });
 
         console.log(`[每日生成提醒] 為 ${userId} 建立 ${reminderTime.format()}`);

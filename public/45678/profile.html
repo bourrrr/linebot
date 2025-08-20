@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>個人資訊 - MakeWell</title>
+  <title>個人資訊（患者） - MakeWell</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root{
@@ -14,159 +14,133 @@
     }
     body{ background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%); color:var(--text); }
     .card{ background:var(--surface); border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,.06); }
-    .h-divider{ height:1px; width:100%; background:linear-gradient(to right, transparent, var(--border), transparent); }
-    .field{ display:flex; flex-direction:column; gap:.35rem; }
-    .label{ font-weight:800; }
-    .input, .select{
-      width:100%; border:1px solid var(--border); background:#fff; border-radius:14px;
-      padding:.7rem .9rem; font-size:15px; outline:none;
-    }
-    .input:focus, .select:focus{ box-shadow:0 0 0 3px rgba(101,153,99,.25); }
-    .badge{ display:inline-flex; align-items:center; gap:.4rem; padding:.35rem .6rem; border-radius:999px; font-weight:800; font-size:.8rem; background:var(--chip); border:1px solid var(--border); color:var(--primary); }
+    .badge{ display:inline-flex; align-items:center; gap:.4rem; padding:.25rem .6rem; border-radius:9999px; border:1px solid var(--border); background:var(--chip); color:var(--muted); font-size:.9rem; }
+    .label{ color:var(--muted); font-weight:600; }
+    .input{ width:100%; background:#fff; border:1px solid var(--border); border-radius:14px; padding:.9rem 1rem; }
     .btn-primary{
-      background:var(--primary); color:#fff; font-weight:800;
-      padding:.9rem 1.1rem; border-radius:9999px; transition:.15s transform,.15s filter;
+      display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+      background:var(--primary); color:#fff; border:1px solid var(--primary);
+      padding:.9rem 1.2rem; border-radius:9999px; font-weight:800; transition:.15s transform,.15s filter;
     }
     .btn-primary:hover{ transform:translateY(-1px); filter:brightness(.98); }
-    .btn-primary[disabled]{ opacity:.55; cursor:not-allowed; transform:none; filter:none; }
-    .section-title{ font-weight:900; display:flex; align-items:center; gap:.6rem; }
-    .dot{ width:.55rem; height:.55rem; border-radius:999px; background:var(--primary); opacity:.8; }
+    .hint{ color:#6b6b6b; }
+    .chip{ display:inline-flex; align-items:center; gap:.25rem; padding:.35rem .6rem; border-radius:9999px; background:var(--chip); border:1px solid var(--border); }
   </style>
+
+  <!-- LIFF SDK：一定要在 module 之前 -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
-  <div class="mx-auto max-w-5xl">
-    <div class="card rounded-3xl p-8 md:p-12 min-h-[82vh] md:min-h-[86vh]">
-      <!-- Header -->
-      <header class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+  <div class="mx-auto max-w-[1080px]">
+    <div class="card rounded-3xl p-6 md:p-10">
+      <header class="flex items-center justify-between gap-4">
         <div class="flex items-center gap-4">
-          <img src="MakeWell.jpg" alt="MakeWell Logo" class="w-14 h-14 md:w-16 md:h-16 object-contain rounded-xl border border-[var(--border)] bg-white">
+          <img src="MakeWell.jpg" alt="MakeWell Logo" class="w-12 h-12 md:w-14 md:h-14 object-contain rounded-xl border border-[var(--border)] bg-white">
           <div>
-            <h1 class="text-3xl md:text-4xl font-extrabold leading-tight">個人資訊</h1>
-            <p class="text-sm md:text-base mt-1" style="color:var(--muted)">更新你的聯絡方式與偏好資料。</p>
+            <h1 class="text-2xl md:text-3xl font-extrabold leading-tight" style="color:var(--primary)">個人資訊</h1>
+            <p class="text-sm md:text-base hint">更新你的聯絡方式與偏好資料（患者）</p>
           </div>
         </div>
-        <a href="home.html" class="self-start md:self-auto font-bold underline" style="color:var(--primary)">← 回首頁</a>
+        <a href="home.html" class="text-sm md:text-base underline underline-offset-4" style="color:var(--primary)">← 回首頁</a>
       </header>
 
-      <div class="mt-8 h-divider"></div>
+      <div class="mt-6 flex items-center gap-3">
+        <span id="roleBadge" class="badge">患者</span>
+        <span id="saveHint" class="text-sm"></span>
+      </div>
 
-      <!-- 表單 -->
-      <main class="mt-8 md:mt-10">
-        <!-- 基本資料 -->
-        <section>
-          <h2 class="section-title text-xl"><span class="dot"></span> 基本資料 <span id="roleBadge" class="badge hidden"></span></h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
-            <div class="field">
-              <label for="name" class="label">姓名</label>
-              <input id="name" type="text" class="input" placeholder="王小明">
+      <!-- 表單（只保留患者區塊） -->
+      <main class="mt-8">
+        <section id="patientSection" class="space-y-8">
+          <div>
+            <div class="flex items-center gap-3">
+              <span class="text-xl font-bold">基本資料</span>
             </div>
-            <div class="field">
-              <label for="phone" class="label">手機號碼</label>
-              <input id="phone" type="tel" class="input" placeholder="0912-345-678">
-            </div>
-            <div class="field">
-              <label for="emergencyName" class="label">緊急聯絡人姓名</label>
-              <input id="emergencyName" type="text" class="input" placeholder="王媽媽">
-            </div>
-            <div class="field">
-              <label for="emergencyPhone" class="label">緊急聯絡人電話</label>
-              <input id="emergencyPhone" type="tel" class="input" placeholder="0912-000-000">
-            </div>
-          </div>
-        </section>
-
-        <!-- 患者專屬 -->
-        <section id="patientSection" class="mt-10 hidden">
-          <h2 class="section-title text-xl"><span class="dot"></span> 患者資訊</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
-            <!-- 慢性病史：多選標籤 + 自動完成 -->
-            <div class="field md:col-span-2">
-              <label class="label">慢性病史</label>
-              <div class="relative">
-                <div id="chronicBox" class="rounded-2xl border border-[var(--border)] bg-white p-2.5">
-                  <div id="chronicTags" class="flex flex-wrap gap-2"></div>
-                  <input id="chronicInput" type="text" class="w-full border-0 outline-none p-2 text-[15px]" placeholder="輸入關鍵字後 Enter 新增，或選下拉建議">
-                </div>
-                <div id="chronicSuggest" class="hidden absolute z-10 mt-1 w-full rounded-xl border border-[var(--border)] bg-white shadow-lg max-h-60 overflow-auto"></div>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label for="name" class="label">姓名</label>
+                <input id="name" class="input" placeholder="請輸入姓名"/>
               </div>
-              <p class="text-xs mt-1" style="color:var(--muted)">常見：高血壓、糖尿病、高血脂、氣喘、慢性腎臟病、心房顫動…（可自由新增）</p>
-            </div>
-
-            <!-- 地址（縣市／行政區／詳細地址） -->
-            <div class="field">
-              <label for="city" class="label">縣市</label>
-              <select id="city" class="select">
-                <option value="" disabled selected>請選擇縣市</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="district" class="label">行政區</label>
-              <select id="district" class="select" disabled>
-                <option value="" disabled selected>請先選擇縣市</option>
-              </select>
-            </div>
-            <div class="field md:col-span-2">
-              <label for="road" class="label">居住地址</label>
-              <input id="road" type="text" class="input" placeholder="如：松仁路 100 號 5 樓">
+              <div>
+                <label for="phone" class="label">手機號碼</label>
+                <input id="phone" class="input" placeholder="09xxxxxxxx" inputmode="tel"/>
+              </div>
+              <div>
+                <label for="emergencyName" class="label">緊急聯絡人姓名</label>
+                <input id="emergencyName" class="input" placeholder="例如：王小明"/>
+              </div>
+              <div>
+                <label for="emergencyPhone" class="label">緊急聯絡人電話</label>
+                <input id="emergencyPhone" class="input" placeholder="09xxxxxxxx" inputmode="tel"/>
+              </div>
             </div>
           </div>
-        </section>
 
-        <!-- 志工專屬 -->
-        <section id="volSection" class="mt-10 hidden">
-          <h2 class="section-title text-xl"><span class="dot"></span> 志工資訊</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
-            <div class="field">
-              <label for="idCard" class="label">身分證字號</label>
-              <input id="idCard" type="text" class="input" placeholder="A123456789">
+          <div>
+            <div class="flex items-center gap-3">
+              <span class="text-xl font-bold">慢性病史</span>
+              <span class="hint text-sm">（可多選，自訂請輸入後按 Enter）</span>
             </div>
-            <div class="field">
-              <label for="police" class="label">良民證編號</label>
-              <input id="police" type="text" class="input" placeholder="POL-2025-XXXX">
-            </div>
-            <div class="field">
-              <label for="hours" class="label">服務時數</label>
-              <input id="hours" type="number" min="0" class="input" placeholder="0">
+            <div class="mt-3">
+              <div id="chronicTags" class="flex flex-wrap gap-2"></div>
+              <div class="mt-3 relative">
+                <input id="chronicInput" class="input" placeholder="輸入慢性病（例如：高血壓、糖尿病），按 Enter 加入"/>
+                <div id="chronicSuggest" class="absolute z-10 left-0 right-0 mt-1 rounded-2xl border border-[var(--border)] bg-white shadow hidden"></div>
+              </div>
             </div>
           </div>
-        </section>
 
-        <!-- 儲存 -->
-        <div class="mt-12 text-center">
-          <button id="saveBtn" class="btn-primary inline-flex items-center justify-center px-8">
-            儲存變更
-          </button>
-          <p id="saveHint" class="mt-3 text-sm" style="color:var(--muted)"></p>
-        </div>
+          <div>
+            <div class="flex items-center gap-3">
+              <span class="text-xl font-bold">聯絡地址</span>
+            </div>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div>
+                <label for="city" class="label">縣市</label>
+                <select id="city" class="input"></select>
+              </div>
+              <div>
+                <label for="district" class="label">行政區</label>
+                <select id="district" class="input" disabled></select>
+              </div>
+              <div class="md:col-span-3">
+                <label for="road" class="label">詳細地址</label>
+                <input id="road" class="input" placeholder="例如：中正路100號3樓"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-2">
+            <button id="saveBtn" class="btn-primary">💾 儲存變更</button>
+          </div>
+        </section>
       </main>
     </div>
   </div>
 
-  <!-- Firebase 腳本（頁尾） -->
+  <!-- 主程式（LIFF + Firestore） -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { firebaseConfig } from './firebase-config.js';
     import { cityDistricts } from './district-data.js';
 
     const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
+    const db  = getFirestore(app);
+    const LIFF_ID = "2007877199-Y5R2LenL";
 
+    // ----- 小工具 -----
     const el = (id) => document.getElementById(id);
-    const roleBadge = el('roleBadge');
+    const roleBadge      = el('roleBadge');
     const patientSection = el('patientSection');
-    const volSection = el('volSection');
-    const saveBtn = el('saveBtn');
-    const saveHint = el('saveHint');
+    const saveBtn        = el('saveBtn');
+    const saveHint       = el('saveHint');
 
-    // 地址元素
-    const citySel = /** @type {HTMLSelectElement} */(el('city'));
-    const districtSel = /** @type {HTMLSelectElement} */(el('district'));
-    const roadInput = /** @type {HTMLInputElement} */(el('road'));
+    const citySel    = /** @type {HTMLSelectElement} */(el('city'));
+    const districtSel= /** @type {HTMLSelectElement} */(el('district'));
+    const roadInput  = /** @type {HTMLInputElement} */(el('road'));
 
-    // ===== 慢性病史：多選標籤 + 建議 =====
+    // ===== 慢性病史 Tag =====
     const CHRONIC_OPTIONS = [
       '高血壓','糖尿病','高血脂','心臟病','冠狀動脈疾病','心房顫動','中風',
       '慢性腎臟病','慢性肝病/肝硬化','氣喘','慢性阻塞性肺病（COPD）','胃潰瘍/胃食道逆流',
@@ -175,96 +149,56 @@
     const chronicTagsEl = el('chronicTags');
     const chronicInputEl = /** @type {HTMLInputElement} */(el('chronicInput'));
     const chronicSuggestEl = el('chronicSuggest');
-    let chronicSet = new Set(); // 以字串存
+    let chronicSet = new Set();
 
+    function normalize(s){ return String(s||'').replace(/[，、；;]/g, ',').trim(); }
+    function escapeHtml(str){
+      return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+                        .replaceAll('"','&quot;').replaceAll("'",'&#039;');
+    }
     function renderChronicTags(){
       chronicTagsEl.innerHTML = '';
       Array.from(chronicSet).forEach(v => {
         const tag = document.createElement('span');
-        tag.className = 'inline-flex items-center gap-1 rounded-full bg-[var(--chip)] border border-[var(--border)] px-2.5 py-1 text-sm';
+        tag.className = 'chip';
         tag.innerHTML = `${escapeHtml(v)} <button type="button" class="ml-1 text-slate-500 hover:text-slate-700" data-remove="${escapeHtml(v)}" aria-label="移除 ${escapeHtml(v)}">×</button>`;
         chronicTagsEl.appendChild(tag);
       });
     }
     function showSuggest(items){
       if (!items.length){ chronicSuggestEl.classList.add('hidden'); chronicSuggestEl.innerHTML=''; return; }
-      chronicSuggestEl.innerHTML = items.map(it => `
-        <button type="button" class="w-full text-left px-3 py-2 hover:bg-[#f8f8f5]">${escapeHtml(it)}</button>
-      `).join('');
+      chronicSuggestEl.innerHTML = items.map(it => `<button type="button" class="w-full text-left px-3 py-2 hover:bg-[#f8f8f5]">${escapeHtml(it)}</button>`).join('');
       chronicSuggestEl.classList.remove('hidden');
     }
     function addChronic(val){
       const v = normalize(val);
-      if (!v) return;
-      if (chronicSet.has(v)) return;
-      if (chronicSet.size >= 20) return; // 上限避免太長
-      chronicSet.add(v);
-      renderChronicTags();
+      if (!v || chronicSet.has(v) || chronicSet.size >= 20) return;
+      chronicSet.add(v); renderChronicTags();
     }
-    function removeChronic(val){
-      chronicSet.delete(val);
-      renderChronicTags();
-    }
-    function normalize(s){
-      return String(s||'').replace(/[，、；;]/g, ',').trim();
-    }
-    function escapeHtml(str){
-      return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
-    }
+    function removeChronic(val){ chronicSet.delete(val); renderChronicTags(); }
+    function getChronicArray(){ return [...chronicSet]; }
+    function setChronicArray(arr){ chronicSet = new Set((arr||[]).map(normalize).filter(Boolean)); renderChronicTags(); }
 
     chronicTagsEl.addEventListener('click', (e) => {
-      const target = e.target;
-      if (target && target.getAttribute && target.hasAttribute('data-remove')){
-        removeChronic(target.getAttribute('data-remove'));
-      }
+      const btn = e.target.closest('button[data-remove]'); if (!btn) return;
+      removeChronic(btn.getAttribute('data-remove'));
     });
-
     chronicInputEl.addEventListener('input', () => {
       const q = normalize(chronicInputEl.value).toLowerCase();
       if (!q){ showSuggest([]); return; }
-      const items = CHRONIC_OPTIONS
-        .filter(opt => opt.toLowerCase().includes(q))
-        .filter(opt => !chronicSet.has(opt))
-        .slice(0, 8);
+      const items = CHRONIC_OPTIONS.filter(opt => opt.toLowerCase().includes(q))
+                                   .filter(opt => !chronicSet.has(opt)).slice(0, 8);
       showSuggest(items);
     });
-
     chronicInputEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ','){
-        e.preventDefault();
-        const v = chronicInputEl.value;
-        addChronic(v);
-        chronicInputEl.value = '';
-        showSuggest([]);
-      } else if (e.key === 'Backspace' && !chronicInputEl.value){
-        // 空字串時 Backspace 刪掉最後一個
-        const arr = Array.from(chronicSet);
-        if (arr.length){ removeChronic(arr[arr.length-1]); }
-      }
+      if (e.key === 'Enter' || e.key === ','){ e.preventDefault(); addChronic(chronicInputEl.value); chronicInputEl.value=''; showSuggest([]); }
+      else if (e.key === 'Backspace' && !chronicInputEl.value){ const arr=[...chronicSet]; if (arr.length) removeChronic(arr[arr.length-1]); }
     });
-
     chronicSuggestEl.addEventListener('click', (e) => {
-      const btn = e.target.closest('button');
-      if (!btn) return;
-      addChronic(btn.textContent || '');
-      chronicInputEl.value = '';
-      showSuggest([]);
-      chronicInputEl.focus();
+      const btn = e.target.closest('button'); if (!btn) return;
+      addChronic(btn.textContent || ''); chronicInputEl.value=''; showSuggest([]); chronicInputEl.focus();
     });
-
-    document.addEventListener('click', (e) => {
-      if (!chronicSuggestEl.contains(e.target) && e.target !== chronicInputEl){
-        showSuggest([]);
-      }
-    });
-
-    function getChronicArray(){
-      return Array.from(chronicSet);
-    }
-    function setChronicArray(arr){
-      chronicSet = new Set((arr||[]).map(normalize).filter(Boolean));
-      renderChronicTags();
-    }
+    document.addEventListener('click', (e) => { if (!chronicSuggestEl.contains(e.target) && e.target !== chronicInputEl){ showSuggest([]); } });
 
     // ===== 地址下拉 =====
     function fillCities(){
@@ -274,78 +208,62 @@
     function fillDistricts(city, selected=''){
       districtSel.innerHTML = '';
       const list = cityDistricts[city] || [];
-      if (!list.length){
-        districtSel.innerHTML = '<option value="" disabled selected>請先選擇縣市</option>';
-        districtSel.disabled = true; return;
-      }
+      if (!list.length){ districtSel.innerHTML = '<option value="" disabled selected>請先選擇縣市</option>'; districtSel.disabled = true; return; }
       districtSel.disabled = false;
       districtSel.appendChild(new Option('請選擇行政區', '', true, false));
       list.forEach(d => districtSel.appendChild(new Option(d, d, false, d===selected)));
     }
     citySel.addEventListener('change', () => { fillDistricts(citySel.value); districtSel.focus(); });
 
-    // ===== 載入資料 =====
+    // ===== LIFF 守門（僅患者可進）=====
     let userDocRef = null;
-    let currentRole = 'patient';
 
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) { window.location.href = 'login.html'; return; }
+    async function ensureLIFF(){
+      try{ await liff.init({ liffId: LIFF_ID }); return true; }
+      catch(e){ console.error(e); alert('LIFF 初始化失敗'); return false; }
+    }
+
+    (async () => {
       fillCities();
 
-      try{
-        // 取得使用者文件（若無則建立）
-        userDocRef = doc(db, 'users', user.uid);
-        let snap = await getDoc(userDocRef);
+      if (!(await ensureLIFF()) || !liff.isLoggedIn()) { location.href = 'login.html'; return; }
+      const p = await liff.getProfile();
+      const uid = `liff:${p.userId}`;
 
-        if (!snap.exists()) {
-          const q = query(collection(db, 'users'), where('uid', '==', user.uid));
-          const qs = await getDocs(q);
-          if (!qs.empty) { userDocRef = doc(db, 'users', qs.docs[0].id); snap = await getDoc(userDocRef); }
-          else { await setDoc(userDocRef, { uid: user.uid, role: 'patient' }); snap = await getDoc(userDocRef); }
-        }
+      userDocRef = doc(db, 'users', uid);
+      const snap = await getDoc(userDocRef);
+      if (!snap.exists()) { location.href = 'register-profile.html'; return; }
 
-        const data = snap.data() || {};
-        currentRole = data.role || 'patient';
+      const data = snap.data() || {};
+      const roleRaw = String(data.role || '').trim();
+      const isVolunteer = (roleRaw === '志工' || roleRaw === 'volunteer');
+      const isPatient   = (roleRaw === '患者' || roleRaw === 'patient' || (!isVolunteer && roleRaw !== ''));
 
-        // 角色徽章
-        roleBadge.textContent = currentRole === 'volunteer' ? '志工' : '患者';
-        roleBadge.classList.remove('hidden');
+      // 僅允許患者
+      if (!isPatient) { location.href = 'volunteer.html'; return; }
 
-        // 基本
-        el('name').value = data.name || '';
-        el('phone').value = data.phone || '';
-        el('emergencyName').value = data.emergencyName || '';
-        el('emergencyPhone').value = data.emergencyPhone || '';
+      roleBadge.textContent = '患者';
+      roleBadge.classList.remove('hidden');
 
-        if (currentRole === 'volunteer') {
-          patientSection.classList.add('hidden');
-          volSection.classList.remove('hidden');
-          el('idCard').value = data.idCard || '';
-          el('police').value = data.police || '';
-          el('hours').value = (data.hours ?? 0);
-        } else {
-          volSection.classList.add('hidden');
-          patientSection.classList.remove('hidden');
+      // 帶值
+      el('name').value           = data.name || '';
+      el('phone').value          = data.phone || '';
+      el('emergencyName').value  = data.emergencyName || '';
+      el('emergencyPhone').value = data.emergencyPhone || '';
 
-          // 慢性病史
-          setChronicArray(Array.isArray(data.chronic) ? data.chronic : (data.chronic ? String(data.chronic).split(',') : []));
+      setChronicArray(Array.isArray(data.chronic) ? data.chronic : (data.chronic ? String(data.chronic).split(',') : []));
 
-          // 地址
-          const city = data.city || '';
-          const district = data.district || '';
-          const road = data.road || '';
-          if (city){ citySel.value = city; fillDistricts(city, district); } else { fillDistricts('', ''); }
-          roadInput.value = road;
-        }
-      }catch(err){
-        console.error(err);
-        alert('讀取個人資料失敗，請稍後再試');
-      }
-    });
+      const city = data.city || '';
+      const district = data.district || '';
+      const road = data.road || '';
+      if (city){ citySel.value = city; fillDistricts(city, district); } else { fillDistricts('', ''); }
+      roadInput.value = road;
+    })();
 
-    // ===== 儲存 =====
+    // ===== 儲存（僅患者欄位）=====
     saveBtn.addEventListener('click', async () => {
       if (!userDocRef) return;
+
       try{
         saveBtn.setAttribute('disabled','true');
         saveHint.textContent = '儲存中…';
@@ -355,33 +273,24 @@
           phone: el('phone').value.trim(),
           emergencyName: el('emergencyName').value.trim(),
           emergencyPhone: el('emergencyPhone').value.trim(),
+          chronic: getChronicArray()
         };
 
-        if (currentRole === 'volunteer') {
-          updates.idCard = el('idCard').value.trim();
-          updates.police = el('police').value.trim();
-          updates.hours = Number(el('hours').value || 0);
-        } else {
-          // 慢性病史（陣列）
-          updates.chronic = getChronicArray();
+        const city = citySel.value || '';
+        const district = districtSel.disabled ? '' : (districtSel.value || '');
+        const road = roadInput.value.trim();
 
-          // 地址
-          const city = citySel.value || '';
-          const district = districtSel.disabled ? '' : (districtSel.value || '');
-          const road = roadInput.value.trim();
+        if (!city){ saveHint.textContent = '⚠️ 請選擇縣市'; saveBtn.removeAttribute('disabled'); return; }
+        if (!district){ saveHint.textContent = '⚠️ 請選擇行政區'; saveBtn.removeAttribute('disabled'); return; }
+        if (!road){ saveHint.textContent = '⚠️ 請輸入詳細地址'; saveBtn.removeAttribute('disabled'); return; }
 
-          if (!city){ saveHint.textContent = '⚠️ 請選擇縣市'; saveBtn.removeAttribute('disabled'); return; }
-          if (!district){ saveHint.textContent = '⚠️ 請選擇行政區'; saveBtn.removeAttribute('disabled'); return; }
-          if (!road){ saveHint.textContent = '⚠️ 請輸入詳細地址'; saveBtn.removeAttribute('disabled'); return; }
-
-          updates.city = city;
-          updates.district = district;
-          updates.road = road;
-        }
+        updates.city = city;
+        updates.district = district;
+        updates.road = road;
 
         await updateDoc(userDocRef, updates);
         saveHint.textContent = '✅ 資料已更新！';
-        setTimeout(() => saveHint.textContent = '', 2000);
+        setTimeout(() => saveHint.textContent = '', 1800);
       }catch(err){
         console.error(err);
         saveHint.textContent = '❌ 儲存失敗，請稍後重試';

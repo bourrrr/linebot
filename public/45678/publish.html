@@ -161,7 +161,10 @@
     </div>
   </div>
 
-  <!-- 資料與 Firebase 腳本 -->
+  <!-- head 加上 LIFF SDK -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <!-- 原本底部的 module 整段替換 -->
   <script type="module">
     import { cityDistricts } from './district-data.js';
     import clinics from './clinics_name_address.js';
@@ -169,12 +172,11 @@
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, collection, addDoc, Timestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import { firebaseConfig } from './firebase-config.js';
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    const auth = getAuth(app);
+    const LIFF_ID = "2007877199-Y5R2LenL";
 
     const publishForm = document.getElementById('publishForm');
     const typeSelect = document.getElementById('type');
@@ -192,22 +194,12 @@
     const hospitals = clinics.filter(c => c.name.includes('醫院')).map(c => ({ ...c, type: 'hospital' }));
     const pharmacyList = pharmacies.map(p => ({ ...p, type: 'pharmacy' }));
 
-    // 切換請求類型
+    // 類型切換
     typeSelect.addEventListener('change', () => {
       const v = typeSelect.value;
-      if (v === '領藥') {
-        facilityTypeField.classList.remove('hidden');
-        prescriptionField.classList.remove('hidden');
-        accompanyField.classList.add('hidden');
-      } else if (v === '陪診') {
-        facilityTypeField.classList.add('hidden');
-        prescriptionField.classList.add('hidden');
-        accompanyField.classList.remove('hidden');
-      } else {
-        facilityTypeField.classList.add('hidden');
-        prescriptionField.classList.add('hidden');
-        accompanyField.classList.add('hidden');
-      }
+      if (v === '領藥') { facilityTypeField.classList.remove('hidden'); prescriptionField.classList.remove('hidden'); accompanyField.classList.add('hidden'); }
+      else if (v === '陪診') { facilityTypeField.classList.add('hidden'); prescriptionField.classList.add('hidden'); accompanyField.classList.remove('hidden'); }
+      else { facilityTypeField.classList.add('hidden'); prescriptionField.classList.add('hidden'); accompanyField.classList.add('hidden'); }
       renderHospitals();
     });
 
@@ -221,39 +213,42 @@
           opt.value = d; opt.textContent = d; districtSelect.appendChild(opt);
         });
         districtSelect.disabled = false;
-      } else {
-        districtSelect.disabled = true;
-      }
+      } else { districtSelect.disabled = true; }
       renderHospitals();
     });
-
     facilityTypeSelect.addEventListener('change', renderHospitals);
 
     function renderHospitals(){
       const city = citySelect.value.trim();
       const requestType = typeSelect.value;
       let list = [];
-
       if (requestType === '領藥') {
         const selectedType = facilityTypeSelect.value;
-        list = (selectedType === 'hospital' ? hospitals : pharmacyList)
-          .filter(c => city ? c.address.startsWith(city) : true);
+        list = (selectedType === 'hospital' ? hospitals : pharmacyList).filter(c => city ? c.address.startsWith(city) : true);
       } else if (requestType === '陪診') {
         list = hospitals.filter(c => city ? c.address.startsWith(city) : true);
       }
-
       hospitalSelect.innerHTML = '<option value="">請選擇醫院／藥局</option>';
       list.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c.name; opt.textContent = `${c.name} - ${c.address}`; hospitalSelect.appendChild(opt);
       });
-
       hospitalCount.textContent = list.length ? `可選：${list.length} 間` : '';
     }
 
+    async function ensureLIFF(){
+      try{ await liff.init({ liffId: LIFF_ID }); return true; }
+      catch(e){ console.error(e); alert('LIFF 初始化失敗'); return false; }
+    }
+
     // 提交
-    publishForm.addEventListener('submit', (e) => {
+    publishForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      if (!(await ensureLIFF()) || !liff.isLoggedIn()) { alert('請先用 LINE 登入'); location.href='login.html'; return; }
+      const p = await liff.getProfile();
+      const uid = `liff:${p.userId}`;
+
       const type = typeSelect.value;
       const city = citySelect.value;
       const district = districtSelect.value;
@@ -263,38 +258,37 @@
       const note = document.getElementById('note').value;
       const accompany = document.getElementById('accompany')?.value || '';
 
-      onAuthStateChanged(auth, async (user) => {
-        if (!user) { alert('請先登入'); return; }
-        try {
-          const userDocSnap = await getDoc(doc(db, 'users', user.uid));
-          const userName = userDocSnap.exists() ? (userDocSnap.data().name || '匿名') : '匿名';
+      try {
+        // 取使用者名稱（users/{uid}）
+        const userSnap = await getDoc(doc(db, 'users', uid));
+        const userName = userSnap.exists() ? (userSnap.data().name || '匿名') : '匿名';
 
-          const requestData = {
-            userId: user.uid,
-            userName,
-            type,
-            city,
-            district,
-            road,
-            hospital,
-            time,
-            note,
-            accompany,
-            status: 'pending',
-            createdAt: Timestamp.now()
-          };
+        const requestData = {
+          userId: uid,
+          userName,
+          type,
+          city,
+          district,
+          road,
+          hospital,
+          time,
+          note,
+          accompany,
+          status: 'pending',
+          createdAt: Timestamp.now()
+        };
 
-          await addDoc(collection(db, 'requests'), requestData);
-          await addDoc(collection(db, 'users', user.uid, 'records'), requestData);
+        await addDoc(collection(db, 'requests'), requestData);
+        await addDoc(collection(db, 'users', uid, 'records'), requestData);
 
-          alert('✅ 發布成功！');
-          window.location.href = 'home.html';
-        } catch (err) {
-          console.error('發布失敗：', err);
-          alert('❌ 發布失敗，請稍後再試');
-        }
-      });
+        alert('✅ 發布成功！');
+        location.href = 'home.html';
+      } catch (err) {
+        console.error('發布失敗：', err);
+        alert('❌ 發布失敗，請稍後再試');
+      }
     });
   </script>
+
 </body>
 </html>

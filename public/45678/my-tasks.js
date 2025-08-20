@@ -1,125 +1,41 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getFirestore,
-  collection,
-  getDocs,
-  query,
-  where,
-  doc,
-  updateDoc,
-  Timestamp,
-  addDoc,
+  getFirestore, collection, getDocs, query, where, doc, updateDoc, Timestamp, addDoc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
-  getStorage,
-  ref,
-  uploadBytesResumable,
-  getDownloadURL,
-  deleteObject
+  getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { firebaseConfig } from "./firebase-config.js";
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-
-// 指定 bucket（沿用你的設定）
+const db  = getFirestore(app);
 const storage = getStorage(app, "gs://medwell-test1.firebasestorage.app");
+const LIFF_ID = "2007877199-Y5R2LenL";
 
 const container = document.getElementById("myTaskContainer");
 const emptyHint = document.getElementById("emptyStateHint");
 
-/* ========================
-   自動完成：參數 & 工具
-======================== */
+/* ===== 工具 ===== */
 const DURATION_MINUTES = 90;
 const GRACE_MINUTES = 30;
 const ENABLE_DB_WRITEBACK = true;
 
-function getTs(t){
-  try{
-    if (!t) return NaN;
-    if (typeof t === "number") return t;
-    if (typeof t === "string") {
-      const ms = Date.parse(t);
-      return isNaN(ms) ? NaN : ms;
-    }
-    if (typeof t.seconds === "number") return t.seconds * 1000 + Math.floor((t.nanoseconds||0)/1e6);
-    if (typeof t.toDate === "function") return t.toDate().getTime();
-    return NaN;
-  }catch{ return NaN; }
-}
+function getTs(t){ try{ if(!t) return NaN; if(typeof t==="number") return t; if(typeof t==="string"){ const ms=Date.parse(t); return isNaN(ms)?NaN:ms; } if(typeof t.seconds==="number") return t.seconds*1000+Math.floor((t.nanoseconds||0)/1e6); if(typeof t.toDate==="function") return t.toDate().getTime(); return NaN; }catch{ return NaN; } }
+function computeStatus(d){ const startMs=getTs(d.time||d.appointmentAt); if(isNaN(startMs)) return (String(d.status||'').toLowerCase()==='completed')?'done':'active'; const endMs=getTs(d.endAt); const assumedEnd=isNaN(endMs)?(startMs+DURATION_MINUTES*60*1000):endMs; const cutoff=assumedEnd+GRACE_MINUTES*60*1000; if(String(d.status||'').toLowerCase()==='completed') return 'done'; return (Date.now()>=cutoff)?'done':'active'; }
+const safe = (v)=> (v==null ? "" : String(v));
+const fmtTime = (t)=>{ const ms=getTs(t); return isNaN(ms) ? "-" : new Date(ms).toLocaleString(); };
+const composeAddress = (d)=> `${safe(d.city)}${safe(d.district)}${safe(d.road)}`.trim();
 
-function computeStatus(taskData){
-  const startMs = getTs(taskData.time || taskData.appointmentAt);
-  if (isNaN(startMs)) {
-    return (taskData.status || "").toLowerCase() === "completed" ? "done" : "active";
-  }
-  const endMs = getTs(taskData.endAt);
-  const assumedEnd = isNaN(endMs) ? (startMs + DURATION_MINUTES * 60 * 1000) : endMs;
-  const cutoff = assumedEnd + GRACE_MINUTES * 60 * 1000;
-  if ((taskData.status || "").toLowerCase() === "completed") return "done";
-  return (Date.now() >= cutoff) ? "done" : "active";
-}
+/* ===== 導航 URL ===== */
+function makeMapsUrl({ lat, lng, query, travelMode="driving" }){
+  let dest=""; if(typeof lat==="number"&&typeof lng==="number"&&!Number.isNaN(lat)&&!Number.isNaN(lng)) dest=`${lat},${lng}`; else if(query) dest=encodeURIComponent(query); else return ""; return `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=${encodeURIComponent(travelMode)}`; }
+function getMeetingNavUrl(d){ const lat=(typeof d.meetingLat==="number")?d.meetingLat:undefined; const lng=(typeof d.meetingLng==="number")?d.meetingLng:undefined; const address=composeAddress(d)||null; return makeMapsUrl({ lat, lng, query: address }); }
+function getHospitalNavUrl(d){ const lat=(typeof d.hospitalLat==="number")?d.hospitalLat:undefined; const lng=(typeof d.hospitalLng==="number")?d.hospitalLng:undefined; const hospitalName=safe(d.hospital).trim(); const cityHint=safe(d.city).trim(); const nameWithCity=hospitalName && cityHint ? `${hospitalName} ${cityHint}` : hospitalName; const fallbackAddr=composeAddress(d)||null; const query=nameWithCity||fallbackAddr||null; return makeMapsUrl({ lat, lng, query }); }
 
-const safe = (v) => (v === undefined || v === null ? "" : String(v));
-const fmtTime = (t) => {
-  const ms = getTs(t);
-  return isNaN(ms) ? "-" : new Date(ms).toLocaleString();
-};
-const composeAddress = (d) => `${safe(d.city)}${safe(d.district)}${safe(d.road)}`.trim();
+/* ===== 卡片渲染 ===== */
+const NAV_BTN_CLASS = "text-white/95 px-3 py-1.5 rounded-xl border border-[var(--border)] shadow-sm transition-colors disabled:opacity-60 hover:brightness-95";
+const NAV_BTN_STYLE = "background: var(--primary-weak);";
 
-/* ========================
-   地圖導航：通用開啟
-======================== */
-function makeMapsUrl({ lat, lng, query, travelMode = "driving" }){
-  let dest = "";
-  if (typeof lat === "number" && typeof lng === "number" && !Number.isNaN(lat) && !Number.isNaN(lng)){
-    dest = `${lat},${lng}`;
-  } else if (query) {
-    dest = encodeURIComponent(query);
-  } else {
-    return "";
-  }
-  return `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=${encodeURIComponent(travelMode)}`;
-}
-
-function getMeetingNavUrl(data){
-  const lat = (typeof data.meetingLat === "number") ? data.meetingLat : undefined;
-  const lng = (typeof data.meetingLng === "number") ? data.meetingLng : undefined;
-  const address = composeAddress(data) || null;
-  return makeMapsUrl({ lat, lng, query: address });
-}
-
-// 加強醫院定位：優先經緯度；否則用「醫院名稱 + 城市」；再不行退回任務地址
-function getHospitalNavUrl(data){
-  const lat = (typeof data.hospitalLat === "number") ? data.hospitalLat : undefined;
-  const lng = (typeof data.hospitalLng === "number") ? data.hospitalLng : undefined;
-
-  // 以醫院/診所/藥局名稱為主
-  const hospitalName = safe(data.hospital).trim();
-  // 加上城市提升命中率（例如「高雄榮民總醫院 高雄」）
-  const cityHint = safe(data.city).trim();
-  const nameWithCity = hospitalName && cityHint ? `${hospitalName} ${cityHint}` : hospitalName;
-
-  // 如果前兩者都沒有，再退回任務地址
-  const fallbackAddr = composeAddress(data) || null;
-
-  const query = nameWithCity || fallbackAddr || null;
-  return makeMapsUrl({ lat, lng, query });
-}
-
-/* ========================
-   導航按鈕樣式（溫暖、低飽和）
-======================== */
-const NAV_BTN_CLASS =
-  "text-white/95 px-3 py-1.5 rounded-xl border border-[var(--border)] shadow-sm transition-colors disabled:opacity-60 hover:brightness-95";
-const NAV_BTN_STYLE = "background: var(--primary-weak);"; // 柔和主色（在頁面 :root 已定義）
-
-/* ========================
-   渲染卡片
-======================== */
 function renderTaskCard(docSnap){
   const data = docSnap.data();
   const taskId = docSnap.id;
@@ -133,7 +49,7 @@ function renderTaskCard(docSnap){
 
   card.__data = { ...data, id: taskId };
   card.__autoWriteInFlight = false;
-  card.__autoCompletedPersisted = (data.status || "").toLowerCase() === "completed";
+  card.__autoCompletedPersisted = (String(data.status||'').toLowerCase() === "completed");
 
   const meetUrl = getMeetingNavUrl(data);
   const hospUrl = getHospitalNavUrl(data);
@@ -148,13 +64,11 @@ function renderTaskCard(docSnap){
     <p>時間：${fmtTime(data.time)}</p>
     <p>備註：${safe(data.note) || "無"}</p>
 
-    <!-- 導航按鈕列（溫暖配色 + 正確 data-url） -->
     <div class="mt-2 flex flex-wrap gap-2">
       <button class="nav-meet ${NAV_BTN_CLASS}" style="${NAV_BTN_STYLE}" data-url="${meetUrl || ""}" ${disableMeet ? "disabled" : ""}>🧭 導航到會合地點</button>
       <button class="nav-hospital ${NAV_BTN_CLASS}" style="background: var(--chip); color: var(--primary);" data-url="${hospUrl || ""}" ${disableHosp ? "disabled" : ""}>🏥 導航到醫院</button>
     </div>
 
-    <!-- 上傳回報 -->
     <div class="mt-2 space-y-2">
       <input type="file" accept="image/*" data-id="${taskId}" />
       <progress max="100" value="0" class="hidden w-full h-2 bg-gray-200 rounded" data-id="${taskId}"></progress>
@@ -169,21 +83,15 @@ function renderTaskCard(docSnap){
 
     <p class="text-sm text-gray-500 mt-1">更新時間：${data.updatedAt ? fmtTime(data.updatedAt) : "尚未更新"}</p>
   `;
-
   return card;
 }
 
-/* ========================
-   自動結案：寫回 Firestore
-======================== */
 async function persistAutoCompleteIfNeeded(card){
   if (!ENABLE_DB_WRITEBACK) return;
   if (card.__autoWriteInFlight || card.__autoCompletedPersisted) return;
-
   const data = card.__data;
   const next = computeStatus(data);
-
-  if (next === "done" && (data.status || "").toLowerCase() !== "completed") {
+  if (next === "done" && String(data.status||'').toLowerCase() !== "completed") {
     try{
       card.__autoWriteInFlight = true;
       await updateDoc(doc(db, "requests", data.id), {
@@ -193,191 +101,137 @@ async function persistAutoCompleteIfNeeded(card){
       });
       data.status = "completed";
       card.__autoCompletedPersisted = true;
-    }catch(err){
-      console.error("自動結案寫回失敗", err);
-    }finally{
-      card.__autoWriteInFlight = false;
-    }
+    }catch(e){ console.error("自動結案寫回失敗", e); }
+    finally{ card.__autoWriteInFlight = false; }
   }
 }
 
-/* ========================
-   每分鐘重算狀態（純前端）
-======================== */
 function startStatusRecomputeTimer(){
   setInterval(() => {
-    const cards = Array.from(container.querySelectorAll(".task-card"));
-    cards.forEach((card) => {
-      const data = card.__data;
-      if (!data) return;
-
-      const next = computeStatus(data);
-      if (card.dataset.status !== next) {
-        card.dataset.status = next;
-      }
+    Array.from(container.querySelectorAll(".task-card")).forEach((card) => {
+      const d = card.__data; if (!d) return;
+      const next = computeStatus(d);
+      if (card.dataset.status !== next) card.dataset.status = next;
       persistAutoCompleteIfNeeded(card);
     });
     window.dispatchEvent(new Event("tasksStatusRecomputed"));
   }, 60_000);
 }
 
-/* ========================
-   主流程：載入任務並渲染
-======================== */
-onAuthStateChanged(auth, async (user) => {
-  try {
-    if (!user) {
-      alert("請先登入");
-      location.href = "login.html";
-      return;
-    }
+/* ===== 入口：用 LIFF 取 uid、查詢已接受任務 ===== */
+let CURRENT_UID = "";
 
-    const q = query(
-      collection(db, "requests"),
-      where("status", "==", "accepted"),
-      where("volunteerId", "==", user.uid)
-    );
+async function ensureLIFF(){ try{ await liff.init({ liffId: LIFF_ID }); return true; } catch(e){ console.error(e); alert('LIFF 初始化失敗'); return false; } }
 
-    const snapshot = await getDocs(q);
+(async () => {
+  if (!(await ensureLIFF()) || !liff.isLoggedIn()) { location.href = "login.html"; return; }
+  const p = await liff.getProfile();
+  CURRENT_UID = `liff:${p.userId}`;
 
-    if (snapshot.empty) {
-      container.innerHTML = "<p class='text-center text-gray-500'>目前尚無已接受的任務。</p>";
-      emptyHint && emptyHint.classList.remove("hidden");
-      return;
-    } else {
-      emptyHint && emptyHint.classList.add("hidden");
-    }
+  // 角色守門
+  const me = await getDoc(doc(db, "users", CURRENT_UID));
+  if (!me.exists()) { location.href = "register-profile.html"; return; }
+  const role = (me.data().role||'').trim();
+  if (!(role === '志工' || role === 'volunteer')) { location.href = "home.html"; return; }
 
-    snapshot.forEach(docSnap => {
-      const card = renderTaskCard(docSnap);
-      container.appendChild(card);
-    });
-
-    Array.from(container.querySelectorAll(".task-card")).forEach(persistAutoCompleteIfNeeded);
-    startStatusRecomputeTimer();
-
-    /* === 事件委派：導航 / 上傳 / 刪除 === */
-    container.addEventListener("click", async (e) => {
-      const btn = e.target.closest("button");
-      if (!btn) return;
-
-      // 導航
-      if (btn.classList.contains("nav-meet") || btn.classList.contains("nav-hospital")) {
-        const url = btn.dataset.url;
-        if (!url) { alert("找不到此地點資訊，請確認任務地址或醫院名稱。"); return; }
-        window.open(url, "_blank", "noopener");
-        return;
-      }
-
-      // 上傳
-      if (btn.classList.contains("upload-btn")) {
-        const taskId = btn.dataset.id;
-        const input = container.querySelector(`input[data-id="${taskId}"]`);
-        const file = input && input.files && input.files[0];
-        const progress = container.querySelector(`progress[data-id="${taskId}"]`);
-        if (!file) return alert("請選擇要上傳的照片");
-
-        const ext = (file.name.split(".").pop() || "png").toLowerCase();
-        const fileName = `${taskId}_${Date.now()}.${ext}`;
-        const filePath = `my_task/${taskId}/${fileName}`;
-        const storageRef = ref(storage, filePath);
-        progress.classList.remove("hidden");
-
-        try {
-          const uploadTask = uploadBytesResumable(storageRef, file);
-          uploadTask.on(
-            "state_changed",
-            (snap) => {
-              const percent = Math.floor((snap.bytesTransferred / snap.totalBytes) * 100);
-              progress.value = percent;
-            },
-            (err) => {
-              console.error("❌ 上傳失敗：", err);
-              alert(`❌ 上傳失敗：${err.code || ""} ${err.message || ""}\n請檢查 Storage 規則或 bucket 設定。`);
-              progress.classList.add("hidden");
-            },
-            async () => {
-              const photoURL = await getDownloadURL(uploadTask.snapshot.ref);
-
-              await updateDoc(doc(db, "requests", taskId), {
-                photoURL,
-                status: "completed",
-                updatedAt: Timestamp.now()
-              });
-
-              await addDoc(collection(db, "my_task"), {
-                taskId,
-                volunteerId: user.uid,
-                photoURL,
-                status: "completed",
-                updatedAt: Timestamp.now()
-              });
-
-              alert("✅ 上傳成功！");
-              location.reload();
-            }
-          );
-        } catch (err) {
-          console.error("初始化失敗", err);
-          alert("❌ 初始化 Storage 失敗：" + err.message);
-          progress.classList.add("hidden");
-        }
-        return;
-      }
-
-      // 刪除回報照片
-      if (btn.classList.contains("delete-photo")) {
-        const url = btn.dataset.url;
-        const taskId = btn.dataset.id;
-        try {
-          const fileRef = ref(storage, url);
-          await deleteObject(fileRef);
-
-          await updateDoc(doc(db, "requests", taskId), {
-            photoURL: "",
-            updatedAt: Timestamp.now()
-          });
-
-          alert("🗑️ 已刪除圖片");
-          location.reload();
-        } catch (err) {
-          console.error("刪除失敗", err);
-          alert(`❌ 刪除失敗：${err.code || ""} ${err.message || ""}`);
-        }
-      }
-    });
-
-    // 快速上傳回報（配合 my-tasks.html）
-    window.handleQuickReportUpload = async (taskId, files) => {
-      if (!files || !files.length) throw new Error("沒有選擇檔案");
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const ext = (file.name.split(".").pop() || "png").toLowerCase();
-        const fileName = `${taskId}_${Date.now()}_${i}.${ext}`;
-        const storageRef = ref(storage, `my_task/${taskId}/${fileName}`);
-        await uploadBytesResumable(storageRef, file);
-        const url = await getDownloadURL(storageRef);
-
-        if (i === 0) {
-          await updateDoc(doc(db, "requests", taskId), {
-            photoURL: url,
-            status: "completed",
-            updatedAt: Timestamp.now()
-          });
-        }
-        await addDoc(collection(db, "my_task"), {
-          taskId,
-          volunteerId: auth.currentUser?.uid || "",
-          photoURL: url,
-          status: "completed",
-          updatedAt: Timestamp.now()
-        });
-      }
-      location.reload();
-    };
-
-  } catch (err) {
-    console.error("頁面初始化錯誤：", err);
-    alert("載入任務失敗，請開 F12 → Console 給我錯誤訊息。");
+  // 查詢我已接受的任務
+  const q = query(
+    collection(db, "requests"),
+    where("status", "==", "accepted"),
+    where("volunteerId", "==", CURRENT_UID)
+  );
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) {
+    container.innerHTML = "<p class='text-center text-gray-500'>目前尚無已接受的任務。</p>";
+    emptyHint && emptyHint.classList.remove("hidden");
+    return;
+  } else {
+    emptyHint && emptyHint.classList.add("hidden");
   }
-});
+
+  snapshot.forEach(docSnap => container.appendChild(renderTaskCard(docSnap)));
+  Array.from(container.querySelectorAll(".task-card")).forEach(persistAutoCompleteIfNeeded);
+  startStatusRecomputeTimer();
+
+  /* ===== 事件：導航／上傳／刪除 ===== */
+  container.addEventListener("click", async (e) => {
+    const btn = e.target.closest("button"); if (!btn) return;
+
+    // 導航
+    if (btn.classList.contains("nav-meet") || btn.classList.contains("nav-hospital")) {
+      const url = btn.dataset.url;
+      if (!url) { alert("找不到此地點資訊，請確認任務地址或醫院名稱。"); return; }
+      window.open(url, "_blank", "noopener");
+      return;
+    }
+
+    // 上傳回報
+    if (btn.classList.contains("upload-btn")) {
+      const taskId = btn.dataset.id;
+      const input = container.querySelector(`input[data-id="${taskId}"]`);
+      const file = input?.files?.[0];
+      const progress = container.querySelector(`progress[data-id="${taskId}"]`);
+      if (!file) return alert("請選擇要上傳的照片");
+
+      const ext = (file.name.split(".").pop() || "png").toLowerCase();
+      const fileName = `${taskId}_${Date.now()}.${ext}`;
+      const filePath = `my_task/${taskId}/${fileName}`;
+      const storageRef = ref(storage, filePath);
+      progress.classList.remove("hidden");
+
+      try {
+        const uploadTask = uploadBytesResumable(storageRef, file);
+        uploadTask.on(
+          "state_changed",
+          (snap) => { progress.value = Math.floor((snap.bytesTransferred / snap.totalBytes) * 100); },
+          (err) => { console.error("❌ 上傳失敗：", err); alert(`❌ 上傳失敗：${err.code||""} ${err.message||""}`); progress.classList.add("hidden"); },
+          async () => {
+            const photoURL = await getDownloadURL(uploadTask.snapshot.ref);
+            await updateDoc(doc(db, "requests", taskId), { photoURL, status: "completed", updatedAt: Timestamp.now() });
+            await addDoc(collection(db, "my_task"), { taskId, volunteerId: CURRENT_UID, photoURL, status: "completed", updatedAt: Timestamp.now() });
+            alert("✅ 上傳成功！"); location.reload();
+          }
+        );
+      } catch (err) {
+        console.error("初始化失敗", err);
+        alert("❌ 初始化 Storage 失敗：" + (err?.message || err));
+        progress.classList.add("hidden");
+      }
+      return;
+    }
+
+    // 刪除回報照片
+    if (btn.classList.contains("delete-photo")) {
+      const url = btn.dataset.url;
+      const taskId = btn.dataset.id;
+      try {
+        const fileRef = ref(storage, url);
+        await deleteObject(fileRef);
+        await updateDoc(doc(db, "requests", taskId), { photoURL: "", updatedAt: Timestamp.now() });
+        alert("🗑️ 已刪除圖片"); location.reload();
+      } catch (err) {
+        console.error("刪除失敗", err);
+        alert(`❌ 刪除失敗：${err.code||""} ${err.message||""}`);
+      }
+    }
+  });
+
+  // 快速上傳（配合 my-tasks.html）
+  window.handleQuickReportUpload = async (taskId, files) => {
+    if (!files?.length) throw new Error("沒有選擇檔案");
+    for (let i=0; i<files.length; i++) {
+      const file = files[i];
+      const ext = (file.name.split(".").pop() || "png").toLowerCase();
+      const fileName = `${taskId}_${Date.now()}_${i}.${ext}`;
+      const storageRef = ref(storage, `my_task/${taskId}/${fileName}`);
+      await uploadBytesResumable(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+
+      if (i === 0) {
+        await updateDoc(doc(db, "requests", taskId), { photoURL: url, status: "completed", updatedAt: Timestamp.now() });
+      }
+      await addDoc(collection(db, "my_task"), { taskId, volunteerId: CURRENT_UID, photoURL: url, status: "completed", updatedAt: Timestamp.now() });
+    }
+    location.reload();
+  };
+})();
