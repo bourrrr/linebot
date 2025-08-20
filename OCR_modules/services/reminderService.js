@@ -141,34 +141,45 @@ async function handleConfirmReminder(event, db, client) {
 
 // ========= 重複提醒：選時間 → 選星期 → 確認 =========
 async function replyRepeatingTimeSetup(event, client) {
-  // 建立一個包含文字訊息和按鈕模板的陣列
-  const messages = [
-    {
-      // 文字訊息
-      type: 'text',
+  // 建立第一個卡片物件，用於顯示說明文字
+  const infoCard = {
+    type: 'template',
+    altText: '每日抽卡機會說明',
+    template: {
+      type: 'buttons',
+      title: '機會說明',
       text: [
         '• 可累積抽卡機會，每日最高可累積 3 次抽卡機會',
         '• 當日最後簽到 → 自動發送抽卡按鈕',
         '• 設定後可在「提醒清單」查看/刪除'
-      ].join('\n')
-    },
-    {
-      // 按鈕模板
-      type: 'template',
-      altText: '設定重複提醒時間',
-      template: {
-        type: 'buttons',
-        title: '⏰ 設定重複提醒',
-        text: '請選擇提醒的時間', // 簡化的文字
-        actions: [
-          { type: 'datetimepicker', label: '選擇時間', data: 'action=select_repeating_time', mode: 'time' }
-        ]
-      }
+      ].join('\n'), // 這段文字長度符合160字元限制，所以不會出錯
+      actions: [
+        // 這裡加入一個無實際功能的按鈕，以滿足API規範
+        // 按下後會發送 postback 事件，您可以根據需要處理
+        { type: 'postback', label: '了解更多', data: 'action=show_info' }
+      ]
     }
-  ];
+  };
+
+  // 建立第二個卡片物件，用於顯示「選擇時間」按鈕
+  const timeSetupCard = {
+    type: 'template',
+    altText: '設定重複提醒時間',
+    template: {
+      type: 'buttons',
+      title: '⏰ 設定重複提醒',
+      text: '請選擇提醒的時間',
+      actions: [
+        { type: 'datetimepicker', label: '選擇時間', data: 'action=select_repeating_time', mode: 'time' }
+      ]
+    }
+  };
+
+  // 將兩個卡片物件放入陣列中
+  const messages = [infoCard, timeSetupCard];
 
   // 使用 replyMessage 一次性傳送訊息陣列
-  // 這會確保兩個訊息都在同一個回覆中被傳送
+  // LINE Bot 會按照陣列順序依序顯示這兩張卡片
   return client.replyMessage(event.replyToken, messages);
 }
 
