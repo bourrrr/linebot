@@ -141,19 +141,20 @@ async function handleConfirmReminder(event, db, client) {
 
 // ========= 重複提醒：選時間 → 選星期 → 確認 =========
 async function replyRepeatingTimeSetup(event, client) {
+  // 步驟一：先傳送一個包含詳細說明的文字訊息
+  await client.replyMessage(event.replyToken, {
+    type: 'text',
+    text: '• 可累積抽卡機會，每日最高可累積 3 次抽卡機會\n• 當日最後簽到 → 自動發送抽卡按鈕\n• 設定後可在「提醒清單」查看/刪除'
+  });
+
+  // 步驟二：再發送按鈕模板，並將文字簡化
   return replyOrPush(event, client, {
     type: 'template',
     altText: '設定重複提醒時間',
     template: {
       type: 'buttons',
       title: '⏰ 設定重複提醒',
-       text: [
-      '請選擇提醒的時間',
-      '• 可累積抽卡機會，每日最高可累積 3 次抽卡機會',
-	  '• 當日最後簽到 → 自動發送抽卡按鈕',
-      '• 設定後可在「提醒清單」查看/刪除'
-    ].join('\n'),
-      
+      text: '請選擇提醒的時間', // 簡化的文字
       actions: [
         { type: 'datetimepicker', label: '選擇時間', data: 'action=select_repeating_time', mode: 'time' }
       ]
