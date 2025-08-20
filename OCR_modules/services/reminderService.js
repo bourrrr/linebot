@@ -124,14 +124,23 @@ async function handleConfirmReminder(event, db, client) {
   if (!userId || !cache?.datetime) {
     return replyOrPush(event, client, { type:'text', text:'⚠️ 無有效時間資訊，請重新設定提醒' });
   }
-  // ✅ 修正時差：將時間字串轉換為 Day.js 物件並設定時區，再轉回 Date 物件
-  const dt = dayjs(cache.datetime).tz('Asia/Taipei').toDate();
+
+  // ✅ 修正：直接將 postback 的時間字串視為台北時間解析
+  // dayjs.tz(字串, 格式, 時區)
+  const dt = dayjs.tz(cache.datetime, 'YYYY-MM-DDTHH:mm', 'Asia/Taipei').toDate();
+  
+  // 檢查解析後的日期是否為有效日期
+  if (!dayjs(dt).isValid()) {
+    console.error(`[handleConfirmReminder] 無法解析時間字串: ${cache.datetime}`);
+    return replyOrPush(event, client, { type:'text', text:'⚠️ 時間格式不正確，請重新設定提醒' });
+  }
+
   await db.collection('time').add({
     userId,
     datetime: dt,
     done: false,
     createdAt: new Date(),
-    dateKey: dayjs(dt).tz('Asia/Taipei').format('YYYY-MM-DD') // 新增 dateKey 欄位
+    dateKey: dayjs(dt).tz('Asia/Taipei').format('YYYY-MM-DD')
   });
   delete reminderCache[userId];
 
