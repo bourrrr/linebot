@@ -11,7 +11,7 @@ dayjs.extend(timezone);
 function startReminderCron(db, client) {
   cron.schedule('* * * * *', async () => {
     const nowTW = dayjs().tz('Asia/Taipei');
-    const minBefore = nowTW.subtract(1, 'minute');
+    const minBefore = nowTW;
     const minAfter = nowTW.add(1, 'minute');
 
     console.log('[cron] 現在台灣時間:', nowTW.format('YYYY-MM-DD HH:mm:ss Z'));
@@ -52,7 +52,7 @@ function startReminderCron(db, client) {
             }
           });
           // ✅ 成功推播後，立即將提醒標記為已完成，避免重複推播
-          await doc.ref.update({ done: true });
+         
           console.log('[cron] ✅ 已推播給', userId, '提醒 ID:', doc.id);
         } catch (err) {
           console.error('[cron] ❌ 推播錯誤:', err);
@@ -110,7 +110,7 @@ function startReminderCron(db, client) {
             }
           });
           // ✅ 成功推播後，立即將提醒標記為已完成，避免重複推播
-          await doc.ref.update({ done: true });
+     
         } catch (err) {
           console.error('[cron] ❌ 推播錯誤:', err);
         }
