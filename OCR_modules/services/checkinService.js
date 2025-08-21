@@ -5,7 +5,7 @@ const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
 const { replyOrPush } = require('./reminderService');
 // 🔽 套用你的卡片樣式（若檔案不在同資料夾，請調整路徑）
-const healthCardBase = require('./healthCard');
+const healthCardBase = require('./OCR_modules/flex/cardflex');
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
