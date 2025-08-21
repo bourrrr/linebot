@@ -22,7 +22,18 @@ function todayKeyTW() {
 function weekdayIndexTW() {
   return dayjs().tz('Asia/Taipei').day();
 }
-
+async function safeReplyOrPush(event, client, primaryMsg, fallbackMsg) {
+  try {
+    return await replyOrPush(event, client, primaryMsg);
+  } catch (err) {
+    console.error('[checkin] send error:', err?.response?.data || err);
+    try {
+      return await replyOrPush(event, client, fallbackMsg);
+    } catch (e2) {
+      console.error('[checkin] fallback send error:', e2?.response?.data || e2);
+    }
+  }
+}
 // 以 transaction 累加「今日抽卡次數」，最多 3 次；回傳 { allowed, count }
 async function addDailyDrawIfAvailable(_db, userId, dateKey) {
   const ref = _db.collection('dailyDraws').doc(`${userId}_${dateKey}`);
@@ -37,49 +48,83 @@ async function addDailyDrawIfAvailable(_db, userId, dateKey) {
 }
 
 // 以 healthCard 樣式產生「抽卡」卡片：改標題/altText + 將按鈕改為 URI
+// 以 healthCard 樣式產生「抽卡」卡片：支援 function / string / object，失敗退回最小 Flex
 function buildDrawFlexFromHealthCard(url) {
-  const card = JSON.parse(JSON.stringify(healthCardBase));       // 深拷貝避免污染原模組
-  // altText
-  card.altText = '抽卡機會 +1';
-  // 標題（header）
   try {
-    if (card.contents?.header?.contents?.[0]?.type === 'text') {
+    // 1) 取得基底卡：function → 呼叫、string → JSON.parse、object → 原樣
+    let base = healthCardBase;
+    if (typeof base === 'function') base = base();
+    if (typeof base === 'string') base = JSON.parse(base);
+    if (!base || typeof base !== 'object') throw new Error('healthCardBase is not an object');
+
+    // 2) 深拷貝（Node 18+ 有 structuredClone）
+    const card = (typeof structuredClone === 'function')
+      ? structuredClone(base)
+      : JSON.parse(JSON.stringify(base));
+
+    // 3) 套文案與 altText
+    card.altText = '抽卡機會 +1';
+
+    // 有 header 的話改第一個文字；沒有就加在 body
+    if (card?.contents?.header?.contents?.[0]?.type === 'text') {
       card.contents.header.contents[0].text = '🎴 抽卡機會 +1';
-    }
-  } catch (_) {}
-  // 內文加上一句完成提示
-  try {
-    if (Array.isArray(card.contents?.body?.contents)) {
+    } else if (Array.isArray(card?.contents?.body?.contents)) {
       card.contents.body.contents.unshift({
-        type: 'text',
-        text: '恭喜完成今日最後一次提醒！',
-        size: 'sm',
-        color: '#666',
-        wrap: true
+        type: 'text', text: '🎴 抽卡機會 +1', weight: 'bold', size: 'lg', color: '#333'
       });
     }
-  } catch (_) {}
-  // footer 第一顆按鈕改成 URI「立即抽卡」
-  try {
-    const btn = card.contents?.footer?.contents?.[0];
-    if (btn && btn.type === 'button') {
-      btn.action = { type: 'uri', label: '立即抽卡', uri: url };
-      btn.style = 'primary';
-      if (!btn.color) btn.color = '#659963';
-    } else {
-      // 若結構不同就補一顆
-      if (!card.contents.footer) {
-        card.contents.footer = { type: 'box', layout: 'vertical', contents: [] };
+
+    // 在 body 補一句完成提示
+    if (Array.isArray(card?.contents?.body?.contents)) {
+      card.contents.body.contents.push({
+        type: 'text', text: '恭喜完成今日最後一次提醒！', size: 'sm', color: '#666', wrap: true
+      });
+    }
+
+    // 4) footer：找一顆按鈕改成 URI；沒有就補一顆
+    if (!card?.contents?.footer) {
+      card.contents.footer = { type: 'box', layout: 'vertical', contents: [] };
+    }
+    if (!Array.isArray(card.contents.footer.contents)) {
+      card.contents.footer.contents = [];
+    }
+    const idx = card.contents.footer.contents.findIndex(c => c && c.type === 'button');
+    const uriBtn = {
+      type: 'button', style: 'primary',
+      action: { type: 'uri', label: '立即抽卡', uri: url },
+      color: '#659963'
+    };
+    if (idx >= 0) card.contents.footer.contents[idx] = uriBtn;
+    else card.contents.footer.contents.push(uriBtn);
+
+    return card;
+  } catch (e) {
+    console.error('[checkin] buildDrawFlexFromHealthCard error:', e);
+    // 失敗 → 最小合法 Flex（保證不 400）
+    return {
+      type: 'flex',
+      altText: '抽卡機會 +1',
+      contents: {
+        type: 'bubble',
+        body: {
+          type: 'box', layout: 'vertical', spacing: 'md',
+          contents: [
+            { type: 'text', text: '🎴 抽卡機會 +1', weight: 'bold', size: 'lg', color: '#333' },
+            { type: 'text', text: '恭喜完成今日最後一次提醒！', size: 'sm', color: '#666', wrap: true }
+          ]
+        },
+        footer: {
+          type: 'box', layout: 'vertical',
+          contents: [
+            { type: 'button', style: 'primary',
+              action: { type: 'uri', label: '立即抽卡', uri: url }, color: '#659963' }
+          ]
+        }
       }
-      card.contents.footer.contents.push({
-        type: 'button',
-        style: 'primary',
-        action: { type: 'uri', label: '立即抽卡', uri: url }
-      });
-    }
-  } catch (_) {}
-  return card;
+    };
+  }
 }
+
 
 async function handleCheckin(event, dbArg, client) {
   const _db = dbArg || db;
@@ -140,16 +185,26 @@ async function handleCheckin(event, dbArg, client) {
       }
 
       // 全部完成（當日最後一次）
-      const doneMsg = { type: 'text', text: `🎉 今日所有提醒簽到完成 ${completed}/${total}！` };
+      // 全部完成（當日最後一次）
+const doneMsg = { type: 'text', text: `🎉 今日所有提醒簽到完成 ${completed}/${total}！` };
 
-      // 檢查/累加抽卡次數（每日上限 3）
-      const { allowed } = await addDailyDrawIfAvailable(_db, userId, todayKey);
-      if (allowed) {
-        const drawCard = buildDrawFlexFromHealthCard(DRAW_URL);
-        return replyOrPush(event, client, [doneMsg, drawCard]);
-      } else {
-        return replyOrPush(event, client, [doneMsg, { type: 'text', text: '（今日抽卡次數已達上限）' }]);
-      }
+// 檢查/累加抽卡次數（每日上限 3）
+const { allowed } = await addDailyDrawIfAvailable(_db, userId, todayKey);
+
+if (allowed) {
+  const drawCard = buildDrawFlexFromHealthCard(DRAW_URL);
+  // 主要送「完成 + 抽卡卡片」；若 Flex 結構不合則退回文字連結
+  return safeReplyOrPush(
+    event,
+    client,
+    [doneMsg, drawCard],
+    [doneMsg, { type: 'text', text: `抽卡連結：${DRAW_URL}` }]
+  );
+} else {
+  // 已達上限就純文字
+  return replyOrPush(event, client, [doneMsg, { type: 'text', text: '（今日抽卡次數已達上限）' }]);
+}
+
     }
 
     return replyOrPush(event, client, { type: 'text', text: '⚠️ 未知的簽到類型。' });
