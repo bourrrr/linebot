@@ -30,6 +30,19 @@
     const db  = getFirestore(app);
     const LIFF_ID = "2007877199-Y5R2LenL";
 
+    function roleKey(s){
+      const m = String(s||'').trim().toLowerCase();
+      if (m === '患者' || m === 'patient') return 'patient';
+      if (m === '志工' || m === 'volunteer') return 'volunteer';
+      return '';
+    }
+    function getUserRoles(data){
+      const raw = (data && (data.roles ?? data.role)) ?? [];
+      const arr = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+      const set = new Set(arr.map(roleKey).filter(Boolean));
+      return { isPatient: set.has('patient'), isVolunteer: set.has('volunteer') };
+    }
+
     async function guard() {
       try {
         await liff.init({ liffId: LIFF_ID });
@@ -40,9 +53,13 @@
         const snap = await getDoc(doc(db, "users", uid));
         if (!snap.exists()) { location.href = "register-profile.html"; return; }
 
-        const role = String((snap.data().role||'')).trim();
-        const isVolunteer = role === '志工' || role === 'volunteer';
-        if (!isVolunteer) { location.href = "home.html"; return; }
+        const { isPatient, isVolunteer } = getUserRoles(snap.data());
+        if (!isVolunteer) {
+          // 沒有志工身分 → 若有患者，帶去患者首頁；否則回註冊補資料
+          if (isPatient) { location.href = "home.html"; return; }
+          location.href = "register-profile.html"; return;
+        }
+        // 有志工 → 留在本頁
       } catch (e) {
         console.error('[VOLUNTEER] guard error:', e);
         location.href = "login.html";
@@ -50,7 +67,7 @@
     }
     guard();
 
-    // 登出（只用 LIFF）
+    // 登出（僅 LIFF）
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('logoutBtn')?.addEventListener('click', () => {
         try { liff.logout(); } catch(e) {}
@@ -58,6 +75,7 @@
       });
     });
   </script>
+
 </head>
 <body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
   <div class="mx-auto max-w-[1120px]">

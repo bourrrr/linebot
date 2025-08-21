@@ -1,0 +1,26 @@
+[
+  {
+    "origin": [
+      "https://medwell-test1.web.app",
+      "http://localhost:3000",
+      "http://localhost:5173"
+    ],
+    "method": ["GET", "HEAD", "PUT", "POST", "DELETE", "OPTIONS"],
+    "responseHeader": [
+      "Authorization",
+      "Content-Type",
+      "x-goog-meta-*",
+      "x-goog-resumable",
+      "x-goog-upload-*"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]
+[
+  {
+    "origin": ["https://medwell-test1.web.app"],
+    "method": ["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS"],
+    "maxAgeSeconds": 3600,
+    "responseHeader": ["Content-Type", "Authorization"]
+  }
+]

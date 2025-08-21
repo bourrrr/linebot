@@ -2,14 +2,23 @@
   "functions": {
     "source": "functions",
     "runtime": "nodejs18",
-    "region": "us-central1",
+    "region": "asia-east1",
     "secrets": [
       "VOLLINE_LINE_CHANNEL_SECRET",
-      "VOLLINE_LINE_CHANNEL_ACCESS_TOKEN"
+      "VOLLINE_LINE_CHANNEL_ACCESS_TOKEN",
+      "MAIN_LINE_CHANNEL_SECRET",
+      "MAIN_LINE_CHANNEL_ACCESS_TOKEN",
+      "MAIN_LINE_LOGIN_CHANNEL_ID"
     ],
     "endpoints": {
-      "lineWebhook": {
+      "lineWebhookMain": {
         "rawBody": true
+      },
+      "lineWebhookVol": {
+        "rawBody": true
+      },
+      "authApi": {
+        "rawBody": false
       }
     },
     "ignore": [

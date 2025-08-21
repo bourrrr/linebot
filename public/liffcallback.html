@@ -1,0 +1,17 @@
+<!-- public/liff-callback.html -->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head><meta charset="UTF-8"><title>Redirecting…</title></head>
+<body>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script type="module">
+    const LIFF_ID = "2007877199-Y5R2LenL";
+    await liff.init({ liffId: LIFF_ID });
+
+    const u = new URL(location.href);
+    const returnTo = u.searchParams.get("returnTo") ||
+                     (u.searchParams.get("liff.state") ? decodeURIComponent(u.searchParams.get("liff.state")) : "/");
+    location.replace(returnTo || "/");
+  </script>
+</body>
+</html>

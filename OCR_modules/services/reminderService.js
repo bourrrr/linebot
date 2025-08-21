@@ -109,7 +109,7 @@ async function handleSelectTime(event, client) {
     altText: '確認提醒',
     template: {
       type: 'confirm',
-      text: `⏰ 你選擇的提醒時間是：${timeStr}\n要儲存這個提醒嗎？`,
+      text: `⏰ 你選擇的提醒時間是：${formatted}\n要儲存這個提醒嗎？`,
       actions: [
         { type: 'postback', label: '✅ 確認', data: 'action=confirm_reminder' },
         { type: 'postback', label: '❌ 取消', data: 'action=cancel_reminder' }

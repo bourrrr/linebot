@@ -68,107 +68,143 @@
   <!-- LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
-  <!-- Firebase（用來檢查 users 是否已建立） -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { firebaseConfig } from "./firebase-config.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { firebaseConfig } from "./firebase-config.js";
 
-    const app = initializeApp(firebaseConfig);
-    const db  = getFirestore(app);
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
 
-    const LIFF_ID = "2007877199-Y5R2LenL";
+  const LIFF_ID = "2007877199-Y5R2LenL";
 
-    function setActiveRole(role){
-      const patientBtn = document.getElementById('patientBtn');
-      const volunteerBtn = document.getElementById('volunteerBtn');
-      const roleInput   = document.getElementById('role');
-      if(role === '志工'){
-        volunteerBtn.classList.add('active'); patientBtn.classList.remove('active'); roleInput.value = '志工';
-      }else{
-        patientBtn.classList.add('active'); volunteerBtn.classList.remove('active'); roleInput.value = '患者';
+  function roleKey(s){
+    const m = String(s||'').trim().toLowerCase();
+    if (m === '患者' || m === 'patient') return 'patient';
+    if (m === '志工' || m === 'volunteer') return 'volunteer';
+    return '';
+  }
+  function getUserRoles(data){
+    const raw = (data && (data.roles ?? data.role)) ?? [];
+    const arr = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+    const set = new Set(arr.map(roleKey).filter(Boolean));
+    return { isPatient: set.has('patient'), isVolunteer: set.has('volunteer') };
+  }
+
+  function setActiveRole(roleCN){
+    const patientBtn   = document.getElementById('patientBtn');
+    const volunteerBtn = document.getElementById('volunteerBtn');
+    const roleInput    = document.getElementById('role');
+    if (roleCN === '志工'){
+      volunteerBtn.classList.add('active');
+      patientBtn.classList.remove('active');
+      roleInput.value = '志工';
+    }else{
+      patientBtn.classList.add('active');
+      volunteerBtn.classList.remove('active');
+      roleInput.value = '患者';
+    }
+    // 記住使用者上次選擇
+    sessionStorage.setItem('MW_LAST_ROLE', roleCN);
+  }
+
+  async function ensureLIFF(){
+    try{
+      if(!window.liff) throw new Error("LIFF SDK 未載入");
+      if(!window.MW_LIFF_READY){
+        await liff.init({ liffId: LIFF_ID });
+        window.MW_LIFF_READY = true;
       }
+      return true;
+    }catch(e){
+      console.warn("LIFF 初始化失敗：", e);
+      alert("無法初始化 LINE LIFF，請稍後再試或確認 LIFF 設定。");
+      return false;
+    }
+  }
+
+  async function updateLineStatusUI(){
+    const el = document.getElementById('lineStatus');
+    if(!window.liff || !window.MW_LIFF_READY){ el.classList.add('hidden'); return; }
+    if(!liff.isLoggedIn()){ el.classList.add('hidden'); return; }
+    try{
+      const p = await liff.getProfile();
+      el.textContent = `已登入 LINE：${p.displayName}`;
+      el.classList.remove('hidden');
+    }catch{ el.classList.add('hidden'); }
+  }
+
+  // 初始化 UI
+  window.addEventListener('DOMContentLoaded', async () => {
+    // 套用上次選擇的角色（預設患者）
+    const last = sessionStorage.getItem('MW_LAST_ROLE') || '患者';
+    setActiveRole(last);
+
+    document.getElementById('patientBtn').addEventListener('click', ()=> setActiveRole('患者'));
+    document.getElementById('volunteerBtn').addEventListener('click', ()=> setActiveRole('志工'));
+
+    if (window.liff) {
+      const ok = await ensureLIFF();
+      if (ok) updateLineStatusUI();
+    }
+  });
+
+  // 登入按鈕
+  document.getElementById('lineLoginBtn').addEventListener('click', async () => {
+    if (!(await ensureLIFF())) return;
+
+    if (!liff.isLoggedIn()) {
+      liff.login({ redirectUri: location.href });
+      return;
     }
 
-    async function ensureLIFF(){
-      try{
-        if(!window.liff) throw new Error("LIFF SDK 未載入");
-        if(!window.MW_LIFF_READY){
-          await liff.init({ liffId: LIFF_ID });
-          window.MW_LIFF_READY = true;
-        }
-        return true;
-      }catch(e){
-        console.warn("LIFF 初始化失敗：", e);
-        alert("無法初始化 LINE LIFF，請稍後再試或確認 LIFF 設定。");
-        return false;
-      }
-    }
+    try{
+      const profile = await liff.getProfile();
+      const idToken = liff.getIDToken();
+      const liffUid = profile.userId || "";
+      const uid = `liff:${liffUid}`;
 
-    async function updateLineStatusUI(){
-      const el = document.getElementById('lineStatus');
-      if(!window.liff || !window.MW_LIFF_READY){ el.classList.add('hidden'); return; }
-      if(!liff.isLoggedIn()){ el.classList.add('hidden'); return; }
-      try{
-        const p = await liff.getProfile();
-        el.textContent = `已登入 LINE：${p.displayName}`;
-        el.classList.remove('hidden');
-      }catch{ el.classList.add('hidden'); }
-    }
-
-    // 初始化 UI（單欄不需 grid）
-    window.addEventListener('DOMContentLoaded', async () => {
-      document.getElementById('patientBtn').addEventListener('click', ()=> setActiveRole('患者'));
-      document.getElementById('volunteerBtn').addEventListener('click', ()=> setActiveRole('志工'));
-      if (window.liff) {
-        const ok = await ensureLIFF();
-        if (ok) updateLineStatusUI();
-      }
-    });
-
-    // 只允許已註冊者登入
-    document.getElementById('lineLoginBtn').addEventListener('click', async () => {
-      if (!(await ensureLIFF())) return;
-
-      if (!liff.isLoggedIn()) {
-        liff.login({ redirectUri: location.href });
+      // 檢查是否完成註冊
+      const snap = await getDoc(doc(db, "users", uid));
+      if (!snap.exists()) {
+        alert("尚未註冊，請先完成基本資料。");
+        document.getElementById('guardMsg').classList.remove('hidden');
+        window.location.href = "register-profile.html";
         return;
       }
 
-      try{
-        const profile = await liff.getProfile();
-        const idToken = liff.getIDToken();
-        const liffUid = profile.userId || "";
-        const uid = `liff:${liffUid}`;
+      // 快取可選
+      localStorage.setItem('MW_LIFF_UID', liffUid);
+      localStorage.setItem('MW_LIFF_NAME', profile.displayName || '');
+      localStorage.setItem('MW_LIFF_PIC', profile.pictureUrl || '');
+      if (idToken) localStorage.setItem('MW_LIFF_ID_TOKEN', idToken);
 
-        // 1) 檢查 Firestore 是否已有 users/{uid}
-        const snap = await getDoc(doc(db, "users", uid));
-        if (!snap.exists()) {
-          alert("尚未註冊，請先完成基本資料。");
-          document.getElementById('guardMsg').classList.remove('hidden');
-          window.location.href = "register-profile.html";
-          return;
-        }
+      // 角色判斷：優先使用「使用者在頁面上選的角色」，但要確保該角色在 DB 的 roles 內
+      const data = snap.data() || {};
+      const { isPatient, isVolunteer } = getUserRoles(data);
+      const chosen = document.getElementById('role').value; // '患者' 或 '志工'
+      const chosenKey = roleKey(chosen);
 
-        // 2) 已註冊 → 儲存快取（可省略）
-        localStorage.setItem('MW_LIFF_UID', liffUid);
-        localStorage.setItem('MW_LIFF_NAME', profile.displayName || '');
-        localStorage.setItem('MW_LIFF_PIC', profile.pictureUrl || '');
-        if (idToken) localStorage.setItem('MW_LIFF_ID_TOKEN', idToken);
-
-        // 3) 角色決定：DB 優先，沒有才用切換值
-        const data = snap.data() || {};
-        const roleInDB = (data.role || '').trim();
-        const role = roleInDB || document.getElementById('role').value;
-
-        // 4) 進入對應首頁
-        if (role === '志工') window.location.href = "volunteer.html";
-        else window.location.href = "home.html";
-      }catch(e){
-        console.error(e);
-        alert('登入流程發生錯誤，請再試一次。');
+      if (chosenKey === 'volunteer' && isVolunteer) {
+        window.location.href = "volunteer.html";
+      } else if (chosenKey === 'patient' && isPatient) {
+        window.location.href = "home.html";
+      } else if (isVolunteer) {
+        // 使用者選了無權限的角色 → 退回他有的角色
+        window.location.href = "volunteer.html";
+      } else if (isPatient) {
+        window.location.href = "home.html";
+      } else {
+        // 有 users 文件但沒有任何角色 → 補資料或導回註冊
+        alert("尚未完成身分設定，請先完成基本資料。");
+        window.location.href = "register-profile.html";
       }
-    });
-  </script>
+    }catch(e){
+      console.error(e);
+      alert('登入流程發生錯誤，請再試一次。');
+    }
+  });
+</script>
+
 </body>
 </html>

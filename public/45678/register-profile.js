@@ -15,7 +15,7 @@ import { cityDistricts } from "./district-data.js";
 
 /* ========= 依你的專案調整 ========= */
 const LIFF_ID = "2007877199-Y5R2LenL";                 // 你的 LIFF ID
-const CUSTOM_TOKEN_URL = "https://<你的函式域名>/getFirebaseCustomToken"; // ★★★ 必改 ★★★
+const CUSTOM_TOKEN_URL = "https://asia-east1-medwell-test1.cloudfunctions.net/authApi/getFirebaseCustomToken"; // ★★★ 必改 ★★★
 
 /* ========= Firebase ========= */
 const app = initializeApp(firebaseConfig);
@@ -150,8 +150,8 @@ async function ensureFirebaseAuthViaLINE(){
     body: JSON.stringify({ idToken })
   });
   const data = await resp.json();
-  if (!resp.ok || !data.token) throw new Error(data.error || "custom-token-failed");
-  const cred = await signInWithCustomToken(auth, data.token);
+if (!resp.ok || !data.customToken) throw new Error(data.error || "custom-token-failed");
+const cred = await signInWithCustomToken(auth, data.customToken);
   return cred.user;
 }
 

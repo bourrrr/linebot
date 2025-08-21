@@ -7,32 +7,46 @@ const timezone = require('dayjs/plugin/timezone');
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-// ✅ 每分鐘跑一次，查找即將到期的提醒並推播
+// 工具：當前台灣時間對齊到分鐘（去掉秒）
+function nowTWMinute() {
+  return dayjs().tz('Asia/Taipei').startOf('minute');
+}
+
+function weekdayIndexTW(djs) {
+  // 0=Sunday...6=Saturday（與 LINE 顯示一致）
+  return djs.day();
+}
+
+/**
+ * 每分鐘執行一次，同步處理：
+ * 1) 單次提醒（time）
+ * 2) 重複提醒（repeatingReminders）
+ */
 function startReminderCron(db, client) {
   cron.schedule('* * * * *', async () => {
-    const nowTW = dayjs().tz('Asia/Taipei');
-    const minBefore = nowTW;
-    const minAfter = nowTW.add(1, 'minute');
+    const now = nowTWMinute();                       // e.g. 2025-08-21 12:34:00+08:00
+    const tsNow = admin.firestore.Timestamp.fromDate(now.toDate());
+    const wday = weekdayIndexTW(now);               // 當日星期索引（0–6）
+    const hh = now.hour();
+    const mm = now.minute();
 
-    console.log('[cron] 現在台灣時間:', nowTW.format('YYYY-MM-DD HH:mm:ss Z'));
+    console.log('[cron] TW now:', now.format('YYYY-MM-DD HH:mm:ss Z'), 'weekday=', wday, 'hh:mm=', hh, mm);
 
+    // ============= 單次提醒（time）=============
     try {
-      const snapshot = await db.collection('time')
-        .where('done', '==', false) // 只處理尚未完成的提醒
-        .where('datetime', '>=', admin.firestore.Timestamp.fromDate(minBefore.toDate()))
-        .where('datetime', '<=', admin.firestore.Timestamp.fromDate(minAfter.toDate()))
+      const singleSnap = await db.collection('time')
+        .where('done', '==', false)
+        .where('datetime', '==', tsNow) // 精確匹配當前分鐘
         .get();
 
-      console.log(`[cron] 到期提醒筆數: ${snapshot.size}`);
+      console.log(`[cron] singles due: ${singleSnap.size}`);
 
-      for (const doc of snapshot.docs) {
-        const data = doc.data();
-        const userId = data.userId;
+      for (const doc of singleSnap.docs) {
+        const d = doc.data();
+        const userId = d.userId;
         if (!userId) continue;
 
-        const text = data.medicine
-          ? `請記得服用藥物：${data.medicine}`
-          : '⏰ 到時間囉，請記得用藥！';
+        const text = d.medicine ? `請記得服用藥物：${d.medicine}` : '⏰ 到時間囉，請記得用藥！';
 
         try {
           await client.pushMessage(userId, {
@@ -46,50 +60,37 @@ function startReminderCron(db, client) {
                 {
                   type: 'postback',
                   label: '✅ 簽到',
-                  data: `action=checkin&reminderId=${doc.id}`
+                  data: `action=checkin&type=single&id=${doc.id}`
                 }
               ]
             }
           });
-          // ✅ 成功推播後，立即將提醒標記為已完成，避免重複推播
-         
-          console.log('[cron] ✅ 已推播給', userId, '提醒 ID:', doc.id);
+          console.log('[cron] ✅ pushed single to', userId, 'id:', doc.id);
         } catch (err) {
-          console.error('[cron] ❌ 推播錯誤:', err);
+          console.error('[cron] ❌ push single error:', err);
         }
       }
     } catch (err) {
-      console.error('[cron] ❌ 定時提醒錯誤:', err);
+      console.error('[cron] ❌ query singles error:', err);
     }
-  });
-}
 
-// ✅ 每天 00:01 自動建立當日提醒
-function startReminderCron(db, client) {
-  cron.schedule('* * * * *', async () => {
-    const nowTW = dayjs().tz('Asia/Taipei');
-    // ✅ 將時間範圍調整為當前精確時間點
-    const targetTime = nowTW.startOf('minute'); 
-
-    console.log('[cron] 現在台灣時間:', nowTW.format('YYYY-MM-DD HH:mm:ss Z'));
-
+    // ============= 重複提醒（repeatingReminders）=============
     try {
-      // ✅ 修改查詢條件為精確比對時間
-      const snapshot = await db.collection('time')
-        .where('done', '==', false) // 只處理尚未完成的提醒
-        .where('datetime', '==', admin.firestore.Timestamp.fromDate(targetTime.toDate()))
+      const repeatSnap = await db.collection('repeatingReminders')
+        .where('active', '==', true)
+        .where('weekdays', 'array-contains', wday)
+        .where('hour', '==', hh)
+        .where('minute', '==', mm)
         .get();
 
-      console.log(`[cron] 到期提醒筆數: ${snapshot.size}`);
+      console.log(`[cron] repeats due: ${repeatSnap.size}`);
 
-      for (const doc of snapshot.docs) {
-        const data = doc.data();
-        const userId = data.userId;
+      for (const doc of repeatSnap.docs) {
+        const d = doc.data();
+        const userId = d.userId;
         if (!userId) continue;
 
-        const text = data.medicine
-          ? `請記得服用藥物：${data.medicine}`
-          : '⏰ 到時間囉，請記得用藥！';
+        const text = '⏰ 到時間囉，請記得用藥！（重複提醒）';
 
         try {
           await client.pushMessage(userId, {
@@ -103,23 +104,20 @@ function startReminderCron(db, client) {
                 {
                   type: 'postback',
                   label: '✅ 簽到',
-                  data: `action=checkin&reminderId=${doc.id}`
+                  data: `action=checkin&type=repeat&id=${doc.id}`
                 }
               ]
             }
           });
-          // ✅ 成功推播後，立即將提醒標記為已完成，避免重複推播
-          console.log('[cron] ✅ 已推播給', userId, '提醒 ID:', doc.id);
+          console.log('[cron] ✅ pushed repeat to', userId, 'id:', doc.id);
         } catch (err) {
-          console.error('[cron] ❌ 推播錯誤:', err);
+          console.error('[cron] ❌ push repeat error:', err);
         }
       }
     } catch (err) {
-      console.error('[cron] ❌ 定時提醒錯誤:', err);
+      console.error('[cron] ❌ query repeats error:', err);
     }
   });
 }
 
-module.exports = {
-  startReminderCron
-};
+module.exports = { startReminderCron };
