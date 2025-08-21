@@ -34,6 +34,47 @@ async function safeReplyOrPush(event, client, primaryMsg, fallbackMsg) {
     }
   }
 }
+// 最小合法 Flex（一定過）
+function buildMinimalDrawFlex(url) {
+  return {
+    type: 'flex',
+    altText: '抽卡機會 +1',
+    contents: {
+      type: 'bubble',
+      body: {
+        type: 'box', layout: 'vertical', spacing: 'md',
+        contents: [
+          { type: 'text', text: '🎴 抽卡機會 +1', weight: 'bold', size: 'lg', color: '#333333' },
+          { type: 'text', text: '恭喜完成今日最後一次提醒！', size: 'sm', color: '#666666', wrap: true }
+        ]
+      },
+      footer: {
+        type: 'box', layout: 'vertical', contents: [
+          { type: 'button', style: 'primary',
+            action: { type: 'uri', label: '立即抽卡', uri: DRAW_URL } }
+        ]
+      }
+    }
+  };
+}
+
+// 先送 healthCard 版 → 失敗改用最小 Flex → 再失敗退純文字
+async function sendDrawCardSafe(event, client, doneMsg, url) {
+  try {
+    const card = buildDrawFlexFromHealthCard(url);   // 你先前的函式
+    return await replyOrPush(event, client, [doneMsg, card]);
+  } catch (e1) {
+    console.error('[checkin] send flex error(healthCard):', e1?.response?.data || e1);
+    try {
+      const minimal = buildMinimalDrawFlex(url);
+      return await replyOrPush(event, client, [doneMsg, minimal]);
+    } catch (e2) {
+      console.error('[checkin] send flex error(minimal):', e2?.response?.data || e2);
+      return replyOrPush(event, client, [doneMsg, { type: 'text', text: `抽卡連結：${url}` }]);
+    }
+  }
+}
+
 // 以 transaction 累加「今日抽卡次數」，最多 3 次；回傳 { allowed, count }
 async function addDailyDrawIfAvailable(_db, userId, dateKey) {
   const ref = _db.collection('dailyDraws').doc(`${userId}_${dateKey}`);
