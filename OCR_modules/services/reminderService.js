@@ -97,11 +97,21 @@ async function replyTimePicker(event, client) {
 }
 
 async function handleSelectTime(event, client) {
-  const timeStr = event.postback?.params?.datetime; // e.g. 2025-08-19T19:40
+  const timeStr = event.postback?.params?.datetime; // 例：2025-08-20T22:14
   const userId = event.source?.userId;
+
   if (!timeStr || !userId) {
-    return replyOrPush(event, client, { type:'text', text:'⚠️ 時間選擇錯誤，請重新選擇' });
+    return replyOrPush(event, client, { type: 'text', text: '⚠️ 時間選擇錯誤，請重新選擇' });
   }
+
+  // 轉為台灣時間並去掉中間的 T
+  const d = dayjs(timeStr);
+  if (!d.isValid()) {
+    return replyOrPush(event, client, { type: 'text', text: '⚠️ 時間格式不正確，請重新選擇' });
+  }
+  const formatted = d.tz('Asia/Taipei').format('YYYY/MM/DD HH:mm');
+
+  // 暫存原始字串（用於後續寫入 Firestore）
   reminderCache[userId] = { datetime: timeStr, type: 'single' };
 
   return replyOrPush(event, client, {
@@ -117,6 +127,7 @@ async function handleSelectTime(event, client) {
     }
   });
 }
+
 
 async function handleConfirmReminder(event, db, client) {
   const userId = event.source?.userId;
