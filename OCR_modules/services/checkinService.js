@@ -77,16 +77,20 @@ async function sendDrawCardSafe(event, client, doneMsg, url) {
 
 // 以 transaction 累加「今日抽卡次數」，最多 3 次；回傳 { allowed, count }
 async function addDailyDrawIfAvailable(_db, userId, dateKey) {
-  const ref = _db.collection('dailyDraws').doc(`${userId}_${dateKey}`);
+  const id = `${userId}_${dateKey}`;
+  const ref = _db.collection('dailyDraws').doc(id);
   return await _db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const curr = snap.exists ? (snap.data().count || 0) : 0;
+    console.log('[draw] docId=', id, 'curr=', curr); // ← 看看現在是幾次
     if (curr >= 3) return { allowed: false, count: curr };
     const next = curr + 1;
     tx.set(ref, { userId, dateKey, count: next, updatedAt: new Date() }, { merge: true });
+    console.log('[draw] increment ->', next);
     return { allowed: true, count: next };
   });
 }
+
 
 // 以 healthCard 樣式產生「抽卡」卡片：改標題/altText + 將按鈕改為 URI
 // 以 healthCard 樣式產生「抽卡」卡片：支援 function / string / object，失敗退回最小 Flex
