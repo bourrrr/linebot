@@ -109,7 +109,7 @@ async function handleSelectTime(event, client) {
   if (!d.isValid()) {
     return replyOrPush(event, client, { type: 'text', text: '⚠️ 時間格式不正確，請重新選擇' });
   }
-  const formatted = d.tz('Asia/Taipei').format('YYYY/MM/DD HH:mm');
+  const formatted = dayjs.tz(timeStr, 'Asia/Taipei').format('YYYY/MM/DD HH:mm');
 
   // 暫存原始字串（用於後續寫入 Firestore）
   reminderCache[userId] = { datetime: timeStr, type: 'single' };
