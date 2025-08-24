@@ -373,7 +373,7 @@ async function handleConfirmRepeatingReminder(event, db, client) {
           type: 'text',
           text: '✅ 已設定重複提醒！',
           weight: 'bold',
-          size: 'md',
+          size: 'xl',
           color: '#333333'
         },
         {
@@ -507,13 +507,86 @@ async function handleConfirmDelete(event, db, client) {
   if (!type || !id) {
     return replyOrPush(event, client, { type:'text', text:'⚠️ 刪除參數缺失' });
   }
+
   try {
+    // 1) 真正刪除
     if (type === 'repeat') {
       await db.collection('repeatingReminders').doc(id).delete();
     } else {
       await db.collection('time').doc(id).delete();
     }
-    return replyOrPush(event, client, { type:'text', text:'✅ 已刪除提醒' });
+
+    // 2) 重新查詢「最新清單」並一起回傳
+    const userId = event.source?.userId;
+    const now = dayjs().tz('Asia/Taipei').toDate();
+
+    const singleSnap = await db.collection('time')
+      .where('userId','==',userId)
+      .where('done','==',false)
+      .where('datetime','>=',now)
+      .orderBy('datetime','asc')
+      .limit(10).get();
+
+    const repeatSnap = await db.collection('repeatingReminders')
+      .where('userId','==',userId)
+      .where('active','==',true)
+      .limit(10).get();
+
+    const bubbles = [];
+
+    // 單次
+    for (const doc of singleSnap.docs) {
+      const d = doc.data();
+      const dt = d.datetime?.toDate ? d.datetime.toDate() : d.datetime;
+      const timeStr = dayjs(dt).tz('Asia/Taipei').format('YYYY/MM/DD HH:mm');
+
+      const bodyContents = [
+        { type:'text', text:'📅 單次提醒', weight:'bold', size:'lg', color:'#588157' },
+        { type:'text', text:`時間：${timeStr}`, size:'sm', color:'#666666' }
+      ];
+      if (d.medicine) {
+        bodyContents.push({ type:'text', text:`藥名：${String(d.medicine).slice(0,60)}`, size:'sm', color:'#666666', wrap:true });
+      }
+
+      bubbles.push({
+        type:'bubble',
+        body:{ type:'box', layout:'vertical', spacing:'sm', contents: bodyContents },
+        footer:{
+          type:'box', layout:'vertical', spacing:'sm',
+          contents:[ pill('🗑 刪除', `action=prepare_delete&type=time&id=${doc.id}`, '#efede9', '#363636') ]
+        }
+      });
+    }
+
+    // 重複
+    for (const doc of repeatSnap.docs) {
+      const d = doc.data();
+      const timeStr = `${pad2(d.hour)}:${pad2(d.minute)}`;
+      const days = Array.isArray(d.weekdays) ? d.weekdays.sort().map(i=>weekdayNames[i]).join('、') : '(未設定)';
+
+      bubbles.push({
+        type:'bubble',
+        body:{ type:'box', layout:'vertical', spacing:'sm', contents:[
+          { type:'text', text:'🔄 重複提醒', weight:'bold', size:'lg', color:'#588157' },
+          { type:'text', text:`時間：${timeStr}`, size:'sm', color:'#666666' },
+          { type:'text', text:`重複：每週 ${days}`, size:'sm', color:'#666666', wrap:true }
+        ]},
+        footer:{
+          type:'box', layout:'vertical', spacing:'sm',
+          contents:[ pill('🗑 刪除', `action=prepare_delete&type=repeat&id=${doc.id}`, '#efede9', '#363636') ]
+        }
+      });
+    }
+
+    // 3) 一次回兩則訊息（避免 replyToken 使用兩次）
+    const messages = [
+      { type:'text', text:'✅ 已刪除提醒' },
+      bubbles.length > 0
+        ? { type:'flex', altText:'提醒清單', contents:{ type:'carousel', contents: bubbles.slice(0,12) } }
+        : { type:'text', text:'目前沒有即將到來的提醒或重複提醒。' }
+    ];
+
+    return replyOrPush(event, client, messages);
   } catch (e) {
     console.error('[delete] error:', e);
     return replyOrPush(event, client, { type:'text', text:'⚠️ 刪除失敗，請稍後再試' });
