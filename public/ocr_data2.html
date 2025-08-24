@@ -20,7 +20,6 @@
       --mw-green-light:#659963de;
       --mw-warm-gray:#dad7cd;
       --mw-gray:#8e8e8cf2;
-      --mw-cream:#efede9;
       --mw-ink:#363636;
       --mw-border:#cfcfc9;
     }
@@ -29,16 +28,13 @@
     .mw-title{ color:var(--mw-green);}
     .mw-sub{ color:var(--mw-gray);}
     .mw-card{ background:#fff; border:1px solid var(--mw-border); border-radius:20px; box-shadow:0 6px 18px rgba(0,0,0,.04); }
-    .mw-btn-primary{ background:var(--mw-green); color:#fff; border-radius:12px; padding:.65rem 1rem; font-weight:700; transition:.2s ease;}
-    .mw-btn-primary:hover{ filter:brightness(.95); }
+    .mw-btn-primary{ background:var(--mw-green); color:#fff; border-radius:12px; padding:.65rem 1rem; font-weight:700; transition:.2s;}
     .mw-btn-ghost{ border:1px solid var(--mw-border); background:#fff; color:#363636; border-radius:12px; padding:.55rem .9rem; }
-    .mw-chip{ display:inline-block; background:var(--mw-green-light); color:#fff; padding:.25rem .6rem; border-radius:999px; font-size:.75rem; font-weight:700; }
-    .mw-input{ width:100%; border:1px solid var(--mw-border); border-radius:14px; padding:.7rem .9rem; background:#fff; transition:border-color .15s ease, box-shadow .15s ease;}
-    .mw-input:focus{ outline:none; border-color:var(--mw-green); box-shadow:0 0 0 3px rgba(88,129,87,.15);}
-    .mw-field-row{ display:grid; grid-template-columns:160px 1fr auto; gap:.6rem; align-items:center;}
-    @media (max-width: 600px){ .mw-field-row{ grid-template-columns: 1fr; } }
-    .mw-hint{ background:var(--mw-cream); border:1px dashed var(--mw-green); color:var(--mw-ink); border-radius:14px; padding:.8rem 1rem; }
-    .mw-preview{ background:#f6f6f3; border:1px dashed var(--mw-border); border-radius:16px; padding:.75rem; }
+    .mw-input{ width:100%; border:1px solid var(--mw-border); border-radius:14px; padding:.7rem .9rem; background:#fff; }
+    .mw-field-row{ display:grid; grid-template-columns:160px 1fr auto; gap:.6rem; align-items:center; }
+    @media (max-width: 767px){ .mw-field-row{ grid-template-columns: 1fr 1fr; } .mw-field-row [data-del]{ grid-column: 1 / -1; } }
+    @keyframes fadeInUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    .animate-fadeInUp{animation:fadeInUp .45s ease-out forwards}
   </style>
 </head>
 <body>
@@ -47,16 +43,14 @@
     <div class="mx-auto max-w-6xl px-4 py-4 flex items-center gap-4">
       <div style="padding: 10px; text-align: left;">
         <a href="https://medwell-test1.web.app/ocr_data1.html"
-           style="display: inline-block; background-color: #588157; color: white; padding: 8px 16px;
-                  border-radius: 8px; text-decoration: none; font-size: 16px;">
+           style="display: inline-block; background-color: #588157; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 16px;">
           ← 回主頁
         </a>
       </div>
-      <img src="https://medwell-test1.web.app/makewell-logo.jpg" alt="MakeWell" class="h-10 w-auto select-none" />
+      <img src="https://medwell-test1.web.app/makewell-logo.png" alt="MakeWell" class="h-10 w-auto select-none" />
       <div class="flex-1">
         <div class="flex items-center gap-2">
           <h1 id="pageTitle" class="mw-title text-2xl md:text-3xl font-extrabold">健康數據新增</h1>
-          <span id="modeChip" class="mw-chip">MakeWell</span>
         </div>
         <p class="mw-sub text-sm mt-1">慢理歲月，樂活永悅</p>
       </div>
@@ -70,7 +64,7 @@
       <div class="flex flex-col md:flex-row md:items-end gap-4">
         <div class="flex-1">
           <label class="block text-sm font-semibold mb-1" style="color:var(--mw-green)">選擇圖片 / 相簿</label>
-          <input id="fileInput" type="file" accept="image/*" class="mw-input">
+          <input id="fileInput" type="file" accept="image/*" class="mw-input" placeholder="從裝置選擇影像檔">
           <p class="text-xs mt-2" style="color:var(--mw-gray)">僅做 OCR 辨識，請避開反光、傾斜與過度裁切。</p>
         </div>
         <div class="flex gap-2">
@@ -79,12 +73,12 @@
         </div>
       </div>
 
-      <div id="previewWrap" class="mw-preview mt-4 hidden">
+      <div id="previewWrap" class="mt-4 hidden" style="background:#f6f6f3; border:1px dashed var(--mw-border); border-radius:16px; padding:.75rem;">
         <p class="text-sm mb-2" style="color:var(--mw-gray)">預覽</p>
         <img id="previewImg" class="w-full max-h-80 object-contain rounded-md border border-[var(--mw-border)] bg-white" alt="">
       </div>
 
-      <div id="status" class="mt-3 text-sm mw-hint hidden"></div>
+      <div id="status" class="mt-3 text-sm hidden"></div>
     </section>
 
     <!-- 辨識結果 -->
@@ -96,7 +90,7 @@
         </div>
         <div class="flex gap-2">
           <button id="btnAdd" class="mw-btn-ghost">＋ 新增欄位</button>
-          <button id="btnClear" class="mw-btn-ghost">清除欄位</button>
+          <button id="btnClear" class="mw-btn-ghost">清除全部欄位</button>
           <button id="btnConfirm" class="mw-btn-primary">確認</button>
         </div>
       </div>
@@ -112,9 +106,9 @@
       <pre id="rawText" class="bg-white rounded-lg border border-[var(--mw-border)] p-3 text-sm whitespace-pre-wrap"></pre>
     </section>
   </main>
-
+<script src="https://medwell-test1.web.app/extractHealthData.js"></script>
   <script>
-    /* ====== 後端／平台設定 ====== */
+    /* ====== 基本設定 ====== */
     const liffId = "2007877199-xXoPD8mD";
     const firebaseConfig = {
       apiKey: "AIzaSyCCUzxpn1quR9PPSBeZBGG17XVh8vPzjY",
@@ -128,44 +122,9 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    /* ====== URL / 編輯模式 ====== */
-    const urlParams = new URLSearchParams(location.search);
-    const editIdFromUrl = urlParams.get('id') || null;
-    // 重要：若沒有 ?id，主動清掉殘留的 edit_data，避免新增頁帶到上一筆
-    if (!editIdFromUrl) localStorage.removeItem('edit_data');
+    const OCR_API = "https://linebot-o8nr.onrender.com/api/ocr";
 
-    let editMode = false;
-    let editingDocId = null;
-    let originalRecord = null;
-    let keepOriginalDate = true;
-
-    /* ====== LIFF user ====== */
-    let currentUserId = null;
-    async function resolveUserId(){
-      const $login = document.getElementById('loginStatus');
-      try{
-        await liff.init({ liffId });
-        if (!liff.isLoggedIn()){
-          $login.textContent = "導向 LINE 登入中…";
-          liff.login({ redirectUri: location.href });
-          return;
-        }
-        try{
-          const profile = await liff.getProfile();
-          currentUserId = profile.userId || null;
-        }catch(e){
-          const decoded = liff.getDecodedIDToken();
-          currentUserId = decoded && decoded.sub ? decoded.sub : null;
-        }
-        $login.textContent = currentUserId ? "已登入 ✓" : "未取得使用者身分，建議於 LINE 內開啟";
-      }catch(err){
-        if ($login) $login.textContent = "LIFF 初始化失敗：" + err;
-        console.error(err);
-      }
-    }
-
-    /* ====== 本頁元素 ====== */
-    const OCR_API = "https://linebot-o8nr.onrender.com/api/ocr"; // 若你有 rewrites 可改 /api/ocr
+    /* ====== 取得 DOM ====== */
     const fileInput = document.getElementById('fileInput');
     const btnUpload = document.getElementById('btnUpload');
     const btnFillFromRaw = document.getElementById('btnFillFromRaw');
@@ -179,14 +138,13 @@
     const rawSection = document.getElementById('rawSection');
     const rawTextEl = document.getElementById('rawText');
     const pageTitle = document.getElementById('pageTitle');
-    const modeChip = document.getElementById('modeChip');
 
-    /* ====== 狀態資料 ====== */
+    /* ====== 狀態 ====== */
     let dynamicData = {};
     let ocrRawText = "";
     let formattedDate = "";
 
-    // 日期：預設今天（編輯模式會覆蓋為原日期）
+    // 日期
     (function(){
       const d = new Date();
       const yyyy = d.getFullYear();
@@ -195,7 +153,30 @@
       formattedDate = `${yyyy}/${mm}/${dd}`;
       document.getElementById('date').textContent = formattedDate;
     })();
+async function initLIFF() {
+  const $ = (t) => loginStatus && (loginStatus.textContent = t);
 
+  try {
+    await liff.init({ liffId });           // 這裡會連動 LIFF SDK
+    if (liff.isLoggedIn()) {
+      // 嘗試抓 profile（可能在桌機瀏覽器失敗，所以加 try/catch）
+      try {
+        const p = await liff.getProfile();
+        $(p?.displayName ? `已登入 ✓（${p.displayName}）` : '已登入 ✓');
+      } catch {
+        $('已登入 ✓');
+      }
+    } else {
+      // 尚未登入：顯示可點擊登入提示（桌機也能用）
+      loginStatus.innerHTML = '未登入（點我登入）';
+      loginStatus.style.cursor = 'pointer';
+      loginStatus.onclick = () => liff.login({ redirectUri: location.href });
+    }
+  } catch (e) {
+    console.error('LIFF 初始化失敗：', e);
+    $('LIFF 初始化失敗');
+  }
+}
     /* ====== 欄位渲染 ====== */
     function renderFields(){
       fieldsEl.innerHTML = "";
@@ -204,17 +185,30 @@
         fieldsEl.innerHTML = '<div class="text-sm" style="color:var(--mw-gray)">尚未有資料，請先上傳圖片辨識，或點「＋ 新增欄位」。</div>';
         return;
       }
-      keys.forEach(k=>{
+      keys.forEach((k, idx)=>{
         const row = document.createElement('div');
-        row.className = "mw-field-row";
+        row.className = "mw-field-row opacity-0";
+
+        const keyVal = (k || "").trim();
+        const valVal = (dynamicData[k] ?? "").trim();
+
+        const keyAttr = keyVal ? `value="${keyVal.replace(/"/g,'&quot;')}"` : "";
+        const valAttr = valVal ? `value="${valVal.replace(/"/g,'&quot;')}"` : "";
+
         row.innerHTML = `
-          <input class="mw-input" data-k="key" value="${k}">
-          <input class="mw-input" data-k="val" value="${dynamicData[k] ?? ''}">
-          <button class="mw-btn-ghost" data-del>刪</button>
+          <input class="mw-input" data-k="key" ${keyAttr} placeholder="名稱（如 血壓）">
+          <input class="mw-input" data-k="val" ${valAttr} placeholder="值（如 120/80 mmHg）">
+          <button class="mw-btn-ghost" data-del>刪除</button>
         `;
-        row.querySelector('[data-del]').onclick = ()=>{ delete dynamicData[k]; renderFields(); };
+
+        row.querySelector('[data-del]').onclick = ()=>{
+          delete dynamicData[k];
+          renderFields();
+        };
+
         const keyInput = row.querySelector('[data-k="key"]');
         const valInput = row.querySelector('[data-k="val"]');
+
         keyInput.addEventListener('change', ()=>{
           const nk = keyInput.value.trim();
           const v = valInput.value.trim();
@@ -223,50 +217,78 @@
           renderFields();
         });
         valInput.addEventListener('change', ()=>{
-          dynamicData[keyInput.value.trim()] = valInput.value.trim();
+          const nk = keyInput.value.trim();
+          if (nk) dynamicData[nk] = valInput.value.trim();
         });
+
         fieldsEl.appendChild(row);
+        setTimeout(()=>{ row.classList.add('animate-fadeInUp'); row.style.opacity = 1; }, 30 + idx * 40);
       });
     }
 
-    /* ====== OCR 前端補強解析 ====== */
+    /* ====== 前端補強：單位正規化 + 表格合併 ====== */
+    function normalizeUnitFront(s = '') {
+      return (s || '')
+        .replace(/mg\/?dl/gi, 'mg/dL')
+        .replace(/g\/?dl/gi, 'g/dL')
+        .replace(/mmhg/gi, 'mmHg')
+        .replace(/\/min/gi, 'bpm')
+        .replace(/\bkg\b/gi, 'kg')
+        .replace(/\bcm\b/gi, 'cm')
+        .replace(/度c|c度/gi, '°C');
+    }
+    function collapseTableRowsFront(rawText) {
+      const lines = (rawText || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      const merged = [];
+      const isNameLike = (t) => /^(總膽固醇|血清總膽固醇|三酸甘油|三酸甘油脂|中性脂肪|HDL|LDL|Cholesterol|Triglyceride|HDL\s*Cholesterol|LDL\s*Cholesterol|血壓|脈搏|心率|血糖|BMI|身高|體重)/i.test(t);
+      const isValueLike = (t) => /^([<>]?\s*\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?|(?:\d{2,3}\s*\/\s*\d{2,3}))$/.test(t);
+      const isRefLike   = (t) => /^[<>]\s*\d+(?:\.\d+)?|\d+\s*-\s*\d+$/i.test(t);
+      const isUnitLike  = (t) => /^(mg\/?d[l1I]|mmol\/?L|mmHg|bpm|%|°C|cm|kg)$/i.test(t);
+
+      for (let i = 0; i < lines.length; i++) {
+        const a = lines[i];
+        if (isNameLike(a)) {
+          let val = '', ref = '', unit = '';
+          if (i + 1 < lines.length && isValueLike(lines[i + 1])) { val  = lines[++i]; }
+          if (i + 1 < lines.length && isRefLike(lines[i + 1]))   { ref  = lines[++i]; }
+          if (i + 1 < lines.length && isUnitLike(lines[i + 1]))  { unit = lines[++i]; }
+          const oneLine = [a, val, ref, unit].filter(Boolean).join(' ');
+          merged.push(normalizeUnitFront(oneLine));
+        } else {
+          merged.push(normalizeUnitFront(a));
+        }
+      }
+      return merged.join('\n');
+    }
     function parseOCRResultFlexible(text){
       const result = {};
       if (!text) return result;
-      const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+      const pre = collapseTableRowsFront(text);
+      const lines = pre.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+
       const keyHints = /^(血壓|血糖(?:\(空腹\)|\(飯後\))?|脈搏|心率|血氧|體溫|體重|身高|BMI|腰圍|體脂|HDL(?:-?C)?|LDL(?:-?C)?|高密度膽固醇|低密度膽固醇|總膽固醇|三酸甘油脂|GOT\(AST\)|GPT\(ALT\)|AST|ALT|SGOT|SGPT|尿酸|BUN|Creatinine|Creat|eGFR|Risk|危險因子指數)$/i;
-      const valueLine = /^([0-9]+(?:\.[0-9]+)?(?:\/[0-9]+(?:\.[0-9]+)?)?)\s*(?:[a-zA-Z%°/]+|mmHg|mg\/dl|g\/dl|bpm)?$/i;
-      const normalizeMap = { '心率':'脈搏', '高密度膽固醇':'HDL', '低密度膽固醇':'LDL' };
+      const valueLine = /^([<>]?\s*\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?(?:\/\d+(?:\.\d+)?)?)\s*(?:[a-zA-Z%°/]+|mmHg|mg\/?d[l1I]|g\/?d[l1I]|mmol\/?L|bpm)?$/i;
+      const normalizeMap = { '心率': '脈搏', '高密度膽固醇': 'HDL', '低密度膽固醇': 'LDL' };
       const nk = k => normalizeMap[k] || k;
 
       for (let i=0;i<lines.length;i++){
         const line = lines[i];
         let m = line.match(/^(.{1,30}?)[：:]\s*(.+)$/) || line.match(/^(.{1,30}?)\s{1,3}(.{1,50})$/);
         if (m){
-          const key = nk(m[1].trim()); const val = m[2].trim();
+          const key = nk(m[1].trim());
+          const val = normalizeUnitFront(m[2].trim());
           if (key && val && (!(key in result) || String(result[key]??'').trim()==='')) result[key]=val;
           continue;
         }
         if (keyHints.test(line) && i+1<lines.length && valueLine.test(lines[i+1])){
-          const key = nk(line); const val = lines[i+1].trim();
+          const key = nk(line);
+          const val = normalizeUnitFront(lines[i+1].trim());
           if (key && val && (!(key in result) || String(result[key]??'').trim()==='')) result[key]=val;
           i++;
         }
       }
       return result;
     }
-
-    /* ====== 狀態提示 ====== */
-    function setStatus(text, showAsHint=false){
-      statusEl.textContent = text || "";
-      if (text){
-        statusEl.classList.remove('hidden');
-        statusEl.classList.toggle('mw-hint', !!showAsHint);
-      }else{
-        statusEl.classList.add('hidden');
-      }
-    }
-    function toast(msg){ setStatus(msg, true); setTimeout(()=>setStatus(""), 2200); }
 
     /* ====== 預覽 ====== */
     fileInput.addEventListener('change', () => {
@@ -297,36 +319,25 @@
         ocrRawText = result.text || "";
         const fieldsSuggested = result.fieldsSuggested || {};
 
-        // 後端欄位優先
         dynamicData = {};
         for (const [k,v] of Object.entries(fieldsSuggested)){
           if (k && v && (!(k in dynamicData) || String(dynamicData[k]??'').trim()==='')) dynamicData[k]=v;
         }
-        // 前端補強
-        const flex = parseOCRResultFlexible(ocrRawText);
-        for (const [k,v] of Object.entries(flex)){
-          if (k && v && (!(k in dynamicData) || String(dynamicData[k]??'').trim()==='')) dynamicData[k]=v;
-        }
+        const parsed = window.extractHealthData(ocrRawText);
+for (const [k,v] of Object.entries(parsed)){
+  if (k && v && (!(k in dynamicData) || String(dynamicData[k]??'').trim()==='')) {
+    dynamicData[k] = v;
+  }
+}
         if (!Object.keys(dynamicData).length && ocrRawText){
           dynamicData["原始內容"]=ocrRawText;
         }
 
-        // 原文備查
         if (ocrRawText?.trim()){
           rawTextEl.textContent = ocrRawText;
           rawSection.classList.remove('hidden');
         }else{
           rawSection.classList.add('hidden');
-        }
-
-        // 新增模式：日期為今天；編輯模式、且保留原日期：不動
-        if (!(editMode && keepOriginalDate)) {
-          const d = new Date();
-          const yyyy = d.getFullYear();
-          const mm = String(d.getMonth()+1).padStart(2,'0');
-          const dd = String(d.getDate()).padStart(2,'0');
-          formattedDate = `${yyyy}/${mm}/${dd}`;
-          document.getElementById('date').textContent = formattedDate;
         }
 
         renderFields();
@@ -345,24 +356,26 @@
         toast("尚無原文可轉換。請先上傳圖片或此功能需後端回傳原文。");
         return;
       }
-      const flex = parseOCRResultFlexible(ocrRawText);
-      for (const [k,v] of Object.entries(flex)){
-        if (k && v && (!(k in dynamicData) || String(dynamicData[k]??'').trim()==='')) dynamicData[k]=v;
-      }
+      const parsed = window.extractHealthData(ocrRawText);
+for (const [k,v] of Object.entries(parsed)){
+  if (k && v && (!(k in dynamicData) || String(dynamicData[k]??'').trim()==='')) {
+    dynamicData[k] = v;
+  }
+}
       renderFields();
       toast("已嘗試從原文提取欄位");
     });
 
     /* ====== 新增／清除欄位 ====== */
     btnAdd.addEventListener('click', ()=>{
-      let base="自訂欄位", name=base, i=1;
-      while (dynamicData[name]) name = base+(++i);
-      dynamicData[name]="";
+      
+      while (dynamicData[name]) { i += 1; name = `${base}${i}`; }
+      dynamicData[name] = "";
       renderFields();
     });
     btnClear.addEventListener('click', ()=>{ dynamicData={}; renderFields(); });
 
-    /* ====== 確認（新增 or 更新） ====== */
+    /* ====== 送出（新增） ====== */
     btnConfirm.addEventListener('click', async ()=>{
       // 同步尚未 blur 的值
       const rows = fieldsEl.querySelectorAll('.mw-field-row');
@@ -378,111 +391,47 @@
         if (k && String(v ?? '').trim() !== '') dataToSave[k]=String(v).trim();
       });
 
-      const LIST_URL = new URL('/ocr_data1.html', window.location.origin).href;
-
       try{
-        if (editMode && editingDocId){
-          // 編輯模式：更新既有紀錄（預設保留原日期）
-          const payload = {
-            data: dataToSave,
-            updatedAt: new Date()
-          };
-          await db.collection("health_records").doc(editingDocId).update(payload);
-          alert("✅ 已更新資料！");
-          // 清掉編輯殘留，導回清單
-          localStorage.removeItem('edit_data');
-          window.location.href = LIST_URL;
-        }else{
-          // 新增模式：需 userId
-          if (!currentUserId){
-            await resolveUserId();
-            if (!currentUserId){ alert("userId 尚未取得，請改用 LINE 內開啟或稍後再試"); return; }
-          }
-          await db.collection("health_records").add({
-            userId: currentUserId,
-            date: formattedDate,
-            data: dataToSave,
-            timestamp: new Date()
-          });
-          alert("✅ 資料成功上傳到 Firebase！");
-          // 保險清理，避免返回本頁殘留
-          localStorage.removeItem('edit_data');
-          window.location.href = LIST_URL;
-        }
+        await db.collection("health_records").add({
+          userId: (await ensureUserId()),
+          date: formattedDate,
+          data: dataToSave,
+          timestamp: new Date()
+        });
+        alert("✅ 資料成功上傳到 Firebase！");
+        localStorage.removeItem('edit_data');
+        window.location.href = new URL('/ocr_data1.html', window.location.origin).href;
       }catch(err){
         console.error(err);
         alert("❌ 送出失敗，請查看 Console");
       }
     });
 
-    /* ====== 編輯模式初始化 ====== */
-    async function initEditIfNeeded(){
-      const local = localStorage.getItem('edit_data');
-      let localObj = null;
-      if (local){
-        try{ localObj = JSON.parse(local); }catch(e){ console.warn("edit_data parse error", e); }
-      }
-
-      if (editIdFromUrl || localObj){
-        editMode = true;
-        modeChip.textContent = "編輯模式";
-        pageTitle.textContent = "編輯健康數據";
-        btnConfirm.textContent = "儲存變更";
-
-        if (localObj) originalRecord = localObj;
-        if (editIdFromUrl && (!originalRecord || originalRecord._id !== editIdFromUrl)){
-          try{
-            const snap = await db.collection('health_records').doc(editIdFromUrl).get();
-            if (snap.exists) originalRecord = { ...snap.data(), _id: editIdFromUrl };
-          }catch(e){ console.error("讀取 Firestore 失敗：", e); }
-        }
-
-        if (originalRecord){
-          editingDocId = originalRecord._id || editIdFromUrl;
-          // 日期顯示
-          const dateText = typeof originalRecord.date === 'string'
-            ? originalRecord.date
-            : (originalRecord.timestamp?.seconds ? new Date(originalRecord.timestamp.seconds*1000) : null);
-          if (typeof dateText === 'string'){
-            formattedDate = dateText;
-          }else if (dateText instanceof Date && !isNaN(dateText)){
-            const d = dateText;
-            const yyyy = d.getFullYear();
-            const mm = String(d.getMonth()+1).padStart(2,'0');
-            const dd = String(d.getDate()).padStart(2,'0');
-            formattedDate = `${yyyy}/${mm}/${dd}`;
-          }
-          document.getElementById('date').textContent = formattedDate;
-
-          // 欄位
-          const src = originalRecord.data && typeof originalRecord.data === 'object'
-            ? originalRecord.data
-            : {};
-          dynamicData = { ...src };
-          renderFields();
-
-          // 若有 rawText 可顯示
-          if (originalRecord.rawText){
-            ocrRawText = originalRecord.rawText;
-            rawTextEl.textContent = ocrRawText;
-            rawSection.classList.remove('hidden');
-          }
-        }else{
-          // 找不到資料 → 退回新增模式
-          editMode = false;
-          modeChip.textContent = "MakeWell";
-          pageTitle.textContent = "健康數據新增";
-          btnConfirm.textContent = "確認";
-          toast("找不到要編輯的資料，將以新增模式開啟。");
-        }
-      }
+    // LIFF 取得 userId
+    let currentUserId = null;
+    async function ensureUserId(){
+      if (currentUserId) return currentUserId;
+      const $login = document.getElementById('loginStatus');
+      await liff.init({ liffId });
+      if (!liff.isLoggedIn()){ $login.textContent = "導向 LINE 登入中…"; liff.login({ redirectUri: location.href }); throw new Error("尚未登入 LIFF"); }
+      try{ const p = await liff.getProfile(); currentUserId = p.userId || null; }
+      catch(e){ const d = liff.getDecodedIDToken(); currentUserId = d?.sub ?? null; }
+      $login.textContent = currentUserId ? "已登入 ✓" : "未取得使用者身分，建議於 LINE 內開啟";
+      return currentUserId;
     }
 
-    /* ====== 啟動 ====== */
-    (async function boot(){
-      await initEditIfNeeded();
-      resolveUserId();
-    })();
+    // ====== 全域提示（避免作用域問題） ======
+    window.setStatus = function (text, hint = false) {
+      if (!statusEl) return;
+      statusEl.textContent = text || "";
+      statusEl.classList.toggle('hidden', !text);
+      statusEl.classList.toggle('mw-hint', !!hint);
+    };
+    window.toast = function (msg) {
+      window.setStatus(msg, true);
+      setTimeout(()=> window.setStatus(""), 2200);
+    };
+	initLIFF();
   </script>
 </body>
 </html>

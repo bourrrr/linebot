@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>OCR 測試</title>
+</head>
+<body>
+  <h1>上傳圖片測試 Document AI OCR</h1>
+  <input type="file" id="fileInput">
+  <button onclick="upload()">上傳並解析</button>
+  <pre id="result"></pre>
+
+  <script>
+    async function upload() {
+      const fileInput = document.getElementById('fileInput');
+      if (!fileInput.files.length) return alert('請先選一張圖片');
+
+      const formData = new FormData();
+      formData.append('image', fileInput.files[0]);
+
+      const resp = await fetch('/routes/ocr', { method: 'POST', body: formData });
+      const data = await resp.json();
+      document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+    }
+  </script>
+</body>
+</html>

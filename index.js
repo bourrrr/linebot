@@ -29,7 +29,7 @@ const reminderBubble = require('./OCR_modules/flex/reminderBubble');
 
 const { handleCheckin } = require('./OCR_modules/services/checkinService');
 const Event = require('./Event');
-const extractHealthData = require('./OCR_modules/extractHealthData');
+
 const loginFlex = require('./OCR_modules/flex/loginFlex');
 const googleVisionOCR = require('./visionOCR/visionOCR');
 const upload = multer({ dest: 'uploads/' });
@@ -39,7 +39,7 @@ const generateRecipeFlex = require('./generateRecipeFlex');
 const { handleReminderPostback } = require('./OCR_modules/services/reminderService');
 const { replyOrPush } = require('./OCR_modules/services/reminderService');
 const { sendReminderCarousel } = require('./OCR_modules/services/reminderService');
-const cardflex = require('./OCR_modules/flex/cardflex');
+const cardflex = require('./OCR_modules/flex/cardflex./OCR_modules/flex/cardflex');
 const {replyTimePicker, handleSelectTime, handleConfirmReminder, handlePrepareDelete, handleConfirmDelete
 } = require('./OCR_modules/services/reminderService');
 require('dotenv').config();
@@ -289,42 +289,17 @@ async function sendReminder(client, userId, messageObject) {
 
 
 
-// 取代整段 /api/ocr
-app.post('/api/ocr', upload.single('image'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ ok: false, error: '沒有圖片檔案' });
-  }
-  try {
-    // 1) OCR 成純文字
-    const rawText = await googleVisionOCR(req.file.path);
-
-    // 2) 刪暫存檔
-    try { fs.unlinkSync(req.file.path); } catch (e) { /* ignore */ }
-
-    // 3) 用 extractHealthData 先把健康欄位解析好
-    // 會得到 { fieldsSuggested, metrics, segmentsFallback, lineCount }
-    const parsed = extractHealthData(rawText);
-
-    // 4) 為了相容前端的 parseOCRResultFlexible，
-    //    把已整理好的欄位先串成「欄位: 值」的行，前置在 text
-    const kvLines = Object.entries(parsed.fieldsSuggested || {})
-      .filter(([k, v]) => k && v)
-      .map(([k, v]) => `${k}: ${v}`)
-      .join('\n');
-
-    // 5) 回傳格式：前端 ocr_data2.html 會用到 text 與 fieldsSuggested
-    return res.json({
-      ok: true,
-      text: kvLines ? `${kvLines}\n\n${rawText}` : rawText,
-      ...parsed
-    });
-  } catch (err) {
-    console.error('OCR/解析錯誤：', err);
-    return res.status(500).json({ ok: false, error: err.message });
-  }
-});
 
 
+import express from 'express';
+import ocrRouter from './routes/ocr.js';
+
+const app = express();
+app.use('/api', ocrRouter);
+app.get('/health', (_, res) => res.send('ok'));
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log('Server running on port', PORT));
 
 
 
