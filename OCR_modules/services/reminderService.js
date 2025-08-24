@@ -179,9 +179,44 @@ async function handleConfirmRepeatingReminder(event, db, client) {
   const timeStr = `${pad2(cache.hour)}:${pad2(cache.minute)}`;
   const days = cache.weekdays.sort().map(d => weekdayNames[d]).join('、');
   return replyOrPush(event, client, {
-    type:'text',
-    text:`✅ 已設定重複提醒！\n⏰ 時間：${timeStr}\n📅 重複：每週${days}`
-  });
+  type: 'flex',
+  altText: '已設定重複提醒',
+  contents: {
+    type: 'bubble',
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      spacing: 'md',
+      contents: [
+        {
+          type: 'text',
+          text: '✅ 已設定重複提醒！',
+          weight: 'bold',
+          size: 'md',
+          color: '#333333'
+        },
+        {
+          type: 'box',
+          layout: 'baseline',
+          spacing: 'sm',
+          contents: [
+            { type: 'text', text: '⏰ 時間', size: 'sm', color: '#666666', flex: 2 },
+            { type: 'text', text: timeStr, size: 'sm', color: '#333333', flex: 5 }
+          ]
+        },
+        {
+          type: 'box',
+          layout: 'baseline',
+          spacing: 'sm',
+          contents: [
+            { type: 'text', text: '📅 重複', size: 'sm', color: '#666666', flex: 2 },
+            { type: 'text', text: `每週${days}`, size: 'sm', color: '#333333', flex: 5, wrap: true }
+          ]
+        }
+      ]
+    }
+  }
+}););
 }
 
 // ========= 重複提醒：選時間 → 選星期 → 確認 =========
