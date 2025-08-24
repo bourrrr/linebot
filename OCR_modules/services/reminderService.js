@@ -216,7 +216,7 @@ async function handleConfirmRepeatingReminder(event, db, client) {
       ]
     }
   }
-}););
+});
 }
 
 // ========= 重複提醒：選時間 → 選星期 → 確認 =========
