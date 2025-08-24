@@ -57,6 +57,33 @@ function buildMinimalDrawFlex(url) {
     }
   };
 }
+// 先 reply 完成文字，再 push 抽卡卡（若失敗退最小 Flex，最後退純文字連結）
+async function replyThenPushDraw(event, client, userId, doneMsg, url) {
+  // 1) 回覆完成文字
+  try {
+    if (event.replyToken) {
+      await client.replyMessage(event.replyToken, doneMsg);
+    } else {
+      await client.pushMessage(userId, doneMsg);
+    }
+  } catch (e) {
+    console.error('[checkin] reply done text error:', e?.response?.data || e);
+  }
+
+  // 2) push 抽卡卡片（你的 healthCard → 最小 Flex → 文字連結）
+  try {
+    const card = buildDrawFlexFromHealthCard(url); // 你已經有這個函式
+    await client.pushMessage(userId, card);
+  } catch (e1) {
+    console.error('[checkin] push healthCard error:', e1?.response?.data || e1);
+    try {
+      await client.pushMessage(userId, buildMinimalDrawFlex(url));
+    } catch (e2) {
+      console.error('[checkin] push minimal flex error:', e2?.response?.data || e2);
+      await client.pushMessage(userId, { type: 'text', text: `抽卡連結：${url}` });
+    }
+  }
+}
 
 // 先送 healthCard 版 → 失敗改用最小 Flex → 再失敗退純文字
 async function sendDrawCardSafe(event, client, doneMsg, url) {
@@ -237,14 +264,9 @@ const doneMsg = { type: 'text', text: `🎉 今日所有提醒簽到完成 ${com
 const { allowed } = await addDailyDrawIfAvailable(_db, userId, todayKey);
 
 if (allowed) {
-  const drawCard = buildDrawFlexFromHealthCard(DRAW_URL);
-  // 主要送「完成 + 抽卡卡片」；若 Flex 結構不合則退回文字連結
-  return safeReplyOrPush(
-    event,
-    client,
-    [doneMsg, drawCard],
-    [doneMsg, { type: 'text', text: `抽卡連結：${DRAW_URL}` }]
-  );
+  // ✅ 改為：先回覆完成文字，再 push 抽卡卡片（分兩次送，最穩）
+  await replyThenPushDraw(event, client, userId, doneMsg, DRAW_URL);
+  return; // 已處理完
 } else {
   // 已達上限就純文字
   return replyOrPush(event, client, [doneMsg, { type: 'text', text: '（今日抽卡次數已達上限）' }]);
