@@ -5,10 +5,15 @@ const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
 const { replyOrPush } = require('./reminderService');
 // 🔽 套用你的卡片樣式（若檔案不在同資料夾，請調整路徑）
-const healthCardBase = require('../flex/cardflex');
+let healthCardBase = null;
+try {
+  healthCardBase = require('../flex/cardflex');
+} catch (e) {
+  console.warn('[checkin] cardflex not found, will use minimal flex. err=', e?.message);
+}
 
 dayjs.extend(utc);
-dayjs.extend(timezone);
+dayjs.extend(timezone);;
 
 // 抽卡頁連結（改成你的實際頁面）
 const DRAW_URL = 'https://medwell-test1.web.app/newcard/indexcard.html';
