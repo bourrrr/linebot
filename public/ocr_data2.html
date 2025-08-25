@@ -144,7 +144,16 @@
     let dynamicData = {};
     let ocrRawText = "";
     let formattedDate = "";
-
+let editingId = null;
+let originalDoc = null;
+(function(){
+  const id = new URL(location.href).searchParams.get('id');
+  if (!id) {
+    localStorage.removeItem('edit_data');
+    editingId = null;
+    originalDoc = null;
+  }
+})();
     // 日期
     (function(){
       const d = new Date();
@@ -154,8 +163,6 @@
       formattedDate = `${yyyy}/${mm}/${dd}`;
       document.getElementById('date').textContent = formattedDate;
     // ====== 編輯模式：讀 URL ?id 或 localStorage('edit_data')，把資料灌進表單 ======
-let editingId = null;
-let originalDoc = null;
 
 function getQueryId() {
   try { return new URL(location.href).searchParams.get('id'); }
@@ -412,8 +419,8 @@ for (const [k,v] of Object.entries(parsed)){
 
     /* ====== 新增／清除欄位 ====== */
     btnAdd.addEventListener('click', () => {
-      const base = '自訂欄位';
-      let i = 1;
+      const base = '';
+      let i = '';
       let name = `${base}${i}`;
       while (Object.prototype.hasOwnProperty.call(dynamicData, name)) {
         i += 1;
@@ -454,7 +461,9 @@ for (const [k,v] of Object.entries(parsed)){
         userId: (await ensureUserId()),
         date: formattedDate,
         data: dataToSave,
-        timestamp: new Date()
+		source: 'liff',                   // ← 必填，讓後端監聽撿到
+		autoDietPushed: false,            // ← 必填，僅未推播的才會被送
+		timestamp: firebase.firestore.FieldValue.serverTimestamp() 
       });
       alert("✅ 資料成功上傳到 Firebase！");
     }
