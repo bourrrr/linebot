@@ -98,6 +98,20 @@ router.post('/ocr', upload.single('image'), async (req, res) => {
         });
       })
     );
+	if (Object.keys(fieldsSuggested).length === 0) {
+  fullText.split(/\r?\n/).forEach(line => {
+    kvMap.forEach(({ re, key }) => {
+      if (re.test(line)) {
+        const m = line.match(valRe);
+        if (m) {
+          const v = m[1].replace(/\s+/g,'');
+          const u = (m[2]||'').replace(/mg\/?dl/i,'mg/dL');
+          put(key, u ? `${v} ${u}` : v);
+        }
+      }
+    });
+  });
+}
 
     res.json({ text: fullText, tables, fieldsSuggested });
   } catch (e) {
