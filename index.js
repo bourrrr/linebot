@@ -91,7 +91,7 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
   res.status(200).send('OK');
 });
 // ====== 自動推送：監聽 health_records 新增，產生 AI 建議 + 食譜推播 ======
-// ====== 自動推送：監聽 health_records 新增，產生 AI 建議 + 食譜推播 ======
+
 let autoDietWatcherStarted = false;
 function startAutoDietPush() {
   if (autoDietWatcherStarted) return; // 防止重複註冊
@@ -125,7 +125,18 @@ function startAutoDietPush() {
             size: "sm",
             color: "#433e7c",
             margin: "md"
-          });
+          }dietFlex.contents.footer.contents.push({
+			  type: "button",
+			  style: "primary",
+			  height: "sm",
+			  action: {
+				type: "message",
+				label: "更多建議",
+				text: "更多建議"
+			  },
+			  color: "#588157"  // 深綠色，符合你原本設計
+			});
+		  
 
           // ✅ 只推播一次
           await client.pushMessage(userId, {
