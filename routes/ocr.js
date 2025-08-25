@@ -1,8 +1,8 @@
-// routes/ocr.js
-import express from 'express';
-import multer from 'multer';
-import cors from 'cors';
-import { DocumentProcessorServiceClient } from '@google-cloud/documentai';
+// routes/ocr.js  (CommonJS 版)
+const express = require('express');
+const multer = require('multer');
+const cors = require('cors');
+const { DocumentProcessorServiceClient } = require('@google-cloud/documentai');
 
 const router = express.Router();
 router.use(cors());
@@ -13,9 +13,14 @@ const LOCATION     = process.env.DOC_AI_LOCATION || 'us';     // us
 const PROCESSOR_ID = process.env.DOC_AI_PROCESSOR_ID;         // 1532cddc0a86eb53
 
 // 從環境變數載入憑證(JSON 字串)
-const creds = process.env.GOOGLE_CLOUD_CREDENTIALS
-  ? { credentials: JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS) }
-  : undefined;
+let creds;
+if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
+  try {
+    creds = { credentials: JSON.parse(process.env.GOOGLE_CLOUD_CREDENTIALS) };
+  } catch (e) {
+    console.error('Invalid GOOGLE_CLOUD_CREDENTIALS JSON:', e.message);
+  }
+}
 
 const client = new DocumentProcessorServiceClient(creds);
 
@@ -41,26 +46,28 @@ router.post('/ocr', upload.single('image'), async (req, res) => {
     (doc.pages || []).forEach((p, pi) => {
       (p.tables || []).forEach((tb, ti) => {
         const rows = [];
-        const collect = (rowObjs=[]) => rowObjs.forEach(r => {
-          const cells = (r.cells || []).map(c => {
-            let t = '';
-            (c.layout?.textAnchor?.textSegments || []).forEach(seg => {
-              const s = parseInt(seg.startIndex || '0', 10);
-              const e = parseInt(seg.endIndex   || '0', 10);
-              t += fullText.substring(s, e);
+        const collect = (rowObjs = []) =>
+          rowObjs.forEach(r => {
+            const cells = (r.cells || []).map(c => {
+              let t = '';
+              ((c.layout && c.layout.textAnchor && c.layout.textAnchor.textSegments) || []).forEach(seg => {
+                const s = parseInt(seg.startIndex || '0', 10);
+                const e = parseInt(seg.endIndex || '0', 10);
+                t += fullText.substring(s, e);
+              });
+              return t.replace(/\s+/g, ' ').trim();
             });
-            return t.replace(/\s+/g, ' ').trim();
+            rows.push(cells);
           });
-          rows.push(cells);
-        });
-        collect(tb.headerRows); collect(tb.bodyRows);
+        collect(tb.headerRows);
+        collect(tb.bodyRows);
         tables.push({ page: pi + 1, index: ti, rows });
       });
     });
 
     // 簡單欄位建議
     const fieldsSuggested = {};
-    const put = (k,v)=>{ if (k && v && !fieldsSuggested[k]) fieldsSuggested[k] = v; };
+    const put = (k, v) => { if (k && v && !fieldsSuggested[k]) fieldsSuggested[k] = v; };
     const kvMap = [
       { re: /(total\s*)?cholesterol|總膽固醇|血清總膽固醇/i, key: '總膽固醇' },
       { re: /triglyceride|三酸甘油|中性脂肪/i,            key: '三酸甘油脂' },
@@ -72,22 +79,25 @@ router.post('/ocr', upload.single('image'), async (req, res) => {
       { re: /體重|weight/i,                                key: '體重' },
       { re: /脈搏|心率|pulse|hr/i,                         key: '脈搏' },
     ];
-    const valRe = /([<>]?\s*\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?(?:\s*\/\s*\d+(?:\.\d+)?)?)\s*(mg\/?d[l1i]|mmHg|bpm|%|mmol\/?L|kg|cm|\/min)?/i;
+    const valRe =
+      /([<>]?\s*\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?(?:\s*\/\s*\d+(?:\.\d+)?)?)\s*(mg\/?d[l1i]|mmHg|bpm|%|mmol\/?L|kg|cm|\/min)?/i;
 
-    tables.forEach(tb => tb.rows.forEach(cols => {
-      const line = cols.join(' ').trim();
-      kvMap.forEach(({re,key})=>{
-        if (re.test(line)) {
-          const m = line.match(valRe);
-          if (m) {
-            const v = m[1].replace(/\s+/g,'');
-            let u = (m[2]||'').replace(/mg\/?dl/i,'mg/dL');
-            if (!u && /血壓|bp/i.test(key)) u = 'mmHg';
-            put(key, u ? `${v} ${u}` : v);
+    tables.forEach(tb =>
+      tb.rows.forEach(cols => {
+        const line = cols.join(' ').trim();
+        kvMap.forEach(({ re, key }) => {
+          if (re.test(line)) {
+            const m = line.match(valRe);
+            if (m) {
+              const v = m[1].replace(/\s+/g, '');
+              let u = (m[2] || '').replace(/mg\/?dl/i, 'mg/dL');
+              if (!u && /血壓|bp/i.test(key)) u = 'mmHg';
+              put(key, u ? `${v} ${u}` : v);
+            }
           }
-        }
-      });
-    }));
+        });
+      })
+    );
 
     res.json({ text: fullText, tables, fieldsSuggested });
   } catch (e) {
@@ -96,4 +106,4 @@ router.post('/ocr', upload.single('image'), async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

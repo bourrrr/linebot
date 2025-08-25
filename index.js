@@ -291,15 +291,18 @@ async function sendReminder(client, userId, messageObject) {
 
 
 
-import express from 'express';
-import ocrRouter from './routes/ocr.js';
 
-const app = express();
+const ocrRouter = require('./routes/ocr'); // 不需要副檔名 .js 也行
+
+
+
 app.use('/api', ocrRouter);
 app.get('/health', (_, res) => res.send('ok'));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('Server running on port', PORT));
+app.listen(PORT, () => {
+  console.log('Server running on port', PORT);
+});
 
 
 
