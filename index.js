@@ -39,7 +39,7 @@ const generateRecipeFlex = require('./generateRecipeFlex');
 const { handleReminderPostback } = require('./OCR_modules/services/reminderService');
 const { replyOrPush } = require('./OCR_modules/services/reminderService');
 const { sendReminderCarousel } = require('./OCR_modules/services/reminderService');
-const cardflex = require('./OCR_modules/flex/cardflex./OCR_modules/flex/cardflex');
+const cardflex = require('./OCR_modules/flex/cardflex');
 const {replyTimePicker, handleSelectTime, handleConfirmReminder, handlePrepareDelete, handleConfirmDelete
 } = require('./OCR_modules/services/reminderService');
 require('dotenv').config();
