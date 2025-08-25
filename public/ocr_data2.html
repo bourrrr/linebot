@@ -396,6 +396,7 @@ for (const [k,v] of Object.entries(parsed)){
           userId: (await ensureUserId()),
           date: formattedDate,
           data: dataToSave,
+		  source: 'liff',  
           timestamp: new Date()
         });
         alert("✅ 資料成功上傳到 Firebase！");

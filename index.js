@@ -90,16 +90,98 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
 );
   res.status(200).send('OK');
 });
-// 1. 取得最新健康紀錄
-async function getLatestHealthRecord(userId) {
-  const snapshot = await db.collection("health_records")
-    .where("userId", "==", userId)
-    .orderBy("timestamp", "desc")
-    .limit(1)
-    .get();
-  if (snapshot.empty) return null;
-  return snapshot.docs[0].data();
+// ====== 自動推送：監聽 health_records 新增，產生 AI 建議 + 食譜推播 ======
+function startAutoDietPush() {
+  console.log('🚀 啟動 health_records 即時監聽（自動食譜推播）');
+
+  // 監聽最新的紀錄；用 docChanges 避免全量跑
+  db.collection('health_records')
+    .orderBy('timestamp', 'desc')
+    .onSnapshot(
+      (snap) => {
+        snap.docChanges().forEach(async (chg) => {
+          if (chg.type !== 'added') return;
+
+          const doc = chg.doc;
+          const data = doc.data() || {};
+          const userId = data.userId;
+
+          // 已推送過就跳過（避免重複）
+          if (!userId || data.autoDietPushed === true) return;
+
+          try {
+            // 用現成的分析函式產出建議（沿用你現有的 analyzeHealthData）
+            const aiResult = await analyzeHealthData(data);
+
+            // 從 AI 文字中抓「飲食方向」
+            const match = aiResult.match(/飲食方向[:：]?\s*([^\n]*)/);
+            const dietType = match ? match[1].trim() : '均衡飲食';
+
+            // 做一張食譜卡（沿用你現有的 getDietFlexByType）
+            const dietFlex = await getDietFlexByType(dietType);
+
+            // 在卡片 body 追加一段「AI 簡短建議」
+            try {
+              dietFlex.contents.body.contents.push({
+                type: 'text',
+                text: 'MakeWell建議：' + aiResult.split('飲食方向')[0].replace('建議：', '').trim(),
+                wrap: true,
+                size: 'sm',
+                color: '#433e7c',
+                margin: 'md'
+              });
+            } catch (_) {
+              // 若不是預期的 Flex 結構，就退回純文字
+              return client.pushMessage(userId, { type: 'text', text: `建議：${aiResult}\n（飲食方向：${dietType}）` });
+            }
+
+            // 推播到使用者
+            await client.pushMessage(userId, {
+              type: 'flex',
+              altText: '自動健康食譜建議',
+              contents: dietFlex.contents
+            });
+
+            // 標記此筆已自動推送，避免重複
+            await doc.ref.update({
+              autoDietPushed: true,
+              autoDietPushedAt: admin.firestore.FieldValue.serverTimestamp(),
+              aiSummary: aiResult,
+              aiDietType: dietType
+            });
+
+            console.log(`✅ 自動推送完成：user=${userId} diet=${dietType}`);
+          } catch (err) {
+            console.error('❌ 自動推送失敗：', err?.response?.data || err);
+          }
+        });
+      },
+      (err) => console.error('❌ onSnapshot error:', err)
+    );
 }
+startAutoDietPush();
+
+// 1. 取得最新健康紀錄
+// 取得某使用者最新一筆健康紀錄（預設只抓 LIFF 來源）
+async function getLatestHealthRecord(userId, opts = { onlyLiff: true }) {
+  if (!userId) return null;
+
+  let q = db.collection('health_records')
+            .where('userId', '==', userId);
+
+  if (opts.onlyLiff) {
+    q = q.where('source', '==', 'liff'); // 只處理 LIFF 上傳
+  }
+
+  q = q.orderBy('timestamp', 'desc').limit(1);
+
+  const snapshot = await q.get();
+  if (snapshot.empty) return null;
+
+  const doc = snapshot.docs[0];
+  return { id: doc.id, ref: doc.ref, ...doc.data() }; // 回傳含 docId/參照與資料
+}
+
 
 // 2. 串OpenAI
 const { OpenAI } = require("openai");
@@ -266,6 +348,40 @@ async function handleEvent(event, client) {
         console.log('✅ 收到志工配對指令');
         return client.replyMessage(event.replyToken, loginFlex());
       }
+
+
+
+		// 使用者想要更多建議 → 給長一點的說明（純文字）
+		if (msg === '更多建議') {
+		  const record = await getLatestHealthRecord(event.source.userId);
+		  if (!record) {
+			return client.replyMessage(event.replyToken, { type: 'text', text: '找不到您的健康數據，請先上傳記錄！' });
+		  }
+
+		  // 給較詳細的分析（提高 max_tokens、放寬字數）
+		  const detailPrompt = [
+			'請以專業健康管理師口吻，針對以下健康紀錄提供「較詳細」建議：',
+			'1) 可能的風險與重點（勿誇大）',
+			'2) 一週可行的飲食調整（列點、分早餐/午餐/晚餐）',
+			'3) 生活作息與運動建議（簡明列點）',
+			'4) 若有可疑異常，提醒就醫但避免醫療診斷',
+			'（請保持總字數約 150–250 字，中文回答）',
+			'',
+			...Object.entries(record.data).map(([k, v]) => `${k}: ${v}`)
+		  ].join('\n');
+
+		  const response = await openai.chat.completions.create({
+			model: 'gpt-4o',
+			messages: [{ role: 'user', content: detailPrompt }],
+			max_tokens: 360,
+			temperature: 0.6
+		  });
+
+		  return client.replyMessage(event.replyToken, {
+			type: 'text',
+			text: response.choices[0].message.content?.trim() || '目前無法產生建議，稍後再試看看。'
+		  });
+		}
 
       // （可在此繼續加你的其他指令）
       return;
