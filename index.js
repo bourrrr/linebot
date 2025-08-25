@@ -387,39 +387,36 @@ async function handleEvent(event, client) {
 
 
 		// 使用者想要更多建議 → 給長一點的說明（純文字）
-		if (msg === '更多建議') {
-		  const record = await getLatestHealthRecord(event.source.userId);
-		  if (!record) {
-			return client.replyMessage(event.replyToken, {
-			  type: 'text',
-			  text: '找不到您的健康數據，請先上傳記錄！'
-			});
-		  }
+if (msg === '更多建議') {
+  const record = await getLatestHealthRecord(event.source.userId);
+  if (!record) {
+    return client.replyMessage(event.replyToken, { type: 'text', text: '找不到您的健康數據，請先上傳記錄！' });
+  }
 
-		  const detailPrompt = [
-			'請以專業健康管理師口吻，針對以下健康紀錄提供「較詳細」建議：',
-			'1) 可能的風險與重點（勿誇大）',
-			'2) 一週可行的飲食調整（列點、分早餐/午餐/晚餐）',
-			'3) 生活作息與運動建議（簡明列點）',
-			'4) 若有可疑異常，提醒就醫但避免醫療診斷',
-			'（請保持總字數約 100–150 字，中文回答）',
-			'',
-			...Object.entries(record.data).map(([k, v]) => `${k}: ${v}`)
-		  ].join('\n');
+  const detailPrompt = [
+    '請以專業健康管理師口吻，針對以下健康紀錄提供「較詳細」建議：',
+    '1) 可能的風險與重點（勿誇大）',
+    '2) 一週可行的飲食調整（列點、分早餐/午餐/晚餐）',
+    '3) 生活作息與運動建議（簡明列點）',
+    '4) 若有可疑異常，提醒就醫但避免醫療診斷',
+    '（請保持總字數約 100–150 字，中文回答）',
+    '',
+    ...Object.entries(record.data).map(([k, v]) => `${k}: ${v}`)
+  ].join('\n');
 
-		  const response = await openai.chat.completions.create({
-			model: 'gpt-4o',
-			messages: [{ role: 'user', content: detailPrompt }],
-			max_tokens: 360,
-			temperature: 0.6
-		  });
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [{ role: 'user', content: detailPrompt }],
+    max_tokens: 360,
+    temperature: 0.6
+  });
 
-		  const advice = response.choices[0].message.content?.trim()
-			|| '目前無法產生建議，稍後再試看看。';
+  const advice = response.choices[0].message.content?.trim()
+    || '目前無法產生建議，稍後再試看看。';
 
-		  const text = formatWarmAdvice(advice);
-		  return client.replyMessage(event.replyToken, flex);
-		}
+  const text = formatWarmAdvice(advice);
+  return client.replyMessage(event.replyToken, { type: 'text', text });
+}
 
       // （可在此繼續加你的其他指令）
       return;
