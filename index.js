@@ -91,73 +91,52 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
   res.status(200).send('OK');
 });
 // ====== 自動推送：監聽 health_records 新增，產生 AI 建議 + 食譜推播 ======
+let autoDietWatcherStarted = false;
 function startAutoDietPush() {
+  if (autoDietWatcherStarted) return; // 防止重複註冊
+  autoDietWatcherStarted = true;
   console.log('🚀 啟動 health_records 即時監聽（自動食譜推播）');
 
-  // 監聽最新的紀錄；用 docChanges 避免全量跑
   db.collection('health_records')
+    .where('source', '==', 'liff')           // 只處理 LIFF 來源
+    .where('autoDietPushed', '==', false)    // 只處理尚未推送
     .orderBy('timestamp', 'desc')
-    .onSnapshot(
-      (snap) => {
-        snap.docChanges().forEach(async (chg) => {
-          if (chg.type !== 'added') return;
+    .onSnapshot((snap) => {
+      snap.docChanges().forEach(async (chg) => {
+        if (chg.type !== 'added') return;
 
-          const doc = chg.doc;
-          const data = doc.data() || {};
-          const userId = data.userId;
+        const doc = chg.doc;
+        const data = doc.data() || {};
+        const userId = data.userId;
+        if (!userId) return;
 
-          // 已推送過就跳過（避免重複）
-          if (!userId || data.autoDietPushed === true) return;
+        try {
+          const aiResult = await analyzeHealthData(data);            // 你的既有函式【:contentReference[oaicite:4]{index=4}】
+          const match = aiResult.match(/飲食方向[:：]?\s*([^\n]*)/);
+          const dietType = match ? match[1].trim() : '均衡飲食';
+          const dietFlex = await getDietFlexByType(dietType);        // 你的既有函式【:contentReference[oaicite:5]{index=5}】
 
-          try {
-            // 用現成的分析函式產出建議（沿用你現有的 analyzeHealthData）
-            const aiResult = await analyzeHealthData(data);
+          // 推播
+          await client.pushMessage(userId, {
+            type: 'flex',
+            altText: '自動健康食譜建議',
+            contents: dietFlex.contents
+          });
 
-            // 從 AI 文字中抓「飲食方向」
-            const match = aiResult.match(/飲食方向[:：]?\s*([^\n]*)/);
-            const dietType = match ? match[1].trim() : '均衡飲食';
+          // 標記已推送（沿用你原本的欄位）【:contentReference[oaicite:6]{index=6}】
+          await doc.ref.update({
+            autoDietPushed: true,
+            autoDietPushedAt: admin.firestore.FieldValue.serverTimestamp(),
+            aiSummary: aiResult,
+            aiDietType: dietType
+          });
 
-            // 做一張食譜卡（沿用你現有的 getDietFlexByType）
-            const dietFlex = await getDietFlexByType(dietType);
-
-            // 在卡片 body 追加一段「AI 簡短建議」
-            try {
-              dietFlex.contents.body.contents.push({
-                type: 'text',
-                text: 'MakeWell建議：' + aiResult.split('飲食方向')[0].replace('建議：', '').trim(),
-                wrap: true,
-                size: 'sm',
-                color: '#433e7c',
-                margin: 'md'
-              });
-            } catch (_) {
-              // 若不是預期的 Flex 結構，就退回純文字
-              return client.pushMessage(userId, { type: 'text', text: `建議：${aiResult}\n（飲食方向：${dietType}）` });
-            }
-
-            // 推播到使用者
-            await client.pushMessage(userId, {
-              type: 'flex',
-              altText: '自動健康食譜建議',
-              contents: dietFlex.contents
-            });
-
-            // 標記此筆已自動推送，避免重複
-            await doc.ref.update({
-              autoDietPushed: true,
-              autoDietPushedAt: admin.firestore.FieldValue.serverTimestamp(),
-              aiSummary: aiResult,
-              aiDietType: dietType
-            });
-
-            console.log(`✅ 自動推送完成：user=${userId} diet=${dietType}`);
-          } catch (err) {
-            console.error('❌ 自動推送失敗：', err?.response?.data || err);
-          }
-        });
-      },
-      (err) => console.error('❌ onSnapshot error:', err)
-    );
+          console.log(`✅ 自動推送完成：user=${userId} diet=${dietType}`);
+        } catch (err) {
+          console.error('❌ 自動推送失敗：', err?.response?.data || err);
+        }
+      });
+    });
 }
 startAutoDietPush();
 

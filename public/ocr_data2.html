@@ -392,13 +392,14 @@ for (const [k,v] of Object.entries(parsed)){
       });
 
       try{
-        await db.collection("health_records").add({
-          userId: (await ensureUserId()),
-          date: formattedDate,
-          data: dataToSave,
-		  source: 'liff',  
-          timestamp: new Date()
-        });
+		await db.collection("health_records").add({
+		  userId: await ensureUserId(),
+		  date: formattedDate,
+		  data: dataToSave,
+		  source: 'liff',
+		  autoDietPushed: false,
+		  timestamp: firebase.firestore.FieldValue.serverTimestamp()
+		});
         alert("✅ 資料成功上傳到 Firebase！");
         localStorage.removeItem('edit_data');
         window.location.href = new URL('/ocr_data1.html', window.location.origin).href;
