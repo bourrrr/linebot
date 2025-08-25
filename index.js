@@ -114,7 +114,23 @@ function startAutoDietPush() {
           const aiResult = await analyzeHealthData(data);            // 你的既有函式【:contentReference[oaicite:4]{index=4}】
           const match = aiResult.match(/飲食方向[:：]?\s*([^\n]*)/);
           const dietType = match ? match[1].trim() : '均衡飲食';
-          const dietFlex = await getDietFlexByType(dietType);        // 你的既有函式【:contentReference[oaicite:5]{index=5}】
+          const dietFlex = await getDietFlexByType(dietType);      // ✅ 在這裡加上 MakeWell 建議（跟 replyHealthWithDiet 相同邏輯）
+			dietFlex.contents.body.contents.push({
+			  type: "text",
+			  text: "MakeWell建議：" + aiResult.split("飲食方向")[0].replace("建議：", "").trim(),
+			  wrap: true,
+			  size: "sm",
+			  color: "#433e7c",
+			  margin: "md"
+			});
+
+			// 推播
+			await client.pushMessage(userId, {
+			  type: 'flex',
+			  altText: '自動健康食譜建議',
+			  contents: dietFlex.contents
+			});  
+		  // 你的既有函式【:contentReference[oaicite:5]{index=5}】
 
           // 推播
           await client.pushMessage(userId, {
@@ -344,7 +360,7 @@ async function handleEvent(event, client) {
 			'2) 一週可行的飲食調整（列點、分早餐/午餐/晚餐）',
 			'3) 生活作息與運動建議（簡明列點）',
 			'4) 若有可疑異常，提醒就醫但避免醫療診斷',
-			'（請保持總字數約 150–250 字，中文回答）',
+			'（請保持總字數約 100–150 字，中文回答）',
 			'',
 			...Object.entries(record.data).map(([k, v]) => `${k}: ${v}`)
 		  ].join('\n');

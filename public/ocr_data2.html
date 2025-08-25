@@ -138,6 +138,7 @@
     const rawSection = document.getElementById('rawSection');
     const rawTextEl = document.getElementById('rawText');
     const pageTitle = document.getElementById('pageTitle');
+    const loginStatus = document.getElementById('loginStatus');
 
     /* ====== 狀態 ====== */
     let dynamicData = {};
@@ -152,7 +153,50 @@
       const dd = String(d.getDate()).padStart(2,'0');
       formattedDate = `${yyyy}/${mm}/${dd}`;
       document.getElementById('date').textContent = formattedDate;
-    })();
+    // ====== 編輯模式：讀 URL ?id 或 localStorage('edit_data')，把資料灌進表單 ======
+let editingId = null;
+let originalDoc = null;
+
+function getQueryId() {
+  try { return new URL(location.href).searchParams.get('id'); }
+  catch { return null; }
+}
+
+async function loadEditIfAny() {
+  // 1) 先看網址上有沒有 id
+  editingId = getQueryId();
+  if (editingId) {
+    const snap = await db.collection('health_records').doc(editingId).get();
+    if (snap.exists) {
+      originalDoc = snap.data() || {};
+      dynamicData = { ...(originalDoc.data || {}) };
+      // 沿用原日期（有的話）
+      if (originalDoc.date) formattedDate = originalDoc.date;
+      document.getElementById('date').textContent = formattedDate;
+      pageTitle.textContent = '健康數據編輯';
+      renderFields();
+      return;
+    }
+  }
+
+  // 2) 沒取到就看 localStorage 快取
+  const cached = localStorage.getItem('edit_data');
+  if (cached) {
+    try {
+      const obj = JSON.parse(cached);
+      editingId = obj._id || null;
+      dynamicData = { ...(obj.data || {}) };
+      if (obj.date) formattedDate = obj.date;
+      document.getElementById('date').textContent = formattedDate;
+      pageTitle.textContent = '健康數據編輯';
+      renderFields();
+    } catch {}
+  }
+}
+
+// 頁面起來就嘗試載入編輯資料
+loadEditIfAny();
+})();
 async function initLIFF() {
   const $ = (t) => loginStatus && (loginStatus.textContent = t);
 
@@ -367,47 +411,60 @@ for (const [k,v] of Object.entries(parsed)){
     });
 
     /* ====== 新增／清除欄位 ====== */
-    btnAdd.addEventListener('click', ()=>{
-      
-      while (dynamicData[name]) { i += 1; name = `${base}${i}`; }
-      dynamicData[name] = "";
+    btnAdd.addEventListener('click', () => {
+      const base = '自訂欄位';
+      let i = 1;
+      let name = `${base}${i}`;
+      while (Object.prototype.hasOwnProperty.call(dynamicData, name)) {
+        i += 1;
+        name = `${base}${i}`;
+      }
+      dynamicData[name] = '';
       renderFields();
     });
     btnClear.addEventListener('click', ()=>{ dynamicData={}; renderFields(); });
 
     /* ====== 送出（新增） ====== */
     btnConfirm.addEventListener('click', async ()=>{
-      // 同步尚未 blur 的值
-      const rows = fieldsEl.querySelectorAll('.mw-field-row');
-      rows.forEach(row=>{
-        const k = row.querySelector('[data-k="key"]')?.value?.trim();
-        const v = row.querySelector('[data-k="val"]')?.value?.trim();
-        if (k) dynamicData[k] = v ?? '';
-      });
+  // 同步尚未 blur 的值
+  const rows = fieldsEl.querySelectorAll('.mw-field-row');
+  rows.forEach(row=>{
+    const k = row.querySelector('[data-k="key"]')?.value?.trim();
+    const v = row.querySelector('[data-k="val"]')?.value?.trim();
+    if (k) dynamicData[k] = v ?? '';
+  });
 
-      // 清空空值
-      const dataToSave = {};
-      Object.entries(dynamicData).forEach(([k,v])=>{
-        if (k && String(v ?? '').trim() !== '') dataToSave[k]=String(v).trim();
-      });
+  // 清空空值
+  const dataToSave = {};
+  Object.entries(dynamicData).forEach(([k,v])=>{
+    if (k && String(v ?? '').trim() !== '') dataToSave[k]=String(v).trim();
+  });
 
-      try{
-		await db.collection("health_records").add({
-		  userId: await ensureUserId(),
-		  date: formattedDate,
-		  data: dataToSave,
-		  source: 'liff',
-		  autoDietPushed: false,
-		  timestamp: firebase.firestore.FieldValue.serverTimestamp()
-		});
-        alert("✅ 資料成功上傳到 Firebase！");
-        localStorage.removeItem('edit_data');
-        window.location.href = new URL('/ocr_data1.html', window.location.origin).href;
-      }catch(err){
-        console.error(err);
-        alert("❌ 送出失敗，請查看 Console");
-      }
-    });
+  try{
+    if (editingId) {
+      // 編輯：更新既有文件
+      await db.collection('health_records').doc(editingId).update({
+        data: dataToSave,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      alert('✅ 已更新！');
+    } else {
+      // 新增：沿用原本欄位
+      await db.collection("health_records").add({
+        userId: (await ensureUserId()),
+        date: formattedDate,
+        data: dataToSave,
+        timestamp: new Date()
+      });
+      alert("✅ 資料成功上傳到 Firebase！");
+    }
+    localStorage.removeItem('edit_data');
+    window.location.href = new URL('/ocr_data1.html', window.location.origin).href;
+  }catch(err){
+    console.error(err);
+    alert("❌ 送出失敗，請查看 Console");
+  }
+});
 
     // LIFF 取得 userId
     let currentUserId = null;
