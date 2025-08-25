@@ -42,6 +42,8 @@ const { sendReminderCarousel } = require('./OCR_modules/services/reminderService
 const cardflex = require('./OCR_modules/flex/cardflex');
 const {replyTimePicker, handleSelectTime, handleConfirmReminder, handlePrepareDelete, handleConfirmDelete
 } = require('./OCR_modules/services/reminderService');
+const buildMoreAdviceFlex = require('./OCR_modules/flex/moreAdviceFlex');
+
 require('dotenv').config();
 
 
@@ -369,10 +371,12 @@ async function handleEvent(event, client) {
 		if (msg === '更多建議') {
 		  const record = await getLatestHealthRecord(event.source.userId);
 		  if (!record) {
-			return client.replyMessage(event.replyToken, { type: 'text', text: '找不到您的健康數據，請先上傳記錄！' });
+			return client.replyMessage(event.replyToken, {
+			  type: 'text',
+			  text: '找不到您的健康數據，請先上傳記錄！'
+			});
 		  }
 
-		  // 給較詳細的分析（提高 max_tokens、放寬字數）
 		  const detailPrompt = [
 			'請以專業健康管理師口吻，針對以下健康紀錄提供「較詳細」建議：',
 			'1) 可能的風險與重點（勿誇大）',
@@ -391,10 +395,11 @@ async function handleEvent(event, client) {
 			temperature: 0.6
 		  });
 
-		  return client.replyMessage(event.replyToken, {
-			type: 'text',
-			text: response.choices[0].message.content?.trim() || '目前無法產生建議，稍後再試看看。'
-		  });
+		  const advice = response.choices[0].message.content?.trim()
+			|| '目前無法產生建議，稍後再試看看。';
+
+		  const flex = buildMoreAdviceFlex(advice);
+		  return client.replyMessage(event.replyToken, flex);
 		}
 
       // （可在此繼續加你的其他指令）
