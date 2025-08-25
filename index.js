@@ -91,6 +91,7 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
   res.status(200).send('OK');
 });
 // ====== 自動推送：監聽 health_records 新增，產生 AI 建議 + 食譜推播 ======
+// ====== 自動推送：監聽 health_records 新增，產生 AI 建議 + 食譜推播 ======
 let autoDietWatcherStarted = false;
 function startAutoDietPush() {
   if (autoDietWatcherStarted) return; // 防止重複註冊
@@ -111,35 +112,29 @@ function startAutoDietPush() {
         if (!userId) return;
 
         try {
-          const aiResult = await analyzeHealthData(data);            // 你的既有函式【:contentReference[oaicite:4]{index=4}】
+          const aiResult = await analyzeHealthData(data);
           const match = aiResult.match(/飲食方向[:：]?\s*([^\n]*)/);
           const dietType = match ? match[1].trim() : '均衡飲食';
-          const dietFlex = await getDietFlexByType(dietType);      // ✅ 在這裡加上 MakeWell 建議（跟 replyHealthWithDiet 相同邏輯）
-			dietFlex.contents.body.contents.push({
-			  type: "text",
-			  text: "MakeWell建議：" + aiResult.split("飲食方向")[0].replace("建議：", "").trim(),
-			  wrap: true,
-			  size: "sm",
-			  color: "#433e7c",
-			  margin: "md"
-			});
 
-			// 推播
-			await client.pushMessage(userId, {
-			  type: 'flex',
-			  altText: '自動健康食譜建議',
-			  contents: dietFlex.contents
-			});  
-		  // 你的既有函式【:contentReference[oaicite:5]{index=5}】
+          // 取得食譜卡並插入 MakeWell 建議
+          const dietFlex = await getDietFlexByType(dietType);
+          dietFlex.contents.body.contents.push({
+            type: "text",
+            text: "MakeWell建議：" + aiResult.split("飲食方向")[0].replace("建議：", "").trim(),
+            wrap: true,
+            size: "sm",
+            color: "#433e7c",
+            margin: "md"
+          });
 
-          // 推播
+          // ✅ 只推播一次
           await client.pushMessage(userId, {
             type: 'flex',
             altText: '自動健康食譜建議',
             contents: dietFlex.contents
           });
 
-          // 標記已推送（沿用你原本的欄位）【:contentReference[oaicite:6]{index=6}】
+          // 標記已推送，避免重複
           await doc.ref.update({
             autoDietPushed: true,
             autoDietPushedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -154,6 +149,7 @@ function startAutoDietPush() {
       });
     });
 }
+
 startAutoDietPush();
 
 // 1. 取得最新健康紀錄
