@@ -94,6 +94,25 @@ app.post('/webhook', line.middleware(config), async (req, res) => {
 });
 // ====== 自動推送：監聽 health_records 新增，產生 AI 建議 + 食譜推播 ======
 
+// 文字版溫馨排版
+function formatWarmAdvice(adviceText = '') {
+  const lines = (adviceText || '')
+    .split('\n')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(s => {
+      if (/^1\)/.test(s)) return s.replace(/^1\)/, '💖 1)'); // 風險與重點
+      if (/^2\)/.test(s)) return s.replace(/^2\)/, '🌿 2)'); // 飲食調整
+      if (/^3\)/.test(s)) return s.replace(/^3\)/, '☀️ 3)'); // 作息運動
+      if (/^4\)/.test(s)) return s.replace(/^4\)/, '🏡 4)'); // 就醫提醒
+      if (/^[\-\•\·\*]/.test(s)) return '• ' + s.replace(/^[\-\•\·\*]\s*/, '');
+      return '• ' + s;
+    });
+
+  let text = `🌸 MakeWell 詳細建議\n${lines.join('\n')}\n\n想看食譜卡片可回覆：飲食推薦`;
+  if (text.length > 1950) text = text.slice(0, 1950) + '…'; // LINE 文字上限保險
+  return text;
+}
 let autoDietWatcherStarted = false;
 function startAutoDietPush() {
   if (autoDietWatcherStarted) return; // 防止重複註冊
@@ -398,7 +417,7 @@ async function handleEvent(event, client) {
 		  const advice = response.choices[0].message.content?.trim()
 			|| '目前無法產生建議，稍後再試看看。';
 
-		  const flex = buildMoreAdviceFlex(advice);
+		  const text = formatWarmAdvice(advice);
 		  return client.replyMessage(event.replyToken, flex);
 		}
 
