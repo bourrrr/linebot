@@ -101,15 +101,15 @@ function formatWarmAdvice(adviceText = '') {
     .map(s => s.trim())
     .filter(Boolean)
     .map(s => {
-      if (/^1\)/.test(s)) return s.replace(/^1\)/, '💖 1)'); // 風險與重點
-      if (/^2\)/.test(s)) return s.replace(/^2\)/, '🌿 2)'); // 飲食調整
-      if (/^3\)/.test(s)) return s.replace(/^3\)/, '☀️ 3)'); // 作息運動
-      if (/^4\)/.test(s)) return s.replace(/^4\)/, '🏡 4)'); // 就醫提醒
+      if (/^1\)/.test(s)) return s.replace(/^1\)/, '💖 '); // 風險與重點
+      if (/^2\)/.test(s)) return s.replace(/^2\)/, '🌿 '); // 飲食調整
+      if (/^3\)/.test(s)) return s.replace(/^3\)/, '☀️ '); // 作息運動
+      if (/^4\)/.test(s)) return s.replace(/^4\)/, '🏡 '); // 就醫提醒
       if (/^[\-\•\·\*]/.test(s)) return '• ' + s.replace(/^[\-\•\·\*]\s*/, '');
       return '• ' + s;
     });
 
-  let text = `🌸 MakeWell 詳細建議\n${lines.join('\n')}\n\n想看食譜卡片可回覆：飲食推薦`;
+  let text = `🌸 MakeWell 詳細建議\n${lines.join('\n')}\n\n想看其他食譜卡片可點擊：飲食推薦`;
   if (text.length > 1950) text = text.slice(0, 1950) + '…'; // LINE 文字上限保險
   return text;
 }
