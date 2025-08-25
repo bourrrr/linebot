@@ -119,13 +119,26 @@ function startAutoDietPush() {
           // 取得食譜卡並插入 MakeWell 建議
           const dietFlex = await getDietFlexByType(dietType);
           dietFlex.contents.body.contents.push({
-            type: "text",
-            text: "MakeWell建議：" + aiResult.split("飲食方向")[0].replace("建議：", "").trim(),
-            wrap: true,
-            size: "sm",
-            color: "#433e7c",
-            margin: "md"
-          }dietFlex.contents.footer.contents.push({
+			  type: "text",
+			  text: "MakeWell建議：" + aiResult.split("飲食方向")[0].replace("建議：", "").trim(),
+			  wrap: true,
+			  size: "sm",
+			  color: "#433e7c",
+			  margin: "md"
+			});
+
+			// 確保有 footer
+			if (!dietFlex.contents.footer) {
+			  dietFlex.contents.footer = {
+				type: "box",
+				layout: "vertical",
+				spacing: "sm",
+				contents: []
+			  };
+			}
+
+			// 加入「更多建議」按鈕
+			dietFlex.contents.footer.contents.push({
 			  type: "button",
 			  style: "primary",
 			  height: "sm",
@@ -134,9 +147,8 @@ function startAutoDietPush() {
 				label: "更多建議",
 				text: "更多建議"
 			  },
-			  color: "#588157"  // 深綠色，符合你原本設計
+			  color: "#588157"
 			});
-		  
 
           // ✅ 只推播一次
           await client.pushMessage(userId, {
