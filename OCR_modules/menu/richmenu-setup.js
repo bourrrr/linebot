@@ -27,10 +27,7 @@ async function setupRichMenus() {
     name: 'MakeWell-健康照護',
     chatBarText: 'MakeWell',
     areas: [
-      {
-        bounds: { x: 0, y: 0, width: 1250, height: 220 },
-        action: { type: 'message', text: '健康照護' }
-      },
+
       {
         bounds: { x: 1250, y: 0, width: 1250, height: 220 },
         action: { type: 'richmenuswitch', richMenuAliasId: 'alias-service', data: 'to-service' }
@@ -61,10 +58,7 @@ async function setupRichMenus() {
         bounds: { x: 0, y: 0, width: 1250, height: 220 },
         action: { type: 'richmenuswitch', richMenuAliasId: 'alias-care', data: 'to-care' }
       },
-      {
-        bounds: { x: 1250, y: 0, width: 1250, height: 220 },
-        action: { type: 'message', text: '社區服務' }
-      },
+
       { bounds: { x: 70, y: 450, width: 525, height: 380 },
         action: { type: 'message', text: '幫助' } },
       { bounds: { x: 654, y: 450, width: 520, height: 380 },
