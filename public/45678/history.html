@@ -222,7 +222,7 @@
   (async () => {
     if (!(await ensureLIFF()) || !liff.isLoggedIn()) { location.href = "login.html"; return; }
     const prof = await liff.getProfile();
-    const uid  = "liff:" + prof.userId;
+    const uid  = "line:" + prof.userId;
 
     try {
       // （可選）確認 users/{uid} 存在

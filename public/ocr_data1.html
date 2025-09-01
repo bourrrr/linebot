@@ -8,7 +8,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700;900&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- ✦ 新增：LIFF SDK（用 LINE userId 過濾） -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     :root{ --mw-green:#588157; --mw-green-light:#659963de; --mw-warm-gray:#dad7cd; --mw-gray:#8e8e8cf2; --mw-cream:#efede9; --mw-ink:#363636; --mw-border:#cfcfc9; }
@@ -33,11 +32,6 @@
     .mw-item{ border:1px solid var(--mw-border); background:linear-gradient(180deg,#ffffff, #fffefb); }
     .mw-date{ background:var(--mw-cream); border:1px solid var(--mw-border); color:var(--mw-ink); }
     .mw-badge{ background:var(--mw-green-light); color:#fff; }
-    .mw-pager .btn{ border:1px solid var(--mw-border); border-radius:12px; padding:.55rem .9rem; font-weight:700; }
-    .mw-pager .prev{ background:#fff; color:#363636; }
-    .mw-pager .prev:hover{ background:var(--mw-cream); }
-    .mw-pager .next{ background:var(--mw-green); color:#fff; }
-    .mw-pager .next:hover{ filter:brightness(.95); }
     .mw-fab{ position: fixed; right: 20px; bottom: 20px; width:64px; height:64px; border-radius:50%;
       background: linear-gradient(135deg, var(--mw-green) 0%, rgba(101,153,99,.9) 100%);
       color:#fff; font-size:2rem; font-weight:900; box-shadow:0 10px 24px rgba(0,0,0,.18); display:flex; align-items:center; justify-content:center; transition:.18s ease; z-index:50;}
@@ -90,15 +84,12 @@
     </section>
   </main>
 
-  <button class="mw-fab" aria-label="新增紀錄" onclick="location.href='ocr_data2.html'">＋</button>
+  <button class="mw-fab" aria-label="新增紀錄"
+        onclick="localStorage.removeItem('edit_data'); location.href='ocr_data2.html'">＋</button>
 
-  <!-- Firebase + 列表程式（快解：前端用 LINE userId 過濾） -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import {
-      getFirestore, collection, getDocs, query, orderBy, where,
-      deleteDoc, doc as docRef
-    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, query, orderBy, where, deleteDoc, doc as docRef } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCCUzxpn1quR9PPSBeZBGG17XVh8vPzjY",
@@ -109,8 +100,7 @@
       appId: "1:860851688843:web:622eb8feccad45ce640b8e",
       measurementId: "G-9FGX9SG7XB"
     };
-
-    const LIFF_ID = "2007877199-xXoPD8mD"; // 與 ocr_data2.html 相同
+    const LIFF_ID = "2007877199-xXoPD8mD";
 
     const app = initializeApp(firebaseConfig);
     const db  = getFirestore(app);
@@ -135,7 +125,6 @@
     }
     function clearSkeleton(){ recordList.innerHTML = ""; }
 
-    // ✦ 取得 LINE userId（若未登入會導回本頁要求登入）
     async function getLineUserId() {
       await liff.init({ liffId: LIFF_ID });
       if (!liff.isLoggedIn()) {
@@ -151,12 +140,11 @@
       }
     }
 
-    // ✦ 只載入自己的資料
     async function loadRecords(lineUserId) {
       records = [];
       const q = query(
         collection(db, "health_records"),
-        where("userId", "==", lineUserId),   // 關鍵：用 LINE userId 過濾
+        where("userId", "==", lineUserId),
         orderBy("timestamp", "desc")
       );
       const snapshot = await getDocs(q);
@@ -220,13 +208,20 @@
           </div>
         `;
 
+        /* ★ 卡片快速預覽（key → value 橫向排） */
+        const kvHtml = Object.entries(showObj || {})
+          .map(([k,v]) => `<span class="mr-4"><strong>${k}</strong>&nbsp;&nbsp;${String(v ?? '')}</span>`)
+          .join('');
+        mid.insertAdjacentHTML('beforeend',
+          `<div class="mt-2 text-sm text-slate-700 line-clamp-2">${kvHtml}</div>`);
+
         item.appendChild(actions);
         item.appendChild(dateBox);
         item.appendChild(mid);
         recordList.appendChild(item);
       });
 
-      // 綁定編輯
+      // 編輯
       document.querySelectorAll('.edit-btn').forEach(btn => {
         btn.onclick = e => {
           e.stopPropagation();
@@ -236,7 +231,7 @@
         };
       });
 
-      // 綁定刪除
+      // 刪除
       document.querySelectorAll('.delete-btn').forEach(btn => {
         btn.onclick = async e => {
           e.stopPropagation();
@@ -257,7 +252,6 @@
       });
     }
 
-    // 分頁
     prevPageBtn.addEventListener("click", () => {
       if (currentPage > 0) { currentPage--; showSkeleton(); renderPage(); }
     });
@@ -265,7 +259,6 @@
       if ((currentPage + 1) * PAGE_SIZE < records.length) { currentPage++; showSkeleton(); renderPage(); }
     });
 
-    // 啟動：先顯示骨架 → 取 LINE userId → 只撈自己的 → 渲染
     showSkeleton();
     try {
       const lineUserId = await getLineUserId();

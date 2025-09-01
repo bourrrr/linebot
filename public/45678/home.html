@@ -65,7 +65,7 @@
           return;
         }
         const profile = await liff.getProfile();
-        const uid = `liff:${profile.userId}`;
+        const uid = `line:${profile.userId}`;
 
         const snap = await getDoc(doc(db, "users", uid));
         if (!snap.exists()) {
@@ -103,16 +103,28 @@
 <body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
   <div class="mx-auto max-w-[1120px]">
     <div class="card rounded-3xl p-8 md:p-12 min-h-[82vh] md:min-h-[86vh] flex flex-col">
-      <div class="flex items-center justify-between gap-6">
+      <!-- 頂部 Header -->
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <!-- 左邊 Logo + 標題 -->
         <div class="flex items-center gap-5">
-          <img src="MakeWell.jpg" alt="MakeWell Logo" class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
+          <img src="MakeWell.jpg" alt="MakeWell Logo"
+              class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
           <div>
-            <h1 class="text-3xl md:text-4xl font-extrabold leading-tight" style="color:var(--primary)">個人健康首頁</h1>
-            <p class="text-base md:text-lg" style="color:var(--muted)">MakeWell 把照護變得更貼心</p>
+            <h1 class="text-3xl md:text-4xl font-extrabold leading-tight" style="color:var(--primary)">
+              個人健康首頁
+            </h1>
+            <p class="text-base md:text-lg" style="color:var(--muted)">
+              MakeWell 把照護變得更貼心
+            </p>
           </div>
         </div>
-        <button id="logoutBtn" class="btn-logout text-sm md:text-base">登出</button>
+
+        <!-- 右邊按鈕（小螢幕換行時會自動掉到下面） -->
+        <div class="mt-4 md:mt-0 md:ml-auto">
+          <button id="logoutBtn" class="btn-logout text-sm md:text-base">登出</button>
+        </div>
       </div>
+
 
       <div class="mt-8 md:mt-10 h-divider"></div>
 

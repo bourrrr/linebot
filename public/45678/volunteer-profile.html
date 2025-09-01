@@ -47,7 +47,7 @@
             <p class="text-sm md:text-base mt-1" style="color:var(--muted)">更新你的聯絡方式與可服務地區。</p>
           </div>
         </div>
-        <a href="volunteer.html" class="btn-ghost text-sm md:text-base">← 回志工中心</a>
+        <a href="volunteer.html" class="self-start md:self-auto text-sm md:text-base font-bold underline" style="color:var(--primary)">← 回志工中心</a>
       </header>
 
       <div class="mt-8 h-divider"></div>
@@ -115,6 +115,19 @@
 
   <!-- 主腳本：LIFF → Firebase Auth（Custom Token）＋ Firestore + Storage -->
   <script type="module">
+    function roleKey(s){
+      const m = String(s||'').trim().toLowerCase();
+      if (m === '患者' || m === 'patient') return 'patient';
+      if (m === '志工' || m === 'volunteer') return 'volunteer';
+      return '';
+    }
+    function getUserRoles(data){
+      const raw = (data && (data.roles ?? data.role)) ?? [];
+      const arr = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+      const set = new Set(arr.map(roleKey).filter(Boolean));
+      return { isPatient: set.has('patient'), isVolunteer: set.has('volunteer') };
+    }
+
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { getAuth, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -123,7 +136,7 @@
     import { cityDistricts } from "./district-data.js";
 
     // ======= 參數（請改成你的 Functions 網址） =======
-    const CUSTOM_TOKEN_URL = "https://<你的雲端函式域名>/getFirebaseCustomToken"; // ← 必改
+    const CUSTOM_TOKEN_URL = "https://asia-east1-medwell-test1.cloudfunctions.net/authApi/getFirebaseCustomToken"; // ← 必改
     const LIFF_ID = "2007877199-Y5R2LenL"; // 你的 LIFF ID
 
     // ======= 初始化 =======
@@ -163,8 +176,8 @@
       try{
         const resp = await fetch(CUSTOM_TOKEN_URL, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ idToken }) });
         const data = await resp.json();
-        if (!resp.ok || !data.token) throw new Error(data.error||"custom token error");
-        const cred = await signInWithCustomToken(auth, data.token);
+        if (!resp.ok || !data.customToken) throw new Error(data.error||"custom token error");
+        const cred = await signInWithCustomToken(auth, data.customToken);
         return cred.user; // uid 會是 liff:<LINE userId>
       }catch(err){
         console.error("[Bridge Error]", err);
@@ -173,43 +186,82 @@
       }
     }
 
-    // ======= 檔案列表 / 上傳 =======
+    // ======= 檔案列表 / 上傳（正規化 liff: -> line:） =======
+    // ★ 只顯示「最新一張」
     async function listPrevFiles(kind){
       const user = auth.currentUser; if (!user) return;
       const container = kind==="police" ? policePrev : licensePrev;
       container.innerHTML = '<p class="subtle">讀取中…</p>';
-      const folder = kind==="police" ? `police_certificates/${user.uid}` : `licenses/${user.uid}`;
+
+      const uid = auth.currentUser?.uid || "";
+      const normalized = uid.replace(/^liff:/, "line:");
+      const folder = kind==="police"
+        ? `police_certificates/${normalized}`
+        : `licenses/${normalized}`;
+
       try{
         const res = await listAll(ref(storage, folder));
-        if (!res.items.length){ container.innerHTML='<p class="subtle">尚無上傳紀錄</p>'; return; }
-        const rows = await Promise.all(res.items.map(async it=>{
-          try{
-            const url = await getDownloadURL(it);
-            const name = it.name;
-            const isImg = /\.(jpe?g|png|webp|gif|bmp)$/i.test(name);
-            const isPdf = /\.pdf$/i.test(name);
-            const thumb = isImg ? `<img class="thumb" src="${url}" alt="${escapeHtml(name)}">`
-                                : `<div class="thumb flex items-center justify-center text-sm subtle">${isPdf?'PDF 檔案':'檔案'}</div>`;
-            return `<div class="file-card">${thumb}<div class="file-name">${escapeHtml(name)}</div><div class="file-actions mt-1"><a href="${url}" target="_blank" rel="noopener">開啟</a><a href="${url}" download>下載</a></div></div>`;
-          }catch{ return `<div class="file-card"><div class="thumb flex items-center justify-center text-sm subtle">無法預覽</div><div class="file-name">${escapeHtml(it.name)}</div></div>`; }
-        }));
-        container.innerHTML = rows.join("");
+        if (!res.items.length){
+          container.innerHTML='<p class="subtle">尚無上傳紀錄</p>';
+          return;
+        }
+
+        // 依檔名中的 timestamp（你上傳時有）挑最新
+        const latest = res.items.slice().sort((a,b)=>{
+          const ax = a.name.match(/(\d{10,13})/);
+          const bx = b.name.match(/(\d{10,13})/);
+          const ta = ax ? Number(ax[1]) : 0;
+          const tb = bx ? Number(bx[1]) : 0;
+          return tb - ta; // 新→舊
+        })[0];
+
+        const url = await getDownloadURL(latest);
+        const name = latest.name;
+        const isImg = /\.(jpe?g|png|webp|gif|bmp)$/i.test(name);
+        const isPdf = /\.pdf$/i.test(name);
+        const thumb = isImg
+          ? `<img class="thumb" src="${url}" alt="${escapeHtml(name)}">`
+          : `<div class="thumb flex items-center justify-center text-sm subtle">${isPdf?'PDF 檔案':'檔案'}</div>`;
+
+        container.innerHTML = `<div class="file-card">
+          ${thumb}
+          <div class="file-name">${escapeHtml(name)}</div>
+          <div class="file-actions mt-1">
+            <a href="${url}" target="_blank" rel="noopener">開啟</a>
+            <a href="${url}" download>下載</a>
+          </div>
+        </div>`;
       }catch(e){
         console.error(e);
         container.innerHTML = '<p class="subtle">讀取失敗，請確認登入與 Storage 規則</p>';
       }
     }
+
     async function uploadIfSelected(kind){
       const user = auth.currentUser; if (!user) throw new Error("未登入");
       const input = document.getElementById(kind==="police" ? "policeFile" : "licenseFile");
       const file = input?.files?.[0]; if (!file) return null;
       const ts = Date.now();
       const safeName = file.name.replace(/\s+/g,"_");
-      const path = kind==="police" ? `police_certificates/${user.uid}/police_${ts}_${safeName}`
-                                   : `licenses/${user.uid}/license_${ts}_${safeName}`;
+
+      const uid = auth.currentUser?.uid || "";
+      const normalized = uid.replace(/^liff:/, "line:");
+      const path = kind==="police"
+        ? `police_certificates/${normalized}/police_${ts}_${safeName}`
+        : `licenses/${normalized}/license_${ts}_${safeName}`;
+
       const snap = await uploadBytes(ref(storage, path), file);
       const url = await getDownloadURL(snap.ref);
       return { name: file.name, path, url, updatedAt: new Date().toISOString() };
+    }
+
+    // ======= users 文件 ID 正規化（避免 line:line:U...）=======
+    function usersDocIdFromAuthUid(uid) {
+      const s = String(uid || "");
+      if (s.startsWith("line:")) return s;
+      if (s.startsWith("liff:")) return "line:" + s.slice(5);
+      if (/^U[0-9A-Za-z]/.test(s)) return "line:" + s;
+      return "line:" + s.replace(/^:+/, "");
     }
 
     // ======= 主流程 =======
@@ -218,35 +270,62 @@
       fillCities();
 
       const user = await signInWithLine();
-      if (!user) return; // 顯示 authWarn 了
+      if (!user) return;
 
-      // users/{uid} 檢查 & 必要時建立
-      userDocRef = doc(db, "users", user.uid);
+      const usersDocId = usersDocIdFromAuthUid(user.uid);
+      userDocRef = doc(db, "users", usersDocId);
+
+      if (usersDocId.startsWith("line:line:")) {
+        const correctId  = usersDocId.replace(/^line:/, "");
+        const wrongRef   = userDocRef;
+        const correctRef = doc(db, "users", correctId);
+        const wrongSnap  = await getDoc(wrongRef);
+        const rightSnap  = await getDoc(correctRef);
+        if (wrongSnap.exists() && !rightSnap.exists()) {
+          await setDoc(correctRef, wrongSnap.data(), { merge: true });
+          console.warn("[FIX] 已將 line:line:… 文件合併到正確的", correctId);
+        }
+        userDocRef = correctRef;
+      }
+
       let snap = await getDoc(userDocRef);
       if (!snap.exists()) {
         await setDoc(userDocRef, { uid: user.uid, role: "志工", createdAt: serverTimestamp() }, { merge: true });
         snap = await getDoc(userDocRef);
       }
 
+      console.log("[DEBUG] 嘗試讀取 Firestore 文件：users/" + userDocRef.id);
+      if (!snap.exists()) {
+        console.warn("[DEBUG] 文件不存在：users/" + userDocRef.id);
+        location.href = 'register-profile.html';
+        return;
+      }
+
       const data = snap.data() || {};
-      const role = String(data.role||"").trim();
-      const isVolunteer = (role === "志工" || role === "volunteer");
-      if (!isVolunteer) { location.href = "home.html"; return; } // 僅志工可進
+      const { isVolunteer, isPatient } = getUserRoles(data);
+      if (!isVolunteer) {
+        if (isPatient) { location.href = "home.html"; return; }
+        location.href = "register-profile.html"; return;
+      }
 
       roleBadge.textContent = "志工";
       roleBadge.classList.remove("hidden");
 
       // 帶值
-      $("name").value           = data.name || "";
+      $("name").value           = data.name || data.displayName || "";
       $("phone").value          = data.phone || "";
       $("emergencyName").value  = data.emergencyName || "";
       $("emergencyPhone").value = data.emergencyPhone || "";
       $("idCard").value         = data.idCard || "";
       $("police").value         = data.police || "";
-      $("hours").value          = (data.hours ?? 0);
+      $("hours").value          = Number(data.hours ?? 0);
 
-      if (data.city) { citySel.value = data.city; fillDistricts(data.city, data.district || ""); }
-      else { fillDistricts("", ""); }
+      if (data.volCity) {
+        citySel.value = data.volCity;
+        fillDistricts(data.volCity, data.volDistrict || "");
+      } else {
+        fillDistricts("", "");
+      }
 
       await Promise.all([listPrevFiles("police"), listPrevFiles("license")]);
     })();
@@ -267,12 +346,13 @@
           idCard: $("idCard").value.trim(),
           police: $("police").value.trim(),
           hours: Number($("hours").value || 0),
-          city: citySel.value || "",
-          district: districtSel.disabled ? "" : (districtSel.value || ""),
+          volCity: citySel.value || "",
+          volDistrict: districtSel.disabled ? "" : (districtSel.value || ""),
           updatedAt: serverTimestamp()
         };
-        if (!updates.city){ saveHint.textContent = "⚠️ 請選擇縣市"; saveBtn.removeAttribute("disabled"); return; }
-        if (!updates.district){ saveHint.textContent = "⚠️ 請選擇行政區"; saveBtn.removeAttribute("disabled"); return; }
+
+        if (!updates.volCity){ saveHint.textContent = "⚠️ 請選擇縣市"; saveBtn.removeAttribute("disabled"); return; }
+        if (!updates.volDistrict){ saveHint.textContent = "⚠️ 請選擇行政區"; saveBtn.removeAttribute("disabled"); return; }
 
         const [policeCert, licenseFile] = await Promise.all([ uploadIfSelected("police"), uploadIfSelected("license") ]);
         if (policeCert)  updates.policeCert  = policeCert;

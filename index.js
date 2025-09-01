@@ -13,6 +13,7 @@ require('dotenv').config();
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
+const { setupRichMenus } = require('./OCR_modules/menu/richmenu-setup');
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
@@ -448,6 +449,22 @@ app.use('/api', ocrRouter);
 app.get('/health', (_, res) => res.send('ok'));
 
 
+
+
+
+
+
+
+
+app.get('/setup-richmenus', async (_req, res) => {
+  try {
+    const result = await setupRichMenus();  // ← 保持這樣沒問題
+    res.json({ ok: true, result });
+  } catch (e) {
+    console.error('❌ Rich Menu 建立失敗:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
 
 
 

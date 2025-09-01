@@ -30,7 +30,7 @@ function persistProfileAndGo(profile){
   localStorage.setItem('MW_LIFF_NAME', profile.displayName || '');
   localStorage.setItem('MW_LIFF_PIC', profile.pictureUrl || '');
   localStorage.setItem('MW_REG_PROVIDER', 'line');
-  localStorage.setItem('MW_REG_UID', `liff:${profile.userId}`);
+  localStorage.setItem('MW_REG_UID', `line:${profile.userId}`);
   if (hint){
     hint.textContent = `已使用 LINE：${profile.displayName || ''}`;
     hint.classList.remove('hidden');

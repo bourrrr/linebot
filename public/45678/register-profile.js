@@ -1,7 +1,8 @@
 // register-profile.js — 使用 LINE (LIFF) + Firebase Custom Token 完成註冊（患者/志工）
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getFirestore, doc, setDoc, serverTimestamp
+  getFirestore, doc, setDoc, serverTimestamp,      // ← 新增 getDoc 以外皆原本就有
+  getDoc                                           // ★ 新增：讀舊資料以合併 roles
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getStorage, ref, uploadBytes, getDownloadURL
@@ -144,14 +145,22 @@ async function ensureFirebaseAuthViaLINE(){
     authWarn?.classList.remove("hidden");
     throw new Error("no-line-idtoken");
   }
+
+  // 只 fetch 一次
   const resp = await fetch(CUSTOM_TOKEN_URL, {
     method: "POST",
-    headers: { "Content-Type":"application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ idToken })
   });
-  const data = await resp.json();
-if (!resp.ok || !data.customToken) throw new Error(data.error || "custom-token-failed");
-const cred = await signInWithCustomToken(auth, data.customToken);
+
+  if (!resp.ok) throw new Error("Custom Token API HTTP " + resp.status);
+
+  const { customToken, error } = await resp.json();
+  if (!customToken) {
+    throw new Error("Custom Token API 失敗：" + (error || "no customToken"));
+  }
+
+  const cred = await signInWithCustomToken(auth, customToken);
   return cred.user;
 }
 
@@ -194,23 +203,30 @@ saveBtn?.addEventListener("click", async () => {
     const uid = user.uid;  // e.g. liff:Uxxxxxxxx
     const provider = "line";
 
-    // 角色
-    const role = roleHidden.value === "志工" ? "志工" : "患者";
+    // 這次註冊所選單一角色（維持你的單選 UI）
+    const currentRole = roleHidden.value === "志工" ? "志工" : "患者";
 
-    // 基本資料
+    // 讀取舊資料 → 合併 roles（支援先患者後志工）
+    const userRef = doc(db, "users", uid);
+    const snap = await getDoc(userRef);
+    const old = snap.exists() ? (snap.data() || {}) : {};
+    const roles = Array.from(new Set([...(old.roles || []), currentRole])); // ← ★關鍵：合併/去重
+
+    // 基本資料（role → roles）
     const base = {
-      uid, provider, role,
+      uid, provider,
+      roles,                                              // ← ★ 改為陣列
       name: nameEl.value.trim(),
       phone: phoneEl.value.trim(),
       emergencyName: enameEl.value.trim(),
       emergencyPhone: ephoneEl.value.trim(),
       updatedAt: serverTimestamp(),
-      createdAt: serverTimestamp()
+      createdAt: old.createdAt || serverTimestamp()       // 保留舊 createdAt
     };
 
     let extra = {};
 
-    if (role === "患者") {
+    if (currentRole === "患者") {
       // 慢性病史
       const chronic = getCheckedValues("chronic");
       const otherChecked = document.querySelector('input[name="chronic"][value="其他"]')?.checked;
@@ -221,13 +237,14 @@ saveBtn?.addEventListener("click", async () => {
         alert("請完整填寫居住地址（縣市、行政區、詳細地址）。");
         uiBusy(false); return;
       }
-      extra = {
-        disability: disabilityEl.value || "",
-        chronic,
-        city: cityEl.value || "",
-        district: districtEl.value || "",
-        road: (roadEl.value || "").trim()
-      };
+		extra = {
+		  disability: disabilityEl.value || "",
+		  chronic,
+		  patientCity: cityEl.value || "",
+		  patientDistrict: districtEl.value || "",
+		  patientRoad: (roadEl.value || "").trim()
+		};
+
     } else {
       // 志工必填檢查
       if (!notEmpty(policeEl.value)) { alert("請輸入良民證編號"); uiBusy(false); return; }
@@ -241,20 +258,20 @@ saveBtn?.addEventListener("click", async () => {
       const licenseFile = await uploadIfSelected(`licenses/${uid}`,             licenseFileEl);
       const volCert     = (hasCertEl.value === "有") ? await uploadIfSelected(`volunteer_certificates/${uid}`, certFileEl) : null;
 
-      extra = {
-        idCard: idCardEl.value.trim(),
-        hasCertificate: hasCertEl.value || "",
-        police: policeEl.value.trim(),
-        city: volCityEl.value || "",
-        district: volDistrictEl.value || "",
-        policeCert, licenseFile,
-        volunteerCertificate: volCert
-      };
+		  extra = {
+	  idCard: idCardEl.value.trim(),
+	  hasCertificate: hasCertEl.value || "",
+	  police: policeEl.value.trim(),
+	  volCity: volCityEl.value || "",
+	  volDistrict: volDistrictEl.value || "",
+	  policeCert, licenseFile,
+	  volunteerCertificate: volCert
+};
     }
-
-    // 寫入 Firestore
+	console.log("DEBUG roles =", roles);
+    // 寫入 Firestore（合併）
     saveTip.textContent = "寫入基本資料…";
-    await setDoc(doc(db, "users", uid), { ...base, ...extra }, { merge: true });
+    await setDoc(userRef, { ...base, ...extra }, { merge: true });
 
     alert("✅ 註冊完成！現在可以回登入頁使用帳號了。");
     location.href = "login.html";

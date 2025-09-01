@@ -37,12 +37,13 @@
         <div class="flex items-center gap-4">
           <img src="MakeWell.jpg" alt="MakeWell Logo" class="w-12 h-12 md:w-14 md:h-14 object-contain rounded-xl border border-[var(--border)] bg-white">
           <div>
-            <h1 class="text-2xl md:text-3xl font-extrabold leading-tight" style="color:var(--primary)">個人資訊</h1>
-            <p class="text-sm md:text-base hint">更新你的聯絡方式與偏好資料（患者）</p>
+            <h1>📝 個人資訊</h1>
+            <p>更新你的聯絡方式與偏好資料（患者）</p>
           </div>
         </div>
-        <a href="home.html" class="text-sm md:text-base underline underline-offset-4" style="color:var(--primary)">← 回首頁</a>
+        <a href="home.html" class="self-start md:self-auto ...">← 回首頁</a>
       </header>
+
 
       <div class="mt-6 flex items-center gap-3">
         <span id="roleBadge" class="badge">患者</span>
@@ -120,6 +121,19 @@
 
   <!-- 主程式（LIFF + Firestore） -->
   <script type="module">
+	  function roleKey(s){
+	  const m = String(s||'').trim().toLowerCase();
+	  if (m === '患者' || m === 'patient') return 'patient';
+	  if (m === '志工' || m === 'volunteer') return 'volunteer';
+	  return '';
+	}
+	function getUserRoles(data){
+	  const raw = (data && (data.roles ?? data.role)) ?? [];
+	  const arr = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+	  const set = new Set(arr.map(roleKey).filter(Boolean));
+	  return { isPatient: set.has('patient'), isVolunteer: set.has('volunteer') };
+	}
+
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { firebaseConfig } from './firebase-config.js';
@@ -228,19 +242,20 @@
 
       if (!(await ensureLIFF()) || !liff.isLoggedIn()) { location.href = 'login.html'; return; }
       const p = await liff.getProfile();
-      const uid = `liff:${p.userId}`;
+      const uid = `line:${p.userId}`;
 
       userDocRef = doc(db, 'users', uid);
       const snap = await getDoc(userDocRef);
+	  
       if (!snap.exists()) { location.href = 'register-profile.html'; return; }
-
+		
       const data = snap.data() || {};
-      const roleRaw = String(data.role || '').trim();
-      const isVolunteer = (roleRaw === '志工' || roleRaw === 'volunteer');
-      const isPatient   = (roleRaw === '患者' || roleRaw === 'patient' || (!isVolunteer && roleRaw !== ''));
+	  const { isPatient, isVolunteer } = getUserRoles(data);
+	  if (!isPatient) {                   // 不是患者？
+	  if (isVolunteer) { location.href = "volunteer.html"; return; }
+	  location.href = "register-profile.html"; return;
+	  }
 
-      // 僅允許患者
-      if (!isPatient) { location.href = 'volunteer.html'; return; }
 
       roleBadge.textContent = '患者';
       roleBadge.classList.remove('hidden');
@@ -253,9 +268,12 @@
 
       setChronicArray(Array.isArray(data.chronic) ? data.chronic : (data.chronic ? String(data.chronic).split(',') : []));
 
-      const city = data.city || '';
-      const district = data.district || '';
-      const road = data.road || '';
+      const city = data.patientCity || '';
+	  const district = data.patientDistrict || '';
+	  const road = data.patientRoad || '';
+	  if (city){ citySel.value = city; fillDistricts(city, district); } else { fillDistricts('', ''); }
+	  roadInput.value = road;
+
       if (city){ citySel.value = city; fillDistricts(city, district); } else { fillDistricts('', ''); }
       roadInput.value = road;
     })();
@@ -284,9 +302,10 @@
         if (!district){ saveHint.textContent = '⚠️ 請選擇行政區'; saveBtn.removeAttribute('disabled'); return; }
         if (!road){ saveHint.textContent = '⚠️ 請輸入詳細地址'; saveBtn.removeAttribute('disabled'); return; }
 
-        updates.city = city;
-        updates.district = district;
-        updates.road = road;
+		updates.patientCity = city;
+		updates.patientDistrict = district;
+		updates.patientRoad = road;
+
 
         await updateDoc(userDocRef, updates);
         saveHint.textContent = '✅ 資料已更新！';

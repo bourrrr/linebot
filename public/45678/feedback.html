@@ -193,7 +193,7 @@
       try{
         if (!(await ensureLIFF()) || !liff.isLoggedIn()) { location.href='login.html'; return; }
         const p = await liff.getProfile();
-        const uid = `liff:${p.userId}`;
+        const uid = `line:${p.userId}`;
 
         await addDoc(collection(db, 'feedbacks'), {
           userId: uid, rating, comment, createdAt: Timestamp.now()

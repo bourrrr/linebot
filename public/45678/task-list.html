@@ -2,120 +2,168 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>任務回報記錄 - MakeWell</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>任務待接區 - MakeWell</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root{ --bg:#efede9; --bg-2:#dad7cd; --text:#363636; --muted:#6e746e; --primary:#588157; --primary-weak:#659963de; --surface:#ffffff; --chip:#f4f3ef; --border:#e7e5dc; }
+    :root{
+      --bg:#efede9; --bg-2:#dad7cd;
+      --text:#363636; --muted:#6e746e;
+      --primary:#588157; --primary-weak:#659963de;
+      --surface:#ffffff; --chip:#f4f3ef; --border:#e7e5dc;
+    }
     body{ background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%); color:var(--text); }
     .card{ background:var(--surface); border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,.06); }
-    .btn-ghost{ border:1px solid var(--border); background:#fff; border-radius:9999px; padding:.6rem .9rem; font-weight:800; transition:.15s transform,.15s filter; }
-    .btn-ghost:hover{ transform:translateY(-1px); filter:brightness(.98); }
     .h-divider{ height:1px; width:100%; background:linear-gradient(to right, transparent, var(--border), transparent); }
-    .badge{ display:inline-flex; align-items:center; gap:6px; padding:.3rem .6rem; border-radius:999px; font-weight:800; font-size:.8rem; background:rgba(88,129,87,.08); border:1px solid rgba(88,129,87,.25); color:var(--primary); }
-    .pill{ padding:.45rem .9rem; border-radius:9999px; font-weight:800; border:1px solid var(--border); background:#fff; }
-    .pill.active{ background:var(--primary); color:#fff; border-color:transparent; box-shadow:0 4px 12px rgba(88,129,87,.25); }
-  </style>
+    .btn-ghost{
+      border:1px solid var(--border); background:#fff; border-radius:9999px;
+      padding:.6rem .9rem; font-weight:800; transition:.15s transform,.15s filter;
+    }
+    .btn-ghost:hover{ transform:translateY(-1px); filter:brightness(.98); }
+    .filter{ background:var(--chip); border:1px solid var(--border); }
+    .select, .input{
+      width:100%; border:1px solid var(--border); background:#fff; border-radius:12px;
+      padding:.55rem .7rem; font-size:15px; outline:none;
+    }
+    .select:focus, .input:focus{ box-shadow:0 0 0 3px rgba(101,153,99,.25); }
 
-  <!-- LIFF SDK -->
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    /* Chips */
+    .chip {
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:.44rem .8rem; border-radius:9999px;
+      border:1px solid var(--border); background:#fff; cursor:pointer;
+      font-weight:700; user-select:none; transition:.15s transform,.15s background,.15s border-color;
+    }
+    .chip[aria-pressed="true"]{
+      background:var(--primary-weak); border-color:var(--primary);
+    }
+    .chip:disabled{ opacity:.5; cursor:not-allowed; }
+    .chips-wrap{ display:flex; flex-wrap:wrap; gap:.5rem; }
+  </style>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <!-- Firebase Auth 守門（未登入導回 login） -->
+  <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { firebaseConfig } from './firebase-config.js';
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+  const LIFF_ID = "2007877199-Y5R2LenL";
+
+  (async () => {
+    try {
+      await liff.init({ liffId: LIFF_ID });
+
+      if (!liff.isLoggedIn()) {
+        return liff.login({ redirectUri: location.href });
+      }
+
+      const p = await liff.getProfile().catch(e => {
+        console.error('[MY-TASKS.html] getProfile error:', e);
+        return null;
+      });
+      if (!p) return liff.login({ redirectUri: location.href });
+
+      const uid = `line:${p.userId}`;
+      const snap = await getDoc(doc(db, "users", uid));
+      if (!snap.exists()) {
+        // 沒註冊才導註冊頁，避免誤導去 login
+        location.href = "register-profile.html";
+        return;
+      }
+
+      const raw = snap.data()?.roles;
+      const rolesArr = Array.isArray(raw) ? raw : [];
+      const roles = rolesArr.map(r => String(r).trim().toLowerCase());
+      const isVolunteer = roles.includes('志工') || roles.includes('volunteer');
+
+      console.log('[MY-TASKS.html] uid=', uid);
+      console.log('[MY-TASKS.html] roles=', raw, ' -> ', roles);
+
+      if (!isVolunteer) {
+        location.href = "home.html";
+        return;
+      }
+    } catch (e) {
+      console.error('[MY-TASKS.html] fatal error:', e);
+      // 任何異常也改成走 LIFF 登入，而不是跳 login.html
+      liff.login({ redirectUri: location.href });
+    }
+  })();
+</script>
+
 </head>
 <body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
   <div class="mx-auto max-w-[1120px]">
+    <!-- 主卡片（與 home 一致的高度與留白） -->
     <div class="card rounded-3xl p-8 md:p-12 min-h-[82vh] md:min-h-[86vh] flex flex-col">
-      <div class="flex items-center justify-between gap-6">
+      <!-- Header -->
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <!-- 左邊 Logo + 標題 -->
         <div class="flex items-center gap-5">
-          <img src="MakeWell.jpg" alt="MakeWell Logo" class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
+          <img src="MakeWell.jpg" alt="MakeWell Logo"
+              class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
           <div>
-            <h1 class="text-3xl md:text-4xl font-extrabold leading-tight">📸 任務回報記錄</h1>
-            <p class="text-base md:text-lg" style="color:var(--muted)">查看你已完成的「領藥／陪診」回報與照片（可依任務時間篩選）。</p>
+            <h1 class="text-3xl md:text-4xl font-extrabold leading-tight">📋 任務待接區</h1>
+            <p class="text-base md:text-lg" style="color:var(--muted)">
+              依地區篩選可協助的「領藥／陪診」請求，挑選合適任務。
+            </p>
           </div>
         </div>
-        <a href="volunteer.html" class="btn-ghost text-sm md:text-base">← 回志工中心</a>
+
+        <!-- 右邊按鈕（小螢幕會掉到下一行靠右） -->
+        <div class="mt-3 md:mt-0 md:ml-auto">
+          <a href="volunteer.html"
+            class="text-sm md:text-base font-bold underline"
+            style="color:var(--primary)">
+            ← 回志工中心
+          </a>
+        </div>
       </div>
+
 
       <div class="mt-8 md:mt-10 h-divider"></div>
 
-      <section class="mt-8 flex items-center flex-wrap gap-3 md:gap-4">
-        <span class="text-sm md:text-base font-bold">日期：</span>
-        <button id="dateAll" class="pill active">全部</button>
-        <button id="date7"  class="pill">最近 7 天</button>
-        <button id="date30" class="pill">最近 30 天</button>
+      <!-- 篩選列 -->
+      <section class="mt-8 filter rounded-2xl p-4 md:p-5">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:items-start">
+          <div>
+            <label for="citySelect" class="block text-sm font-bold mb-1">縣市</label>
+            <select id="citySelect" class="select">
+              <option value="">全部縣市</option>
+            </select>
+          </div>
+          <div class="md:col-span-2">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-sm font-bold">行政區</span>
+              <button id="toggleAllDistricts" class="btn-ghost text-xs md:text-sm">全選/全不選</button>
+            </div>
+            <!-- 改為點選式複選 chips -->
+            <div id="districtChips" class="chips-wrap" aria-label="行政區複選" role="group"></div>
+            <p id="districtHint" class="text-xs mt-2" style="color:var(--muted)">
+              先選縣市後即可選擇行政區；可多選。
+            </p>
+          </div>
+          <div class="md:col-span-3 flex md:justify-end">
+            <button id="resetFilters" class="btn-ghost w-full md:w-auto">取消</button>
+          </div>
+        </div>
       </section>
 
-      <main class="mt-6 md:mt-8 flex-1">
-        <div id="historyContainer" class="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6"></div>
-        <p id="emptyState" class="hidden text-center text-sm md:text-base mt-8" style="color:var(--muted)">
-          沒有符合日期篩選的回報記錄。
+      <!-- 清單：手機 1 欄、桌面 2 欄 -->
+      <main class="mt-8 md:mt-10 flex-1">
+        <div id="taskContainer" class="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+          <!-- 由 task-list.js 動態插入任務卡片 -->
+        </div>
+        <p id="emptyState" class="text-center text-sm md:text-base mt-8 hidden" style="color:var(--muted)">
+          目前沒有符合條件的任務。
         </p>
       </main>
     </div>
   </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { firebaseConfig } from './firebase-config.js';
-
-    const app = initializeApp(firebaseConfig);
-    const db  = getFirestore(app);
-    const LIFF_ID = "2007877199-Y5R2LenL";
-
-    const container = document.getElementById("historyContainer");
-    const emptyEl   = document.getElementById("emptyState");
-    const pills = { all: dateAll, d7: date7, d30: date30 };
-    let currentFilter = 'all';
-    let allRows = [];
-
-    const safe = (v)=> (v==null ? "" : String(v));
-    function getTs(t){ try{ if(!t) return NaN; if(typeof t==='number') return t; if(typeof t==='string'){ const ms=Date.parse(t); return isNaN(ms)?NaN:ms; } if(t.seconds) return t.seconds*1000+Math.floor((t.nanoseconds||0)/1e6); if(t.toDate) return t.toDate().getTime(); return NaN; }catch{ return NaN; } }
-    const fmtTime = (t)=>{ const ms=getTs(t); return isNaN(ms)?'—':new Date(ms).toLocaleString(); };
-
-    function buildCard(d){
-      const wrap=document.createElement('div'); wrap.className='rounded-2xl border border-[var(--border)] bg-white p-4 sm:p-5 shadow-sm space-y-2';
-      const addr = `${safe(d.city)}${safe(d.district)}${safe(d.road)}` || '—';
-      const type = safe(d.type) || '—';
-      wrap.innerHTML = `
-        <div class="flex items-center justify-between gap-3">
-          <h2 class="text-lg font-extrabold">📍 ${addr}</h2>
-          <span class="badge">${type}</span>
-        </div>
-        <div class="text-[15px]">🏥 醫院／藥局：${safe(d.hospital)||'未提供'}</div>
-        ${d.accompany ? `<div class="text-[15px]">🙋‍♀️ 陪同進診間：${safe(d.accompany)}</div>` : ''}
-        <div class="text-[15px]">🕒 任務時間：${fmtTime(d.time)}</div>
-        <div class="text-[15px]">📝 備註：${safe(d.note)||'無'}</div>
-        ${d.photoURL ? `<div class="mt-2"><img src="${safe(d.photoURL)}" alt="回報照片" class="w-full max-w-xs rounded-lg border border-[var(--border)] object-contain" /></div>` : `<div class="text-sm" style="color:var(--muted)">（無回報照片）</div>`}
-        <div class="text-xs mt-1" style="color:var(--muted)">完成時間：${fmtTime(d.updatedAt || d.completedAt)}</div>`;
-      return wrap;
-    }
-    function renderList(rows){ container.innerHTML=''; if(!rows.length){ emptyEl.classList.remove('hidden'); return; } emptyEl.classList.add('hidden'); rows.forEach(d=>container.appendChild(buildCard(d))); }
-    function applyDateFilter(){
-      if(currentFilter==='all'){ renderList(allRows); return; }
-      const days = currentFilter==='d7' ? 7 : 30;
-      const cutoff = Date.now() - days*24*60*60*1000;
-      renderList(allRows.filter(r => { const base=getTs(r.time); return !isNaN(base) && base>=cutoff; }));
-    }
-    function setPill(k){ currentFilter=k; dateAll.classList.toggle('active',k==='all'); date7.classList.toggle('active',k==='d7'); date30.classList.toggle('active',k==='d30'); applyDateFilter(); }
-    dateAll.onclick = ()=>setPill('all'); date7.onclick = ()=>setPill('d7'); date30.onclick = ()=>setPill('d30');
-
-    async function ensureLIFF(){ try{ await liff.init({ liffId: LIFF_ID }); return true; }catch(e){ console.error(e); alert('LIFF 初始化失敗'); return false; } }
-
-    (async () => {
-      if (!(await ensureLIFF()) || !liff.isLoggedIn()) { location.href="login.html"; return; }
-      const p = await liff.getProfile();
-      const uid = `liff:${p.userId}`;
-
-      const me = await getDoc(doc(db,"users",uid));
-      if (!me.exists()) { location.href="register-profile.html"; return; }
-      const role = (me.data().role||'').trim();
-      if (!(role==='志工' || role==='volunteer')) { location.href="home.html"; return; }
-
-      const q = query(collection(db,"requests"), where("volunteerId","==",uid), where("status","==","completed"));
-      const snap = await getDocs(q);
-      allRows = []; snap.forEach(d => allRows.push(d.data()));
-      allRows.sort((a,b)=> (getTs(b.time) - getTs(a.time)));
-      applyDateFilter();
-    })();
-  </script>
+  <!-- 你的原本邏輯（已改為 chips） -->
+  <script type="module" src="task-list.js"></script>
 </body>
 </html>

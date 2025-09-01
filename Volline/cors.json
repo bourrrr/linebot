@@ -1,3 +1,4 @@
+
 [
   {
     "origin": [
@@ -16,11 +17,5 @@
     "maxAgeSeconds": 3600
   }
 ]
-[
-  {
-    "origin": ["https://medwell-test1.web.app"],
-    "method": ["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS"],
-    "maxAgeSeconds": 3600,
-    "responseHeader": ["Content-Type", "Authorization"]
-  }
-]
+
+

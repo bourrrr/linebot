@@ -69,6 +69,7 @@
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
   <script type="module">
+  console.log("[DEBUG] login.html 腳本載入");
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { firebaseConfig } from "./firebase-config.js";
@@ -162,17 +163,27 @@
       const profile = await liff.getProfile();
       const idToken = liff.getIDToken();
       const liffUid = profile.userId || "";
-      const uid = `liff:${liffUid}`;
+      const uid = `line:${liffUid}`;
 
       // 檢查是否完成註冊
-      const snap = await getDoc(doc(db, "users", uid));
-      if (!snap.exists()) {
-        alert("尚未註冊，請先完成基本資料。");
-        document.getElementById('guardMsg').classList.remove('hidden');
-        window.location.href = "register-profile.html";
-        return;
-      }
+      // 檢查是否完成註冊
+		const snap = await getDoc(doc(db, "users", uid));
 
+		// ★ 這裡加 Debug Log
+		console.log("[DEBUG] 嘗試讀取 Firestore 文件 users/" + uid);
+		console.log("[DEBUG] snap.exists =", snap.exists());
+		if (snap.exists()) {
+		  console.log("[DEBUG] 文件內容 =", snap.data());
+		}
+
+		if (!snap.exists()) {
+		  alert("尚未註冊，請先完成基本資料。");
+		  document.getElementById('guardMsg').classList.remove('hidden');
+		  window.location.href = "register-profile.html";
+		  return;
+		}
+
+	
       // 快取可選
       localStorage.setItem('MW_LIFF_UID', liffUid);
       localStorage.setItem('MW_LIFF_NAME', profile.displayName || '');
@@ -181,24 +192,29 @@
 
       // 角色判斷：優先使用「使用者在頁面上選的角色」，但要確保該角色在 DB 的 roles 內
       const data = snap.data() || {};
-      const { isPatient, isVolunteer } = getUserRoles(data);
+	  console.log("[DEBUG] roles 欄位 =", data.roles);
+	  const { isPatient, isVolunteer } = getUserRoles(data);
+	  console.log("[DEBUG] 判斷結果 =", { isPatient, isVolunteer });
       const chosen = document.getElementById('role').value; // '患者' 或 '志工'
       const chosenKey = roleKey(chosen);
 
-      if (chosenKey === 'volunteer' && isVolunteer) {
-        window.location.href = "volunteer.html";
-      } else if (chosenKey === 'patient' && isPatient) {
-        window.location.href = "home.html";
-      } else if (isVolunteer) {
-        // 使用者選了無權限的角色 → 退回他有的角色
-        window.location.href = "volunteer.html";
-      } else if (isPatient) {
-        window.location.href = "home.html";
-      } else {
-        // 有 users 文件但沒有任何角色 → 補資料或導回註冊
-        alert("尚未完成身分設定，請先完成基本資料。");
-        window.location.href = "register-profile.html";
-      }
+		if (chosenKey === 'volunteer' && isVolunteer) {
+		  console.log("[DEBUG] 導向 volunteer.html（選志工且有志工）");
+		  location.href = "volunteer.html";
+		} else if (chosenKey === 'patient' && isPatient) {
+		  console.log("[DEBUG] 導向 home.html（選患者且有患者）");
+		  location.href = "home.html";
+		} else if (isVolunteer) {
+		  console.log("[DEBUG] 導向 volunteer.html（未選或無權限，但有志工）");
+		  location.href = "volunteer.html";
+		} else if (isPatient) {
+		  console.log("[DEBUG] 導向 home.html（未選或無權限，但有患者）");
+		  location.href = "home.html";
+		} else {
+		  console.log("[DEBUG] 沒有任何角色 → 導註冊");
+		  alert("尚未完成身分設定，請先完成基本資料。");
+		  location.href = "register-profile.html";
+		}
     }catch(e){
       console.error(e);
       alert('登入流程發生錯誤，請再試一次。');

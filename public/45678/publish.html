@@ -247,7 +247,7 @@
 
       if (!(await ensureLIFF()) || !liff.isLoggedIn()) { alert('請先用 LINE 登入'); location.href='login.html'; return; }
       const p = await liff.getProfile();
-      const uid = `liff:${p.userId}`;
+      const uid = `line:${p.userId}`;
 
       const type = typeSelect.value;
       const city = citySelect.value;
