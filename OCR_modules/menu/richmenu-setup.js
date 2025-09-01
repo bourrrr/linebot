@@ -30,7 +30,7 @@ async function setupRichMenus() {
 
       {
         bounds: { x: 1250, y: 0, width: 1250, height: 220 },
-        action: { type: 'richmenuswitch', richMenuAliasId: 'alias-service', data: 'to-service' }
+        action: { type: 'richmenuswitch', richMenualias-care-v2Id: 'alias-care-v2-service', data: 'to-service' }
       },
       { bounds: { x: 1069, y: 450, width: 680, height: 450 },
         action: { type: 'message', text: '藥局地圖' } },
@@ -45,7 +45,7 @@ async function setupRichMenus() {
     careRichMenu,
     fs.createReadStream('./OCR_modules/menu/assets/richmenu-care.png')
   );
-  await client.createRichMenuAlias(careRichMenu, 'alias-care');
+  await client.createRichMenualias-care-v2(careRichMenu, 'alias-care-v2-care');
 
   // ====== B.健康照護 分頁 ======
   const serviceRichMenu = await client.createRichMenu({
@@ -56,7 +56,7 @@ async function setupRichMenus() {
     areas: [
       {
         bounds: { x: 0, y: 0, width: 1250, height: 220 },
-        action: { type: 'richmenuswitch', richMenuAliasId: 'alias-care', data: 'to-care' }
+        action: { type: 'richmenuswitch', richMenualias-care-v2Id: 'alias-care-v2-care', data: 'to-care' }
       },
 
       { bounds: { x: 71, y: 440, width: 640, height: 450 },
@@ -74,7 +74,7 @@ async function setupRichMenus() {
     serviceRichMenu,
     fs.createReadStream('./OCR_modules/menu/assets/richmenu-service.png')
   );
-  await client.createRichMenuAlias(serviceRichMenu, 'alias-service');
+  await client.createRichMenualias-care-v2(serviceRichMenu, 'alias-care-v2-service');
 
   await client.setDefaultRichMenu(careRichMenu);
 
