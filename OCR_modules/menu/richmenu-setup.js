@@ -49,7 +49,11 @@ async function setupRichMenus() {
     careRichMenu,
     fs.createReadStream('./OCR_modules/menu/assets/richmenu-care.png')
   );
-  await client.createRichMenualias-care-v2(careRichMenu, 'alias-care-v2-care');
+  await client.createRichMenuAlias({
+  richMenuAliasId: 'alias-care-v2-care',
+  richMenuId: careRichMenu
+  });
+
 
   // ====== B.健康照護 分頁 ======
   const serviceRichMenu = await client.createRichMenu({
@@ -82,7 +86,10 @@ async function setupRichMenus() {
     serviceRichMenu,
     fs.createReadStream('./OCR_modules/menu/assets/richmenu-service.png')
   );
-  await client.createRichMenualias-care-v2(serviceRichMenu, 'alias-care-v2-service');
+await client.createRichMenuAlias({
+  richMenuAliasId: 'alias-care-v2-service',
+  richMenuId: serviceRichMenu
+});
 
   await client.setDefaultRichMenu(careRichMenu);
 
