@@ -27,10 +27,14 @@ async function setupRichMenus() {
     name: 'MakeWell-社區服務',
     chatBarText: 'MakeWell',
     areas: [
-
+		{
+        bounds: { x: 1250, y: 0, width: 1250, height: 220 },
+       action: {type: 'postback', data: ''}
+      },
       {
         bounds: { x: 1250, y: 0, width: 1250, height: 220 },
-        action: { type: 'richmenuswitch', richMenualias-care-v2Id: 'alias-care-v2-service', data: 'to-service' }
+        action: { type: 'richmenuswitch', richMenuAliasId: 'alias-care-v2-service', data: 'to-service' }
+
       },
       { bounds: { x: 1069, y: 450, width: 680, height: 450 },
         action: { type: 'message', text: '藥局地圖' } },
@@ -54,9 +58,13 @@ async function setupRichMenus() {
     name: 'MakeWell-健康照護',
     chatBarText: 'MakeWell',
     areas: [
+	{
+        bounds: { x: 0, y: 0, width: 1250, height: 220 },
+        action: {type: 'postback', data: ''}
+     },
       {
         bounds: { x: 0, y: 0, width: 1250, height: 220 },
-        action: { type: 'richmenuswitch', richMenualias-care-v2Id: 'alias-care-v2-care', data: 'to-care' }
+        action: { type: 'richmenuswitch', richMenuAliasId: 'alias-care-v2-care', data: 'to-care' }
       },
 
       { bounds: { x: 71, y: 440, width: 640, height: 450 },
