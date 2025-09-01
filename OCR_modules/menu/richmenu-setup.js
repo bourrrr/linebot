@@ -22,7 +22,10 @@ async function setupRichMenus() {
 
   // ====== A. 社區服務 分頁 ======
   const careRichMenu = await client.createRichMenu({
- 
+	size,
+    selected: false,
+    name: 'MakeWell-社區服務',
+    chatBarText: 'MakeWell',
     areas: [
 
       {
@@ -46,7 +49,10 @@ async function setupRichMenus() {
 
   // ====== B.健康照護 分頁 ======
   const serviceRichMenu = await client.createRichMenu({
-
+	size,
+    selected: false,
+    name: 'MakeWell-健康照護',
+    chatBarText: 'MakeWell',
     areas: [
       {
         bounds: { x: 0, y: 0, width: 1250, height: 220 },
