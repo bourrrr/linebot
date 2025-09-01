@@ -22,10 +22,7 @@ async function setupRichMenus() {
 
   // ====== A. 健康照護 分頁 ======
   const careRichMenu = await client.createRichMenu({
-    size,
-    selected: true,
-    name: 'MakeWell-健康照護',
-    chatBarText: 'MakeWell',
+ 
     areas: [
 
       {
@@ -35,9 +32,9 @@ async function setupRichMenus() {
       { bounds: { x: 1340, y: 260, width: 520, height: 380 },
         action: { type: 'message', text: '藥局地圖' } },
       { bounds: { x: 1900, y: 260, width: 520, height: 380 },
-        action: { type: 'message', text: '志工配對' } },
+        action: { type: 'message', text: '飲食推薦' } },
       { bounds: { x: 80, y: 1200, width: 1200, height: 480 },
-        action: { type: 'message', text: '飲食推薦' } }
+        action: { type: 'message', text: '志工配對' } }
     ]
   });
 
@@ -49,10 +46,7 @@ async function setupRichMenus() {
 
   // ====== B. 社區服務 分頁 ======
   const serviceRichMenu = await client.createRichMenu({
-    size,
-    selected: false,
-    name: 'MakeWell-社區服務',
-    chatBarText: 'MakeWell',
+
     areas: [
       {
         bounds: { x: 0, y: 0, width: 1250, height: 220 },
