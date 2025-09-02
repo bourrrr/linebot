@@ -31,19 +31,23 @@
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
-  <div class="mx-auto max-w-[1080px]">
-    <div class="card rounded-3xl p-6 md:p-10">
-      <header class="flex items-center justify-between gap-4">
-        <div class="flex items-center gap-4">
-          <img src="MakeWell.jpg" alt="MakeWell Logo" class="w-12 h-12 md:w-14 md:h-14 object-contain rounded-xl border border-[var(--border)] bg-white">
+  <div class="mx-auto max-w-[1120px]">
+    <div class="card rounded-3xl p-8 md:p-12 min-h-[82vh] md:min-h-[86vh] flex flex-col">
+      <!-- Header -->
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <!-- 左邊 Logo + 標題 -->
+        <div class="flex items-center gap-5">
+          <img src="MakeWell.jpg" alt="MakeWell Logo"
+              class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
           <div>
-            <h1>📝 個人資訊</h1>
-            <p>更新你的聯絡方式與偏好資料（患者）</p>
+            <h1 class="text-3xl md:text-4xl font-extrabold leading-tight">📝 個人資訊</h1>
+            <p class="text-base md:text-lg" style="color:var(--muted)">
+              更新你的聯絡方式與偏好資料（患者）
+            </p>
           </div>
         </div>
         <a href="home.html" class="self-start md:self-auto ...">← 回首頁</a>
       </header>
-
 
       <div class="mt-6 flex items-center gap-3">
         <span id="roleBadge" class="badge">患者</span>
@@ -91,6 +95,24 @@
             </div>
           </div>
 
+          <!-- 身心障礙程度（新增） -->
+          <div>
+            <div class="flex items-center gap-3">
+              <span class="text-xl font-bold">身心障礙程度</span>
+              <span class="hint text-sm">（選填）</span>
+            </div>
+            <div class="mt-4">
+              <label for="disability" class="label">程度</label>
+              <select id="disability" class="input">
+                <option value="">請選擇</option>
+                <option value="無">無</option>
+                <option value="輕度">輕度</option>
+                <option value="中度">中度</option>
+                <option value="重度">重度</option>
+              </select>
+            </div>
+          </div>
+
           <div>
             <div class="flex items-center gap-3">
               <span class="text-xl font-bold">聯絡地址</span>
@@ -121,18 +143,18 @@
 
   <!-- 主程式（LIFF + Firestore） -->
   <script type="module">
-	  function roleKey(s){
-	  const m = String(s||'').trim().toLowerCase();
-	  if (m === '患者' || m === 'patient') return 'patient';
-	  if (m === '志工' || m === 'volunteer') return 'volunteer';
-	  return '';
-	}
-	function getUserRoles(data){
-	  const raw = (data && (data.roles ?? data.role)) ?? [];
-	  const arr = Array.isArray(raw) ? raw : (raw ? [raw] : []);
-	  const set = new Set(arr.map(roleKey).filter(Boolean));
-	  return { isPatient: set.has('patient'), isVolunteer: set.has('volunteer') };
-	}
+    function roleKey(s){
+      const m = String(s||'').trim().toLowerCase();
+      if (m === '患者' || m === 'patient') return 'patient';
+      if (m === '志工' || m === 'volunteer') return 'volunteer';
+      return '';
+    }
+    function getUserRoles(data){
+      const raw = (data && (data.roles ?? data.role)) ?? [];
+      const arr = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+      const set = new Set(arr.map(roleKey).filter(Boolean));
+      return { isPatient: set.has('patient'), isVolunteer: set.has('volunteer') };
+    }
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -150,9 +172,10 @@
     const saveBtn        = el('saveBtn');
     const saveHint       = el('saveHint');
 
-    const citySel    = /** @type {HTMLSelectElement} */(el('city'));
-    const districtSel= /** @type {HTMLSelectElement} */(el('district'));
-    const roadInput  = /** @type {HTMLInputElement} */(el('road'));
+    const citySel     = /** @type {HTMLSelectElement} */(el('city'));
+    const districtSel = /** @type {HTMLSelectElement} */(el('district'));
+    const roadInput   = /** @type {HTMLInputElement} */(el('road'));
+    const disabilitySel = /** @type {HTMLSelectElement} */(el('disability')); // ← 新增：身心障礙程度欄位
 
     // ===== 慢性病史 Tag =====
     const CHRONIC_OPTIONS = [
@@ -246,16 +269,15 @@
 
       userDocRef = doc(db, 'users', uid);
       const snap = await getDoc(userDocRef);
-	  
-      if (!snap.exists()) { location.href = 'register-profile.html'; return; }
-		
-      const data = snap.data() || {};
-	  const { isPatient, isVolunteer } = getUserRoles(data);
-	  if (!isPatient) {                   // 不是患者？
-	  if (isVolunteer) { location.href = "volunteer.html"; return; }
-	  location.href = "register-profile.html"; return;
-	  }
 
+      if (!snap.exists()) { location.href = 'register-profile.html'; return; }
+
+      const data = snap.data() || {};
+      const { isPatient, isVolunteer } = getUserRoles(data);
+      if (!isPatient) {                   // 不是患者？
+        if (isVolunteer) { location.href = "volunteer.html"; return; }
+        location.href = "register-profile.html"; return;
+      }
 
       roleBadge.textContent = '患者';
       roleBadge.classList.remove('hidden');
@@ -267,12 +289,13 @@
       el('emergencyPhone').value = data.emergencyPhone || '';
 
       setChronicArray(Array.isArray(data.chronic) ? data.chronic : (data.chronic ? String(data.chronic).split(',') : []));
+      disabilitySel.value = data.disability || ''; // ← 新增：帶入身心障礙程度
 
       const city = data.patientCity || '';
-	  const district = data.patientDistrict || '';
-	  const road = data.patientRoad || '';
-	  if (city){ citySel.value = city; fillDistricts(city, district); } else { fillDistricts('', ''); }
-	  roadInput.value = road;
+      const district = data.patientDistrict || '';
+      const road = data.patientRoad || '';
+      if (city){ citySel.value = city; fillDistricts(city, district); } else { fillDistricts('', ''); }
+      roadInput.value = road;
 
       if (city){ citySel.value = city; fillDistricts(city, district); } else { fillDistricts('', ''); }
       roadInput.value = road;
@@ -291,7 +314,8 @@
           phone: el('phone').value.trim(),
           emergencyName: el('emergencyName').value.trim(),
           emergencyPhone: el('emergencyPhone').value.trim(),
-          chronic: getChronicArray()
+          chronic: getChronicArray(),
+          disability: disabilitySel.value || '' // ← 新增：儲存身心障礙程度
         };
 
         const city = citySel.value || '';
@@ -299,13 +323,12 @@
         const road = roadInput.value.trim();
 
         if (!city){ saveHint.textContent = '⚠️ 請選擇縣市'; saveBtn.removeAttribute('disabled'); return; }
-        if (!district){ saveHint.textContent = '⚠️ 請選擇行政區'; saveBtn.removeAttribute('disabled'); return; }
+        if (!district){ saveHint.text內容 = '⚠️ 請選擇行政區'; saveBtn.removeAttribute('disabled'); return; }
         if (!road){ saveHint.textContent = '⚠️ 請輸入詳細地址'; saveBtn.removeAttribute('disabled'); return; }
 
-		updates.patientCity = city;
-		updates.patientDistrict = district;
-		updates.patientRoad = road;
-
+        updates.patientCity = city;
+        updates.patientDistrict = district;
+        updates.patientRoad = road;
 
         await updateDoc(userDocRef, updates);
         saveHint.textContent = '✅ 資料已更新！';

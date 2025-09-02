@@ -66,7 +66,7 @@ async function rebuildRichMenus() {
         {
           // 右半邊可點：切到社區服務
           bounds: { x: 1250, y: 0, width: 1250, height: 220 },
-          action: { type: 'postback', data: 'switch=service' }
+          action: { type: 'postback', data: 'switch=care' }
         },
         { bounds: { x: 71, y: 440, width: 640, height: 450 },
           action: { type: 'message', text: '功能說明' } },

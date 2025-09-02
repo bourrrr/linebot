@@ -113,6 +113,13 @@
     <!-- 志工欄位 -->
     <div id="volunteerFields" class="mt-4 space-y-3 hidden">
       <input id="idCard" class="input w-full rounded-xl px-3 py-3" placeholder="身分證號"/>
+      
+      <!-- ✅ 新增：志工時數（選填） -->
+      <div>
+        <div class="text-sm font-semibold mb-1">志工時數（選填）</div>
+        <input id="hours" type="number" min="0" step="1" class="input w-full rounded-xl px-3 py-3" placeholder="例如：100"/>
+      </div>
+
       <div>
         <div class="text-sm font-semibold mb-1">是否有志工專業執照</div>
         <select id="hasCert" class="input w-full rounded-xl px-3 py-3">
@@ -196,6 +203,5 @@
       }
     });
   </script>
- 
 </body>
 </html>

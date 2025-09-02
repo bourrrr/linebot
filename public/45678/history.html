@@ -22,17 +22,22 @@
     .dot{ width:.6rem; height:.6rem; border-radius:999px; background:var(--primary); opacity:.75; }
   </style>
 </head>
-<body class="min-h-screen p-4 flex items-center justify-center">
-  <div class="w-full max-w-4xl card rounded-3xl overflow-hidden">
-    <!-- Header -->
-    <div class="p-6 sm:p-8 border-b border-[var(--border)]">
-      <div class="flex flex-col gap-4 sm:gap-3">
-        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+<body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
+  <div class="mx-auto max-w-[1120px]">
+    <div class="card rounded-3xl p-8 md:p-12 min-h-[82vh] md:min-h-[86vh] flex flex-col">
+      <!-- Header -->
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <!-- 左邊 Logo + 標題 -->
+        <div class="flex items-center gap-5">
+          <img src="MakeWell.jpg" alt="MakeWell Logo"
+              class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
           <div>
-            <h1 class="text-3xl sm:text-4xl font-extrabold leading-tight">📜 歷史紀錄</h1>
-            <p class="text-[15px] sm:text-[16px] mt-1" style="color:var(--muted)">查看你已發布的協助請求，依「領藥／陪診」快速篩選。</p>
+            <h1 class="text-3xl md:text-4xl font-extrabold leading-tight">📜 歷史紀錄</h1>
+            <p class="text-base md:text-lg" style="color:var(--muted)">
+              查看你已發布的協助請求，依「領藥／陪診」快速篩選。
+            </p>
           </div>
-
+        </div>
           <div class="flex items-center gap-3 w-full sm:w-auto">
             <a href="home.html" class="btn-link underline whitespace-nowrap">← 回首頁</a>
             <!-- 篩選下拉 -->

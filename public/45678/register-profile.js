@@ -56,6 +56,7 @@ const policeFileEl    = $("policeFile");
 const licenseFileEl   = $("licenseFile");
 const volCityEl       = $("volCity");
 const volDistrictEl   = $("volDistrict");
+const hoursEl         = $("hours");  
 
 // 區塊
 const patientFields   = $("patientFields");
@@ -259,14 +260,15 @@ saveBtn?.addEventListener("click", async () => {
       const volCert     = (hasCertEl.value === "有") ? await uploadIfSelected(`volunteer_certificates/${uid}`, certFileEl) : null;
 
 		  extra = {
-	  idCard: idCardEl.value.trim(),
-	  hasCertificate: hasCertEl.value || "",
-	  police: policeEl.value.trim(),
-	  volCity: volCityEl.value || "",
-	  volDistrict: volDistrictEl.value || "",
-	  policeCert, licenseFile,
-	  volunteerCertificate: volCert
-};
+          idCard: idCardEl.value.trim(),
+          hasCertificate: hasCertEl.value || "",
+          police: policeEl.value.trim(),
+          volCity: volCityEl.value || "",
+          volDistrict: volDistrictEl.value || "",
+          hours: Number(hoursEl?.value || 0),
+          policeCert, licenseFile,
+          volunteerCertificate: volCert
+      };
     }
 	console.log("DEBUG roles =", roles);
     // 寫入 Firestore（合併）

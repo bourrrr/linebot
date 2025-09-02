@@ -1,14 +1,15 @@
 // my-tasks.js
 // 功能重點：
-// 1) 導航優先：點「導航」不會再誤觸上傳（stopPropagation / stopImmediatePropagation）
-// 2) 目的地雙保險：優先 lat,lng；否則使用 city+district+road 或 hospital
-// 3) 上傳回報：卡片內單筆上傳 &「快速上傳回報」都可用，完成後寫回 Firestore
-// 4) 列表即時：監聽 requests，依 volunteerId 過濾，前端分流進行中/已完成
-// 5) 欄位兼容：roles 陣列/字串/物件皆可；status 以 'completed' 判定已完成
+// 1) 導航優先（避免誤觸上傳）
+// 2) 目的地雙保險：lat,lng → city+district+road / hospital
+// 3) 上傳回報：單筆上傳 & 快速上傳
+// 4) 列表即時：監聽 requests，依 volunteerId 過濾
+// 5) 新增：取消配對（選擇原因→確認→回退到 pending、清 volunteerId、紀錄取消資訊）
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getFirestore, doc, getDoc, updateDoc, collection, query, where, onSnapshot, orderBy
+  getFirestore, doc, getDoc, updateDoc, collection, query, where, onSnapshot, orderBy,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject
@@ -21,11 +22,32 @@ const db  = getFirestore(app);
 const st  = getStorage(app);
 const LIFF_ID = "2007877199-Y5R2LenL";
 
-// ===== 小工具 =====
+// ===== 小工具與 DOM =====
 const $ = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 const container = document.getElementById("myTaskContainer");
 const emptyHint = document.getElementById("emptyStateHint");
+
+// 取消配對 modal 元件
+const cancelModal = document.getElementById("cancelModal");
+const cancelReasonSel = document.getElementById("cancelReason");
+const cancelNoteEl = document.getElementById("cancelNote");
+const cancelBackBtn = document.getElementById("cancelCancelBtn");
+const cancelConfirmBtn = document.getElementById("confirmCancelBtn");
+let pendingCancelTaskId = null;
+
+function openCancelModal(taskId){
+  pendingCancelTaskId = taskId;
+  cancelReasonSel.value = "";
+  cancelNoteEl.value = "";
+  cancelModal.classList.add("show");
+}
+function closeCancelModal(){
+  pendingCancelTaskId = null;
+  cancelModal.classList.remove("show");
+}
+cancelBackBtn?.addEventListener("click", closeCancelModal);
+cancelModal?.addEventListener("click", (e)=>{ if(e.target===cancelModal) closeCancelModal(); });
 
 const safe = (v)=> (v==null ? "" : String(v));
 function getTs(t){
@@ -47,35 +69,28 @@ function composeAddress(d){
   return a || '';
 }
 function computeStatus(d){
-  // UI 顯示用途：completed → 'done'，其餘視為 'active'
   return (String(d.status||'').toLowerCase()==='completed') ? 'done' : 'active';
 }
 
-// ===== 導航（優先，防冒泡） =====
+// ===== 導航 =====
 function tryOpenMapsFrom(btn){
   const lat = parseFloat(btn.dataset.lat);
   const lng = parseFloat(btn.dataset.lng);
   const q   = (btn.dataset.q || "").trim();
 
-  // 1) 優先經緯度
   if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
     const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
-    console.log('[NAV] open by latlng:', { lat, lng, url });
     if (window.liff && liff.isInClient()) liff.openWindow({ url, external: true });
     else window.open(url, "_blank", "noopener");
     return true;
   }
-  // 2) 再用文字地址 / 醫院關鍵字
   if (q) {
     const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(q)}&travelmode=driving`;
-    console.log('[NAV] open by query:', { q, url });
     if (window.liff && liff.isInClient()) liff.openWindow({ url, external: true });
     else window.open(url, "_blank", "noopener");
     return true;
   }
-  // 3) 都沒有 → 提醒
-  console.warn('[NAV] no destination found on button:', btn);
-  alert("這筆任務缺少可導航的資訊（經緯度或地址/醫院）。請確認任務的 city/district/road 或 hospital 欄位。");
+  alert("這筆任務缺少可導航的資訊（經緯度或地址/醫院）。");
   return false;
 }
 
@@ -94,7 +109,6 @@ function renderTaskCard(docSnap){
   const uiStatus = computeStatus(data);
   card.dataset.status = uiStatus;
 
-  // 經緯度欄位候選：請依你的實際欄位補充
   const lat = typeof data.lat==='number' ? data.lat
             : typeof data.meetLat==='number' ? data.meetLat
             : (data.meet && typeof data.meet.lat==='number' ? data.meet.lat : null);
@@ -134,9 +148,16 @@ function renderTaskCard(docSnap){
     <div class="mt-2 space-y-2">
       <input type="file" accept="image/*" class="hidden" data-id="${taskId}" />
       <progress max="100" value="0" class="hidden w-full h-2 bg-gray-200 rounded" data-id="${taskId}"></progress>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
         <button type="button" class="choose-photo bg-gray-100 px-3 py-1 rounded border" data-id="${taskId}">選擇照片</button>
         <button type="button" class="upload-btn bg-green-600 text-white px-3 py-1 rounded" data-id="${taskId}">上傳回報照片</button>
+
+        ${uiStatus==='active' ? `
+          <button type="button" class="cancel-match px-3 py-1 rounded-full border font-bold"
+                  style="background:#fff;color:#b42318;border:1px solid #f3c2bf;"
+                  data-id="${taskId}">
+            取消配對
+          </button>` : ``}
       </div>
     </div>
 
@@ -183,7 +204,7 @@ async function guardAndLoad(){
   }
   if (!isVolunteer) { location.href = "home.html"; return; }
 
-  // 監聽我的任務（以 volunteerId 過濾，排序時間）
+  // 監聽我的任務
   if (unsub) unsub();
   const q1 = query(
     collection(db, "requests"),
@@ -251,35 +272,30 @@ async function uploadSingle(taskId, file){
 
 async function attachPhotoURL(taskId, url){
   const ref = doc(db, "requests", taskId);
-  // 這裡簡單策略：存最後一次上傳為 photoURL；若你想存陣列，可改成 arrayUnion
   await updateDoc(ref, {
     photoURL: url,
-    updatedAt: Date.now()
+    updatedAt: serverTimestamp()
   });
 }
 
 async function deletePhoto(taskId, url){
   try{
-    // 刪 Storage
     const ref = storageRef(st, url);
-    // 若 url 是 gs:// 或 http(s) 完整網址，deleteObject 也可以處理
-    await deleteObject(ref).catch(()=>{}); // 有些第三方網址無法刪，忽略錯誤
-
-    // 清 Firestore 欄位
+    await deleteObject(ref).catch(()=>{});
     const docRef = doc(db, "requests", taskId);
-    await updateDoc(docRef, { photoURL: "", updatedAt: Date.now() });
+    await updateDoc(docRef, { photoURL: "", updatedAt: serverTimestamp() });
   }catch(e){
     console.error("[deletePhoto] error:", e);
     alert("刪除失敗，請稍後重試");
   }
 }
 
-// ===== 事件代理（導航優先） =====
+// ===== 事件代理（導航、上傳、取消） =====
 container.addEventListener("click", async (e) => {
   const btn = e.target.closest("button");
   if (!btn) return;
 
-  // ✅ 導航優先，並阻止事件往下（避免觸發上傳等）
+  // 導航：優先 & 阻止冒泡
   if (btn.classList.contains("nav-meet") || btn.classList.contains("nav-hospital")) {
     e.preventDefault();
     e.stopPropagation();
@@ -288,7 +304,7 @@ container.addEventListener("click", async (e) => {
     return;
   }
 
-  // 選擇照片（打開 file input）
+  // 選擇照片
   if (btn.classList.contains("choose-photo")) {
     const taskId = btn.dataset.id || btn.getAttribute("data-id");
     const input = container.querySelector(`input[type="file"][data-id="${taskId}"]`);
@@ -296,7 +312,7 @@ container.addEventListener("click", async (e) => {
     return;
   }
 
-  // 上傳回報照片（用剛剛選的檔案）
+  // 上傳回報照片
   if (btn.classList.contains("upload-btn")) {
     const taskId = btn.dataset.id || btn.getAttribute("data-id");
     const input  = container.querySelector(`input[type="file"][data-id="${taskId}"]`);
@@ -308,7 +324,7 @@ container.addEventListener("click", async (e) => {
       const file = input.files[0];
       const url  = await uploadSingle(taskId, file);
       await attachPhotoURL(taskId, url);
-      input.value = ""; // 清空
+      input.value = "";
       alert("上傳完成！");
     }catch(e){
       console.error("[upload-btn] error:", e);
@@ -326,12 +342,50 @@ container.addEventListener("click", async (e) => {
     await deletePhoto(taskId, url);
     return;
   }
+
+  // ★ 取消配對（開啟 modal）
+  if (btn.classList.contains("cancel-match")) {
+    const taskId = btn.dataset.id || btn.getAttribute("data-id");
+    if (!taskId) return;
+    openCancelModal(taskId);
+    return;
+  }
 });
 
-// ===== 快速上傳回報（由 my-tasks.html 的小腳本呼叫） =====
+// 確認取消配對
+cancelConfirmBtn?.addEventListener("click", async () => {
+  if (!pendingCancelTaskId) return;
+  const reason = (cancelReasonSel?.value || "").trim();
+  const note   = (cancelNoteEl?.value || "").trim();
+
+  if (!reason) { alert("請先選擇取消原因"); return; }
+  if (!confirm("確認要取消這筆配對嗎？")) return;
+
+  try{
+    // 將任務回退到待接任務
+    const tRef = doc(db, "requests", pendingCancelTaskId);
+    await updateDoc(tRef, {
+      status: "pending",
+      volunteerId: "",
+      canceledBy: currentUID,
+      canceledByRole: "volunteer",
+      cancelReason: reason,
+      cancelNote: note,
+      canceledAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    closeCancelModal();
+    alert("已取消配對，此任務已回到待接清單。");
+    // 監聽器會自動把這張卡從「我的任務」移除（因為 volunteerId 已清空）
+  }catch(err){
+    console.error("[cancel-match] error:", err);
+    alert("取消失敗，請稍後再試");
+  }
+});
+
+// ===== 快速上傳回報（由 my-tasks.html 呼叫） =====
 window.handleQuickReportUpload = async (taskId, files) => {
   if (!taskId || !files || !files.length) throw new Error("缺少任務或檔案");
-  // 這裡示範：以第一張為主（若要多張可改成依序上傳並存陣列）
   const first = files[0];
   const url = await uploadSingle(taskId, first);
   await attachPhotoURL(taskId, url);

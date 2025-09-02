@@ -45,6 +45,10 @@
           <div>
             <h1 class="text-3xl md:text-4xl font-extrabold leading-tight">志工個人資訊</h1>
             <p class="text-sm md:text-base mt-1" style="color:var(--muted)">更新你的聯絡方式與可服務地區。</p>
+            <div class="flex gap-2 mt-2">
+              <span id="roleBadge" class="badge hidden">志工</span>
+              <span id="certBadge" class="badge hidden">已登錄志工證照</span>
+            </div>
           </div>
         </div>
         <a href="volunteer.html" class="self-start md:self-auto text-sm md:text-base font-bold underline" style="color:var(--primary)">← 回志工中心</a>
@@ -57,7 +61,7 @@
         <div id="authWarn" class="banner p-3 rounded-lg text-sm hidden">⚠️ 尚未完成登入，請回<a href="login.html" class="underline font-semibold">登入頁</a>使用 LINE 登入。</div>
 
         <section class="mt-4">
-          <h2 class="section-title text-xl"><span class="dot"></span> 基本資料 <span id="roleBadge" class="badge hidden">志工</span></h2>
+          <h2 class="section-title text-xl"><span class="dot"></span> 基本資料</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
             <div class="field"><label for="name" class="label">姓名</label><input id="name" class="input" placeholder="王志工"></div>
             <div class="field"><label for="phone" class="label">手機號碼</label><input id="phone" class="input" inputmode="tel" placeholder="0912-345-678"></div>
@@ -100,6 +104,48 @@
                   <button id="refreshLicenseList" type="button" class="text-sm underline" style="color:var(--primary)">重新整理</button>
                 </div>
                 <div id="licensePrev" class="preview-grid mt-2"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 志工證照（新增） -->
+        <section class="mt-10">
+          <h2 class="section-title text-xl"><span class="dot"></span> 志工證照</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
+            <div class="field">
+              <label for="hasVolunteerCert" class="label">是否有志工證照</label>
+              <select id="hasVolunteerCert" class="select">
+                <option value="" selected>請選擇</option>
+                <option value="yes">是</option>
+                <option value="no">否</option>
+              </select>
+              <p class="subtle mt-1">若選「是」，可填寫種類/編號或上傳證照檔案。</p>
+            </div>
+            <div class="field">
+              <label for="volCertType" class="label">證照種類（選填）</label>
+              <input id="volCertType" class="input" placeholder="例如：醫療志工、社工師、照管員">
+            </div>
+            <div class="field">
+              <label for="volCertId" class="label">證照編號（選填）</label>
+              <input id="volCertId" class="input" placeholder="例如：V-2025-XXXX">
+            </div>
+            <div class="field">
+              <label for="volCertExpire" class="label">證照到期日（選填）</label>
+              <input id="volCertExpire" type="date" class="input">
+            </div>
+
+            <!-- 志工證照檔案 -->
+            <div class="field md:col-span-2">
+              <label for="volCertFile" class="label">志工證照檔案（PDF / 圖片）</label>
+              <input id="volCertFile" type="file" accept=".pdf,image/*" class="input">
+              <p id="volCertFileHint" class="subtle mt-1">支援 .pdf, .jpg, .png, .webp…（僅顯示最新一張）</p>
+              <div class="mt-3">
+                <div class="flex items-center justify-between">
+                  <strong>之前上傳的志工證照</strong>
+                  <button id="refreshVCertList" type="button" class="text-sm underline" style="color:var(--primary)">重新整理</button>
+                </div>
+                <div id="vCertPrev" class="preview-grid mt-2"></div>
               </div>
             </div>
           </div>
@@ -148,14 +194,18 @@
     // ======= DOM =======
     const $ = (id) => document.getElementById(id);
     const roleBadge = $("roleBadge");
+    const certBadge = $("certBadge");
     const saveBtn = $("saveBtn");
     const saveHint = $("saveHint");
     const citySel = $("city");
     const districtSel = $("district");
     const policePrev = $("policePrev");
     const licensePrev = $("licensePrev");
+    const vCertPrev = $("vCertPrev");
+
     $("refreshPoliceList")?.addEventListener("click", () => listPrevFiles("police"));
     $("refreshLicenseList")?.addEventListener("click", () => listPrevFiles("license"));
+    $("refreshVCertList")?.addEventListener("click", () => listPrevFiles("vcert"));
 
     // ======= 工具 =======
     function escapeHtml(s){ return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
@@ -190,14 +240,18 @@
     // ★ 只顯示「最新一張」
     async function listPrevFiles(kind){
       const user = auth.currentUser; if (!user) return;
-      const container = kind==="police" ? policePrev : licensePrev;
+      const container =
+        kind==="police" ? policePrev :
+        kind==="license" ? licensePrev : vCertPrev;
+
       container.innerHTML = '<p class="subtle">讀取中…</p>';
 
       const uid = auth.currentUser?.uid || "";
       const normalized = uid.replace(/^liff:/, "line:");
-      const folder = kind==="police"
-        ? `police_certificates/${normalized}`
-        : `licenses/${normalized}`;
+      const folder =
+        kind==="police"  ? `police_certificates/${normalized}` :
+        kind==="license" ? `licenses/${normalized}` :
+                           `volunteer_certificates/${normalized}`;
 
       try{
         const res = await listAll(ref(storage, folder));
@@ -206,7 +260,6 @@
           return;
         }
 
-        // 依檔名中的 timestamp（你上傳時有）挑最新
         const latest = res.items.slice().sort((a,b)=>{
           const ax = a.name.match(/(\d{10,13})/);
           const bx = b.name.match(/(\d{10,13})/);
@@ -239,16 +292,18 @@
 
     async function uploadIfSelected(kind){
       const user = auth.currentUser; if (!user) throw new Error("未登入");
-      const input = document.getElementById(kind==="police" ? "policeFile" : "licenseFile");
+      const inputId = kind==="police" ? "policeFile" : (kind==="license" ? "licenseFile" : "volCertFile");
+      const input = document.getElementById(inputId);
       const file = input?.files?.[0]; if (!file) return null;
       const ts = Date.now();
       const safeName = file.name.replace(/\s+/g,"_");
 
       const uid = auth.currentUser?.uid || "";
       const normalized = uid.replace(/^liff:/, "line:");
-      const path = kind==="police"
-        ? `police_certificates/${normalized}/police_${ts}_${safeName}`
-        : `licenses/${normalized}/license_${ts}_${safeName}`;
+      const path =
+        kind==="police"  ? `police_certificates/${normalized}/police_${ts}_${safeName}` :
+        kind==="license" ? `licenses/${normalized}/license_${ts}_${safeName}` :
+                           `volunteer_certificates/${normalized}/volcert_${ts}_${safeName}`;
 
       const snap = await uploadBytes(ref(storage, path), file);
       const url = await getDownloadURL(snap.ref);
@@ -275,6 +330,7 @@
       const usersDocId = usersDocIdFromAuthUid(user.uid);
       userDocRef = doc(db, "users", usersDocId);
 
+      // 修正 line:line: 情況
       if (usersDocId.startsWith("line:line:")) {
         const correctId  = usersDocId.replace(/^line:/, "");
         const wrongRef   = userDocRef;
@@ -294,9 +350,7 @@
         snap = await getDoc(userDocRef);
       }
 
-      console.log("[DEBUG] 嘗試讀取 Firestore 文件：users/" + userDocRef.id);
       if (!snap.exists()) {
-        console.warn("[DEBUG] 文件不存在：users/" + userDocRef.id);
         location.href = 'register-profile.html';
         return;
       }
@@ -311,7 +365,7 @@
       roleBadge.textContent = "志工";
       roleBadge.classList.remove("hidden");
 
-      // 帶值
+      // —— 帶值（基本 + 志工）——
       $("name").value           = data.name || data.displayName || "";
       $("phone").value          = data.phone || "";
       $("emergencyName").value  = data.emergencyName || "";
@@ -320,14 +374,22 @@
       $("police").value         = data.police || "";
       $("hours").value          = Number(data.hours ?? 0);
 
-      if (data.volCity) {
-        citySel.value = data.volCity;
-        fillDistricts(data.volCity, data.volDistrict || "");
-      } else {
-        fillDistricts("", "");
-      }
+      if (data.volCity) { citySel.value = data.volCity; fillDistricts(data.volCity, data.volDistrict || ""); }
+      else { fillDistricts("", ""); }
 
-      await Promise.all([listPrevFiles("police"), listPrevFiles("license")]);
+      // —— 帶值（志工證照）——
+      const hasCertRaw = (data.hasVolunteerCert ?? data.volunteerCert ?? data.volCert ?? "");
+      const hasYes = (typeof hasCertRaw === "boolean")
+        ? hasCertRaw
+        : /^(1|true|yes|有)$/i.test(String(hasCertRaw));
+      $("hasVolunteerCert").value = hasYes ? "yes" : (hasCertRaw === "" ? "" : "no");
+      $("volCertType").value   = data.volunteerCertType || data.volCertType || "";
+      $("volCertId").value     = data.volunteerCertId || data.volCertId || "";
+      const exp = data.volunteerCertExpire || data.volCertExpire || "";
+      if (exp) { $("volCertExpire").value = String(exp).slice(0,10); }
+      if (hasYes) { certBadge.classList.remove("hidden"); }
+
+      await Promise.all([listPrevFiles("police"), listPrevFiles("license"), listPrevFiles("vcert")]);
     })();
 
     // ======= 儲存 =======
@@ -348,20 +410,35 @@
           hours: Number($("hours").value || 0),
           volCity: citySel.value || "",
           volDistrict: districtSel.disabled ? "" : (districtSel.value || ""),
+          // 志工證照欄位
+          hasVolunteerCert: $("hasVolunteerCert").value === "yes",
+          volunteerCertType: $("volCertType").value.trim(),
+          volunteerCertId: $("volCertId").value.trim(),
+          volunteerCertExpire: $("volCertExpire").value || "",
           updatedAt: serverTimestamp()
         };
 
         if (!updates.volCity){ saveHint.textContent = "⚠️ 請選擇縣市"; saveBtn.removeAttribute("disabled"); return; }
         if (!updates.volDistrict){ saveHint.textContent = "⚠️ 請選擇行政區"; saveBtn.removeAttribute("disabled"); return; }
 
-        const [policeCert, licenseFile] = await Promise.all([ uploadIfSelected("police"), uploadIfSelected("license") ]);
+        const [policeCert, licenseFile, vCertFile] = await Promise.all([
+          uploadIfSelected("police"),
+          uploadIfSelected("license"),
+          uploadIfSelected("vcert")
+        ]);
         if (policeCert)  updates.policeCert  = policeCert;
         if (licenseFile) updates.licenseFile = licenseFile;
+        if (vCertFile)   updates.volunteerCertFile = vCertFile;
 
         await setDoc(userDocRef, updates, { merge: true });
 
         if (policeCert)  { await listPrevFiles("police");  $("policeFile").value="";  $("policeFileHint").textContent  = `已更新：${policeCert.name}`; }
         if (licenseFile) { await listPrevFiles("license"); $("licenseFile").value=""; $("licenseFileHint").textContent = `已更新：${licenseFile.name}`; }
+        if (vCertFile)   { await listPrevFiles("vcert");   $("volCertFile").value=""; $("volCertFileHint").textContent = `已更新：${vCertFile.name}`; }
+
+        // 更新徽章
+        if ($("hasVolunteerCert").value === "yes") { certBadge.classList.remove("hidden"); }
+        else { certBadge.classList.add("hidden"); }
 
         saveHint.textContent = "✅ 資料已更新！";
         setTimeout(()=> saveHint.textContent = "", 1800);
