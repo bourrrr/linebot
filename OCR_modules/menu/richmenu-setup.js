@@ -48,7 +48,7 @@ async function rebuildRichMenus() {
         { 
           // Top bar：用訊息觸發切換
           bounds: { x: 1250, y: 0, width: 1250, height: 220 },
-          action: { type: 'message', text: '切換到社區服務' }
+          action: { type: 'message', text: '切換到健康照護' }
         },
         { 
           bounds: { x: 1069, y: 450, width: 680, height: 450 }, 
@@ -88,7 +88,7 @@ async function rebuildRichMenus() {
         {
           // Top bar：用訊息觸發切換
           bounds: { x: 0, y: 0, width: 1250, height: 220 },
-          action: { type: 'message', text: '切換到健康照護' }
+          action: { type: 'message', text: '切換到社區服務' }
         },
         { 
           bounds: { x: 71, y: 440, width: 640, height: 450 }, 
