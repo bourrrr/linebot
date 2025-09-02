@@ -329,13 +329,27 @@ if (event.type === 'postback') {
   }
 
   // ② 開啟功能（需要用「文字流程」啟動的三個）
+// === Postback 統一處理（完整覆蓋原本的 postback 區塊）===
+if (event.type === 'postback') {
+  const data = event.postback?.data || '';
+  console.log('[postback]', data);
+
+  // ① Rich Menu 切換
+  if (data.startsWith('switch=')) {
+    const menuType = data.split('=')[1]; // 'care' | 'service'
+    try { await switchRichMenu(event.source.userId, menuType); }
+    catch (e) { console.error('切換 Rich Menu 失敗:', e); }
+    return;
+  }
+
+  // ② 開啟功能：三個走文字流程
   if (data.startsWith('help=launch')) {
     const q = new URLSearchParams(data);
     const key = q.get('key') || '';
 
     if (key === 'reminder') {
       try {
-        const flex = buildTimeMenuFlex();           // 用藥提醒 → 時段選單
+        const flex = buildTimeMenuFlex();          // 用藥提醒 → 時段選單卡
         await client.replyMessage(event.replyToken, flex);
       } catch (e) {
         console.error('reminder launch error:', e);
@@ -344,7 +358,7 @@ if (event.type === 'postback') {
       return;
     }
     if (key === 'pairing') {
-      await client.replyMessage(event.replyToken, loginFlex());   // 志工配對 → 登入/配對卡
+      await client.replyMessage(event.replyToken, loginFlex());   // 志工配對 → 起始卡
       return;
     }
     if (key === 'diet') {
@@ -352,25 +366,26 @@ if (event.type === 'postback') {
       return;
     }
 
-    // 其餘（藥局地圖/健康數據/圖鑑）若沒設定 URI，就提示
+    // 其它（藥局地圖/健康數據/圖鑑）若沒設 URI 就提示
     await client.replyMessage(event.replyToken, { type: 'text', text: `「${key}」尚未設定開啟方式` });
     return;
   }
 
-  // ③ 先讓提醒 / 簽到系統嘗試處理
+  // ③ 先交給 flex-help（包含：help=open&key=pharmacy、help=menu）
+  const handledByHelp = await flexHelp.handleHelpPostback(client, event);
+  if (handledByHelp) return;
+
+  // ④ 其它 Postback（提醒/簽到等）
   const handledByReminder = await handleReminderPostback(event, db, client);
   if (handledByReminder) return;
 
   const handledByCheckin = await handleCheckin(event, db, client);
   if (handledByCheckin) return;
 
-  // ④ 最後交給 flex-help（包含：help=open&key=pharmacy、help=menu）
-  const handledByHelp = await flexHelp.handleHelpPostback(client, event);
-  if (handledByHelp) return;
-
   console.warn('未處理的 postback:', data);
   return;
 }
+
 
 
     // 2) 再處理文字訊息（請不要在這裡再判斷 postback）
