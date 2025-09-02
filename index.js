@@ -13,7 +13,6 @@ require('dotenv').config();
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
-const { setupRichMenus } = require('./OCR_modules/menu/richmenu-setup');
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
@@ -456,15 +455,34 @@ app.get('/health', (_, res) => res.send('ok'));
 
 
 
-app.get('/setup-richmenus', async (_req, res) => {
+
+const { rebuildRichMenus, updateRichMenuImage } = require('./OCR_modules/menu/richmenu-setup');
+
+// ✅ 完整重建
+app.get('/rebuild-richmenus', async (_req, res) => {
   try {
-    const result = await setupRichMenus();  // ← 保持這樣沒問題
+    const result = await rebuildRichMenus();
     res.json({ ok: true, result });
   } catch (e) {
-    console.error('❌ Rich Menu 建立失敗:', e);
+    console.error('❌ 重建 Rich Menu 失敗:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
+
+// ✅ 只換圖（?alias=alias-care-v2-care&file=./OCR_modules/menu/assets/richmenu-care.png）
+app.get('/update-richmenu-image', async (req, res) => {
+  try {
+    const alias = req.query.alias; // 例：alias-care-v2-care 或 alias-care-v2-service
+    const file  = req.query.file;  // 例：./OCR_modules/menu/assets/richmenu-care.png
+    const result = await updateRichMenuImage(alias, file);
+    res.json({ ok: true, result });
+  } catch (e) {
+    console.error('❌ 換圖失敗:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+
 
 
 

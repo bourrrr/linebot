@@ -9,23 +9,23 @@ function getLineClient() {
   });
 }
 
-async function setupRichMenus() {
+// ✅ A. 完整重建（刪舊建新 + 綁定 alias + 設預設）
+async function rebuildRichMenus() {
   const client = getLineClient();
 
-  // 乾淨重建
+  // 先刪除舊的
   const existing = await client.getRichMenuList();
   for (const rm of existing) await client.deleteRichMenu(rm.richMenuId);
 
   const size = { width: 2500, height: 1686 };
 
-  // ===== A. 社區服務 =====
+  // ====== A. 社區服務 分頁 ======
   const careRichMenu = await client.createRichMenu({
     size,
     selected: false,
     name: 'MakeWell-社區服務',
     chatBarText: 'MakeWell',
     areas: [
-      // 只留一個：切到 service
       {
         bounds: { x: 1250, y: 0, width: 1250, height: 220 },
         action: { type: 'richmenuswitch', richMenuAliasId: 'alias-care-v2-service', data: 'to-service' }
@@ -40,20 +40,15 @@ async function setupRichMenus() {
     careRichMenu,
     fs.createReadStream('./OCR_modules/menu/assets/richmenu-care.png')
   );
+  await client.createRichMenuAlias({ richMenuAliasId: 'alias-care-v2-care', richMenuId: careRichMenu });
 
-  await client.createRichMenuAlias({
-    richMenuAliasId: 'alias-care-v2-care',
-    richMenuId: careRichMenu
-  });
-
-  // ===== B. 健康照護 =====
+  // ====== B. 健康照護 分頁 ======
   const serviceRichMenu = await client.createRichMenu({
     size,
     selected: false,
     name: 'MakeWell-健康照護',
     chatBarText: 'MakeWell',
     areas: [
-      // 只留一個：切回 care
       {
         bounds: { x: 0, y: 0, width: 1250, height: 220 },
         action: { type: 'richmenuswitch', richMenuAliasId: 'alias-care-v2-care', data: 'to-care' }
@@ -69,16 +64,26 @@ async function setupRichMenus() {
     serviceRichMenu,
     fs.createReadStream('./OCR_modules/menu/assets/richmenu-service.png')
   );
+  await client.createRichMenuAlias({ richMenuAliasId: 'alias-care-v2-service', richMenuId: serviceRichMenu });
 
-  await client.createRichMenuAlias({
-    richMenuAliasId: 'alias-care-v2-service',
-    richMenuId: serviceRichMenu
-  });
-
-  // 設定預設
   await client.setDefaultRichMenu(careRichMenu);
-
   return { careRichMenu, serviceRichMenu };
 }
 
-module.exports = { setupRichMenus };
+// ✅ B. 只換圖（透過 alias 取得現有 richMenuId → setRichMenuImage）
+async function updateRichMenuImage(aliasId, imagePath) {
+  const client = getLineClient();
+  if (!aliasId) throw new Error('aliasId 是必填');
+  if (!imagePath) throw new Error('imagePath 是必填');
+
+  // 取回 alias 對應的 richMenuId
+  const alias = await client.getRichMenuAlias(aliasId); // { richMenuAliasId, richMenuId }
+  const richMenuId = alias.richMenuId;
+  if (!richMenuId) throw new Error(`找不到 alias: ${aliasId} 對應的 richMenuId`);
+
+  // 換圖片（不會新建、不會變動 areas）
+  await client.setRichMenuImage(richMenuId, fs.createReadStream(imagePath));
+  return { aliasId, richMenuId, imagePath };
+}
+
+module.exports = { rebuildRichMenus, updateRichMenuImage };
