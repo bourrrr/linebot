@@ -37,7 +37,7 @@ async function rebuildRichMenus() {
         {
           // 左半邊可點：切到健康照護
           bounds: { x: 0, y: 0, width: 1250, height: 220 },
-          action: { type: 'message', text: '切換到健康照護' }
+         action: { type: 'postback', data: 'switch=service' }
         },
         { bounds: { x: 1069, y: 450, width: 680, height: 450 },
           action: { type: 'message', text: '藥局地圖' } },
@@ -66,7 +66,7 @@ async function rebuildRichMenus() {
         {
           // 右半邊可點：切到社區服務
           bounds: { x: 1250, y: 0, width: 1250, height: 220 },
-          action: { type: 'message', text: '切換到社區服務' }
+          action: { type: 'postback', data: 'switch=service' }
         },
         { bounds: { x: 71, y: 440, width: 640, height: 450 },
           action: { type: 'message', text: '功能說明' } },
