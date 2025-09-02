@@ -43,6 +43,7 @@ const cardflex = require('./OCR_modules/flex/cardflex');
 const {replyTimePicker, handleSelectTime, handleConfirmReminder, handlePrepareDelete, handleConfirmDelete
 } = require('./OCR_modules/services/reminderService');
 const buildMoreAdviceFlex = require('./OCR_modules/flex/moreAdviceFlex');
+const {buildFeatureShopStyleCarousel,handleHelpPostback,FEATURE_CARDS} = require('./OCR_modules/flex/flex-help');
 
 require('dotenv').config();
 
@@ -353,6 +354,9 @@ async function handleEvent(event, client) {
       if (msg === '飲食推薦') {
         return handleRecipeRecommendation(event, client);
       }
+	   if (msg === '幫助' || msg === '功能說明') {
+    return client.replyMessage(event.replyToken,buildFeatureShopStyleCarousel(FEATURE_CARDS));
+		}
       if (msg.startsWith('步驟 ')) {
         const recipeName = msg.replace('步驟 ', '').trim();
         const snapshot = await db.collection('recipes').where('name', '==', recipeName).limit(1).get();
