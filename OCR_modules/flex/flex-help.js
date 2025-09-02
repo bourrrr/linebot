@@ -26,13 +26,13 @@ const FEATURE_CARDS = [
 // 使用說明卡片
 const USAGE_CARDS = {
   pharmacy: bubbleCard({
-    title: '藥局地圖｜快速上手',
-    steps: ['開啟定位或選擇縣市、行政區','用「是否營業中／服務方式」快速篩選','點藥局卡片看資訊，按「導航」直接帶路'],
+    title: '藥局/醫院地圖｜快速上手',
+    steps: ['先選擇領藥或掛號','開啟定位或選擇縣市、行政區','用「是否營業中／服務方式」快速篩選','點藥局卡片看資訊，按「導航」直接帶路'],
     tips:  ['支援判斷營業中狀態','若地標有誤可回報校正']
   }),
   diet: bubbleCard({
     title: '飲食推薦｜怎麼用',
-    steps: ['依最近一次健康紀錄產生建議','可切換早餐/午餐/晚餐與份量','按「更多建議」取得一週菜單'],
+    steps: ['想不到吃什麼嗎??','讓我來幫你想','健康又美味'],
     tips:  ['僅供參考，若不適請就醫','搭配規律量測更準確']
   }),
   pairing: bubbleCard({
@@ -42,7 +42,7 @@ const USAGE_CARDS = {
   }),
   records: bubbleCard({
     title: '健康數據紀錄｜上傳與查看',
-    steps: ['上傳報告（照片/PDF）自動解析','檢查後「確認」存入紀錄','在圖表頁查看趨勢'],
+    steps: ['上傳報告"照片"自動解析','檢查後「確認」存入紀錄','資訊有錯誤可手動調整修改','保障你我資訊安全'],
     tips:  ['就醫後立即上傳最佳','OCR 異常可手動編輯']
   }),
   reminder: bubbleCard({
@@ -93,13 +93,28 @@ function buildFeatureShopStyleCarousel(items) {
 
 // 使用說明 Bubble 範本
 function bubbleCard({ title, steps = [], tips = [] }) {
-  const stepContents = steps.map((t, i) => ({
-    type: "box", layout: "baseline", spacing: "sm",
-    contents: [
-      { type: "text", text: `${i + 1}.`, size: "sm", color: COLORS.primary },
-      { type: "text", text: t, size: "sm", wrap: true, color: COLORS.black }
-    ]
-  }));
+ const stepContents = steps.map((t, i) => ({
+  type: "box",
+  layout: "baseline",
+  spacing: "xs",               // 原本 sm → xs，縮小間距
+  contents: [
+    {                           // 數字欄位固定寬，不要撐開
+      type: "text",
+      text: `${i + 1}.`,
+      size: "sm",
+      color: COLORS.primary,
+      flex: 0                   // ★ 重要：不佔多餘空間
+    },
+    {                           // 正文佔滿剩餘寬度
+      type: "text",
+      text: t,
+      size: "sm",
+      wrap: true,
+      color: COLORS.black,
+      flex: 1                   // ★ 重要：填滿其餘空間
+    }
+  ]
+}));
   const tipContents = tips.length ? [
     { type: "text", text: "小提醒", weight: "bold", size: "sm", margin: "md", color: COLORS.black },
     ...tips.map(t => ({ type: "text", text: `• ${t}`, size: "xs", wrap: true, color: COLORS.gray }))
