@@ -392,7 +392,7 @@ async function handleEvent(event, client) {
 	  
 	  if (msg === '切換到健康照護') {
         try {
-          await switchRichMenu(event.source.userId, 'service');
+          await switchRichMenu(event.source.userId, 'care');
           return client.replyMessage(event.replyToken, {
             type: 'text',
             text: '✅ 已切換到健康照護選單'
@@ -408,7 +408,7 @@ async function handleEvent(event, client) {
 
       if (msg === '切換到社區服務') {
         try {
-          await switchRichMenu(event.source.userId, 'care');
+          await switchRichMenu(event.source.userId, 'service');
           return client.replyMessage(event.replyToken, {
             type: 'text',
             text: '✅ 已切換到社區服務選單'
