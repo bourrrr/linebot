@@ -499,30 +499,37 @@ app.get('/health', (_, res) => res.send('ok'));
 
 
 // 在 index.js 中找到 Rich Menu 相關的引用，替換為：
-
-const { 
-  rebuildRichMenus, 
+// === Rich Menu: 重建 & 換圖 API ===
+const {
+  rebuildRichMenus,
   updateRichMenuImage,
   switchRichMenu,
-  getCurrentRichMenuIds 
+  getCurrentRichMenuIds
 } = require('./OCR_modules/menu/richmenu-setup');
 
-// 在 handleEvent 函數中的文字訊息處理部分，加入這些邏輯：
-
-      // ===== 選單切換處理 =====
-      
-
-app.get('/richmenu-status', async (_req, res) => {
+// 重建兩個 Rich Menu（用 message 切換機制）
+app.get('/rebuild-richmenus', async (_req, res) => {
   try {
-    const ids = getCurrentRichMenuIds();
-    const menuList = await client.getRichMenuList();
-    res.json({
-      ok: true,
-      storedIds: ids,
-      allMenus: menuList.map(m => ({ id: m.richMenuId, name: m.name }))
-    });
+    const result = await rebuildRichMenus();
+    res.json({ ok: true, result });
   } catch (e) {
-    console.error('⚠️ 獲取狀態失敗:', e);
+    console.error('⚠️ 重建 Rich Menu 失敗:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// 只換圖：?menu=care|service 或給 alias；&file=相對路徑
+app.get('/update-richmenu-image', async (req, res) => {
+  try {
+    const menu = req.query.menu || req.query.alias; // 兩種寫法都支援
+    const file = req.query.file;
+    if (!menu || !file) {
+      return res.status(400).json({ ok: false, error: '缺少 menu/alias 或 file 參數' });
+    }
+    const result = await updateRichMenuImage(menu, file);
+    res.json({ ok: true, result });
+  } catch (e) {
+    console.error('⚠️ 更新 Rich Menu 圖片失敗:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
