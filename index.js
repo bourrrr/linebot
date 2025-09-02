@@ -46,9 +46,19 @@ const buildMoreAdviceFlex = require('./OCR_modules/flex/moreAdviceFlex');
 const flexHelp = require('./OCR_modules/flex/flex-help'); 
 
 const { handleHelpPostback } = flexHelp;
-console.log('[flex-help exports]', Object.keys(flexHelp)); 
-require('dotenv').config();
+console.log({
+  hasBuildTimeMenuFlex: typeof buildTimeMenuFlex === 'function',
+  hasLoginFlex: typeof loginFlex === 'function',
+  hasHandleRecipeRecommendation: typeof handleRecipeRecommendation === 'function'
+});
 
+require('dotenv').config();
+const LIFF_URLS = {
+  pharmacy: process.env.LIFF_PHARMACY_URL,
+  records:  process.env.LIFF_RECORDS_URL,
+  pokedex:  process.env.LIFF_POKEDEX_URL,
+  // diet / pairing / reminder 不用 URL，改走文字流程
+};
 
 const { db, bucket } = require('./firebase'); // ✅ 引入 bucket，會觸發 firebase.js 裡的 console.log
 
@@ -319,6 +329,41 @@ async function handleEvent(event, client) {
         }
         return; // 結束，不回覆訊息
       } // ★★★ 這個大括號是你缺少的 ★★★
+		// ② 開啟功能：用文字流程或提示未設定
+	if ((event.postback?.data || '').startsWith('help=launch')) {
+	  const q = new URLSearchParams(event.postback.data);
+	  const key = q.get('key') || '';
+
+	  // 這三個走「文字→卡片/流程」
+	  if (key === 'reminder') {
+		// 用藥提醒 → 時段選單 Flex
+		try {
+		  const flex = buildTimeMenuFlex();
+		  await client.replyMessage(event.replyToken, flex);
+		} catch (e) {
+		  console.error('reminder launch error:', e);
+		  await client.replyMessage(event.replyToken, { type: 'text', text: '⚠️ 用藥提醒暫時無法開啟' });
+		}
+		return;
+	  }
+
+	  if (key === 'pairing') {
+		// 志工配對 → 你的登入/配對起始卡
+		await client.replyMessage(event.replyToken, loginFlex());
+		return;
+	  }
+
+	  if (key === 'diet') {
+		// 飲食推薦 → 呼叫你的食譜卡處理器
+		await handleRecipeRecommendation(event, client);
+		return;
+	  }
+
+  // 其他功能（藥局地圖 / 健康數據紀錄 / 圖鑑）
+  // 若在 flex-help.js 有設定 URI，就不會進到這裡；會直接用 URI 開啟
+  await client.replyMessage(event.replyToken, { type: 'text', text: `「${key}」尚未設定開啟方式` });
+  return;
+}
 
       // 其它 postback：用藥提醒 / 刪除 / 清單...
       const handledByReminder = await handleReminderPostback(event, db, client);
@@ -358,11 +403,12 @@ if (ok) return;
       if (msg === '飲食推薦') {
         return handleRecipeRecommendation(event, client);
       }
-	   if (msg === '幫助' || msg === '功能說明') {
-
-		return client.replyMessage( event.replyToken, flexHelp.buildFeatureShopStyleCarousel(flexHelp.FEATURE_CARDS)
-		);
-	   }
+	   if (msg === '功能' || msg === '幫助' || msg === '功能說明') {
+	  return client.replyMessage(
+		event.replyToken,
+		flexHelp.buildFeatureShopStyleCarousel(flexHelp.FEATURE_CARDS)
+	  );
+	}
   
       if (msg.startsWith('步驟 ')) {
         const recipeName = msg.replace('步驟 ', '').trim();
