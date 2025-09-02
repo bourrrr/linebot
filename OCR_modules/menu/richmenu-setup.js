@@ -161,6 +161,32 @@ async function switchRichMenu(userId, menuType = 'care') {
     throw error;
   }
 }
+// 放在 richmenu-setup.js 內
+async function ensureIdsLoaded() {
+  if (richMenuIds.care && richMenuIds.service) return;
+
+  const client = getLineClient();
+  const list = await client.getRichMenuList();
+
+  // 依你建立時的 name 來找（見 rebuildRichMenus 裡的 name）
+  const care = list.find(m => m.name === 'MakeWell-社區服務');
+  const service = list.find(m => m.name === 'MakeWell-健康照護');
+
+  if (care) richMenuIds.care = care.richMenuId;
+  if (service) richMenuIds.service = service.richMenuId;
+}
+
+// 修改 switchRichMenu：進來就先補 ID
+async function switchRichMenu(userId, menuType = 'care') {
+  const client = getLineClient();
+  await ensureIdsLoaded(); // ← 新增
+
+  const menuId = menuType === 'care' ? richMenuIds.care : richMenuIds.service;
+  if (!menuId) throw new Error(`找不到 ${menuType} 選單 ID，請先重建選單`);
+
+  await client.linkRichMenuToUser(userId, menuId);
+  return { success: true, userId, menuType, menuId };
+}
 
 // B. 只換圖（保持原有功能）
 async function updateRichMenuImage(menuTypeOrAlias, imagePath) {
