@@ -15,12 +15,12 @@ const COLORS = {
 
 // ✅ 直接吃環境變數，沒填就留空（會走 fallback postback）
 const FEATURE_CARDS = [
-  { key: 'pharmacy', title: '藥局地圖',   subtitle: '找附近藥局，一鍵導航',         image: 'https://picsum.photos/800/533?pharmacy', uri:https://medwell-test1.web.app/map/madmap.html },
+  { key: 'pharmacy', title: '藥局地圖',   subtitle: '找附近藥局，一鍵導航',         image: 'https://picsum.photos/800/533?pharmacy', uri: process.env.LIFF_PHARMACY_URL },
   { key: 'diet',     title: '飲食推薦',   subtitle: '依健康紀錄給菜單建議',         image: 'https://picsum.photos/800/533?diet'},
   { key: 'pairing',  title: '志工配對',   subtitle: '陪診/領藥一鍵媒合',             image: 'https://picsum.photos/800/533?pairing'},
-  { key: 'records',  title: '健康數據紀錄', subtitle: '上傳報告、看趨勢',            image: 'https://picsum.photos/800/533?records',  uri: https://medwell-test1.web.app/ocr_data1.html },
+  { key: 'records',  title: '健康數據紀錄', subtitle: '上傳報告、看趨勢',            image: 'https://picsum.photos/800/533?records',  uri: process.env.LIFF_RECORDS_URL },
   { key: 'reminder', title: '用藥提醒',   subtitle: '到點通知＋簽到統計',             image: 'https://picsum.photos/800/533?reminder' },
-  { key: 'pokedex',  title: '圖鑑',       subtitle: '抽卡蒐集，記錄成就',             image: 'https://picsum.photos/800/533?pokedex',  uri: https://medwell-test1.web.app/newcard/collection.html },
+  { key: 'pokedex',  title: '圖鑑',       subtitle: '抽卡蒐集，記錄成就',             image: 'https://picsum.photos/800/533?pokedex',  uri: process.env.LIFF_POKEDEX_URL },
 ];
 
 // 使用說明卡片

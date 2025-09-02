@@ -25,23 +25,38 @@
     .btn-primary:hover{ transform:translateY(-1px); filter:brightness(.98); }
     .hint{ color:#6b6b6b; }
     .chip{ display:inline-flex; align-items:center; gap:.25rem; padding:.35rem .6rem; border-radius:9999px; background:var(--chip); border:1px solid var(--border); }
+
+    /* 加入與 history 一致的樣式 */
+    .btn-link{ color:var(--primary); font-weight:700; }
+    .h-divider{ height:1px; width:100%; background:linear-gradient(to right, transparent, var(--border), transparent); }
   </style>
 
   <!-- LIFF SDK：一定要在 module 之前 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
-  <div class="mx-auto max-w-[1080px]">
-    <div class="card rounded-3xl p-6 md:p-10">
-      <header class="flex items-center justify-between gap-4">
-        <div class="flex items-center gap-4">
-          <img src="MakeWell.jpg" alt="MakeWell Logo" class="w-12 h-12 md:w-14 md:h-14 object-contain rounded-xl border border-[var(--border)] bg-white">
+  <div class="mx-auto max-w-[1120px]">
+    <div class="card rounded-3xl p-8 md:p-12">
+      <!-- Header：改成和 history 一樣 -->
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <!-- 左邊 Logo + 標題 -->
+        <div class="flex items-center gap-5">
+          <img src="MakeWell.jpg" alt="MakeWell Logo"
+               class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
           <div>
-            <h1>📝 個人資訊</h1>
-            <p>更新你的聯絡方式與偏好資料（患者）</p>
+            <h1 class="text-3xl md:text-4xl font-extrabold leading-tight">📝 個人資訊</h1>
+            <p class="text-base md:text-lg" style="color:var(--muted)">
+              更新你的聯絡方式與偏好資料（患者）
+            </p>
           </div>
         </div>
-      </header>
+        <!-- 右邊 回首頁 -->
+        <div class="flex items-center gap-3 w-full sm:w-auto">
+          <a href="home.html" class="btn-link underline whitespace-nowrap">← 回首頁</a>
+        </div>
+      </div>
+
+      <div class="h-divider mt-6"></div>
 
       <div class="mt-6 flex items-center gap-3">
         <span id="roleBadge" class="badge">患者</span>
@@ -76,7 +91,6 @@
           </div>
 
           <div>
-            <!-- 標題與說明分行（避免擠壓） -->
             <div class="flex items-center gap-3">
               <span class="text-xl font-bold">慢性病史</span>
             </div>
@@ -91,7 +105,7 @@
             </div>
           </div>
 
-          <!-- 身心障礙程度（改為必填） -->
+          <!-- 身心障礙程度（必填） -->
           <div>
             <div class="flex items-center gap-3">
               <span class="text-xl font-bold">身心障礙程度</span>
@@ -128,14 +142,13 @@
               </div>
             </div>
           </div>
-          <div class="flex items-center justify-center min-h-screen">
-            <button type="submit" class="btn-primary">
+
+          <!-- 儲存按鈕：拿掉 min-h-screen，保留置中 -->
+          <div class="mt-8 flex justify-center">
+            <button id="saveBtn" type="button" class="btn-primary">
               💾 儲存變更
             </button>
           </div>
-          <div class="mt-6 text-center text-[15px]">
-              <a href="home.html" class="underline font-semibold" style="color:var(--primary)">← 回首頁</a>
-            </div>
         </section>
       </main>
     </div>
@@ -237,13 +250,14 @@
     document.addEventListener('click', (e) => { if (!chronicSuggestEl.contains(e.target) && e.target !== chronicInputEl){ showSuggest([]); } });
 
     // ===== 地址下拉 =====
+    import { cityDistricts as _cd } from './district-data.js';
     function fillCities(){
       citySel.innerHTML = '<option value="" disabled selected>請選擇縣市</option>';
-      Object.keys(cityDistricts).forEach(c => citySel.appendChild(new Option(c, c)));
+      Object.keys(_cd).forEach(c => citySel.appendChild(new Option(c, c)));
     }
     function fillDistricts(city, selected=''){
       districtSel.innerHTML = '';
-      const list = cityDistricts[city] || [];
+      const list = _cd[city] || [];
       if (!list.length){ districtSel.innerHTML = '<option value="" disabled selected>請先選擇縣市</option>'; districtSel.disabled = true; return; }
       districtSel.disabled = false;
       districtSel.appendChild(new Option('請選擇行政區', '', true, false));
@@ -318,7 +332,7 @@
           emergencyName: el('emergencyName').value.trim(),
           emergencyPhone: el('emergencyPhone').value.trim(),
           chronic: getChronicArray(),
-          disability: disabilitySel.value  // 不能為空
+          disability: disabilitySel.value
         };
 
         const city = citySel.value || '';

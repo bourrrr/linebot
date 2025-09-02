@@ -1,6 +1,6 @@
-// task-list.js  — 任務待接區（方案 A：移除 orderBy，前端排序）
-// 規格：requests 集合 / 僅顯示未過期 + 待接 / 隱藏自己發的任務 / 顯示圖片
-// ★ 若任務需證照（task.requiresCert=true 或患者為身障），且我沒證照 → 不顯示
+// task-list.js  — 任務待接區（A 方案：前端排序 + 無照片不留空白）
+// 規格：requests 集合 / 僅顯示未過期 + 待接 / 隱藏自己發的任務 / 顯示圖片（有才顯示）
+// ★ 任務若需證照（task.requiresCert=true 或患者有身障），且我沒證照 → 不顯示
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -77,7 +77,7 @@ async function getUser(uid){
   return data;
 }
 
-// 判斷「我是否有志工證照」：相容多命名
+// 我是否有志工證照（相容多命名）
 function computeHasCertificate(u){
   if (!u) return false;
   const truthy = new Set(["yes","有","true","1",1,true]);
@@ -88,7 +88,7 @@ function computeHasCertificate(u){
   return u.hasVolunteerCert === true || u.volunteerCert === true;
 }
 
-// 判斷「此任務是否需要有證照」：來自任務本身或患者身障
+// 任務是否需要證照：任務本身或患者身障
 async function taskRequiresCertificate(task){
   if (task?.requiresCert === true) return true;
   const pid = task?.userId;
@@ -98,7 +98,7 @@ async function taskRequiresCertificate(task){
   return (disability && disability !== "無");
 }
 
-// 是否過期（若任務含 expiresAt / deadline 等欄位，可自行擴充）
+// 是否過期（若任務含 expiresAt / deadline 可擴充）
 function isExpired(task){
   const ex = task?.expiresAt || task?.deadline;
   if (!ex) return false;
@@ -106,12 +106,19 @@ function isExpired(task){
   return Number.isFinite(t) ? (Date.now() > t) : false;
 }
 
-// 取得毫秒（用於前端排序，兼容 Timestamp/字串/空值）
+// 取得毫秒（前端排序用，兼容 Timestamp/字串）
 function tsMs(v){
   if (!v) return 0;
   if (v?.toDate) return v.toDate().getTime() || 0;
   const ms = Date.parse(v);
   return Number.isFinite(ms) ? ms : 0;
+}
+
+// ---------- 圖片處理 ----------
+// 盡可能抓到一張縮圖；若沒有就回傳空字串
+function getThumbUrl(t){
+  if (Array.isArray(t.photos) && t.photos.length && t.photos[0]) return t.photos[0];
+  return t.imageUrl || t.photoURL || t.photo || t.thumbnail || "";
 }
 
 // ---------- 篩選 UI ----------
@@ -149,7 +156,6 @@ toggleAllBtn?.addEventListener("click", ()=>{
   const all = cityDistricts[citySelect.value] || [];
   const allSelected = all.every(d => selectedDistricts.has(d));
   selectedDistricts = new Set(allSelected ? [] : all);
-  // 視覺同步
   [...chipsWrap.querySelectorAll("button[data-val]")].forEach(b=>{
     const v = b.dataset.val;
     b.classList.toggle("bg-[#eef4ee]", selectedDistricts.has(v));
@@ -165,18 +171,26 @@ resetBtn?.addEventListener("click", ()=>{
 
 // ---------- 渲染 ----------
 function renderCard(t){
-  const photos = Array.isArray(t.photos) ? t.photos : (t.imageUrl ? [t.imageUrl] : []);
-  const img = photos[0] ? `<img src="${escapeHtml(photos[0])}" alt="" class="w-full h-40 object-cover rounded-xl border">` : "";
+  const thumb = getThumbUrl(t);
+  const hasImg = !!thumb;
+
   const city = escapeHtml(t.city || "");
   const district = escapeHtml(t.district || "");
   const road = escapeHtml(t.road || t.address || "");
   const type = escapeHtml(t.type || t.requestType || "社區服務");
   const note = escapeHtml(t.note || t.remark || "");
 
+  // 有圖：顯示左側縮圖；沒圖：移除整個縮圖欄，資訊滿版（不再出現「無照片」）
+  const imgCol = hasImg
+    ? `<div class="w-32 shrink-0">
+         <img src="${escapeHtml(thumb)}" alt="" class="w-full h-40 object-cover rounded-xl border">
+       </div>`
+    : "";
+
   return `
   <div class="card rounded-2xl p-4 border mb-4">
-    <div class="flex gap-4">
-      <div class="w-32 shrink-0">${img || `<div class="w-full h-40 rounded-xl border grid place-items-center text-sm text-slate-500">無照片</div>`}</div>
+    <div class="${hasImg ? 'flex gap-4' : ''}">
+      ${imgCol}
       <div class="flex-1">
         <div class="flex items-center justify-between">
           <h3 class="font-extrabold">${type}</h3>
@@ -277,7 +291,6 @@ taskContainer?.addEventListener("click", async (e)=>{
   fillCities();
 
   // 4) 監聽任務（僅待接）
-  //    方案 A：移除 orderBy（免 Composite Index），改在前端排序
   const qRef = query(
     collection(db, "requests"),
     where("status", "==", "pending")
@@ -286,7 +299,7 @@ taskContainer?.addEventListener("click", async (e)=>{
   onSnapshot(qRef, (snap)=>{
     allTasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    // 🔽 前端排序：以 createdAt 新→舊，兼容 Timestamp/字串/空值
+    // 前端排序：以 createdAt 新→舊
     allTasks.sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
 
     draw();

@@ -99,6 +99,16 @@ function tryOpenMapsFrom(btn){
   return false;
 }
 
+// 🚫 防止導航被其他 click 處理器攔截（使用捕獲階段）
+container.addEventListener('click', (e) => {
+  const navBtn = e.target.closest('button.nav-meet, button.nav-hospital');
+  if (!navBtn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+  tryOpenMapsFrom(navBtn);
+}, true);
+
 // ===== 產生卡片 =====
 const NAV_BTN_CLASS = "px-3 py-1.5 rounded-full border font-bold";
 const NAV_BTN_STYLE = "background:#588157;color:#fff;border:1px solid #588157;";
@@ -169,8 +179,9 @@ function renderTaskCard(docSnap){
     ${data.photoURL ? `
       <div class="mt-2">
         <img src="${data.photoURL}" class="w-40 h-auto rounded object-contain border" style="max-height: 220px;" />
-        <button type="button" class="delete-photo text-red-500 text-sm mt-1" data-url="${data.photoURL}" data-id="${taskId}">刪除圖片</button>
-      </div>` : ""}
+        <button type="button" class="delete-photo text-red-500 text-sm mt-2 underline" data-url="${data.photoURL}" data-id="${taskId}">刪除圖片</button>
+      </div>
+    ` : ""}
 
     <p class="text-xs text-gray-500 mt-1">更新時間：${data.updatedAt ? fmtTime(data.updatedAt) : "尚未更新"}</p>
   `;
@@ -188,7 +199,8 @@ async function ensureLIFF(){
 }
 
 async function guardAndLoad(){
-  if (!await ensureLIFF()) return;
+  const ok = await ensureLIFF();
+  if (!ok) return;
   const p = await liff.getProfile();
   const uid = `line:${p.userId}`;
   currentUID = uid;
@@ -242,50 +254,47 @@ function reportPath(taskId, file){
 
 // ===== 單卡上傳 & 刪除 =====
 async function uploadSingle(taskId, file){
-  const path = reportPath(taskId, file);
-  const ref  = storageRef(st, path);
-  const task = uploadBytesResumable(ref, file, { contentType: file.type || "image/jpeg" });
-
-  const progressEl = container.querySelector(`progress[data-id="${taskId}"]`);
-  if (progressEl) {
-    progressEl.classList.remove("hidden");
-    progressEl.value = 0;
-  }
-
   return new Promise((resolve, reject) => {
-    task.on('state_changed',
-      (snap) => {
-        if (progressEl) {
-          const pct = Math.round(100 * snap.bytesTransferred / snap.totalBytes);
-          progressEl.value = pct;
-        }
-      },
-      (err) => {
-        if (progressEl) progressEl.classList.add("hidden");
-        reject(err);
-      },
-      async () => {
-        try{
+    try{
+      const key = `[${taskId}]`;
+      const prog = container.querySelector(`progress[data-id="${taskId}"]`);
+      const input = container.querySelector(`input[type="file"][data-id="${taskId}"]`);
+      const ref = storageRef(st, reportPath(taskId, file));
+      const task = uploadBytesResumable(ref, file);
+      if (prog) { prog.classList.remove("hidden"); prog.value = 0; }
+
+      task.on("state_changed",
+        (snap) => {
+          const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+          if (prog) prog.value = pct;
+        },
+        (err) => {
+          console.error(key, err);
+          if (prog) prog.classList.add("hidden");
+          reject(err);
+        },
+        async () => {
+          if (prog) { prog.value = 100; setTimeout(()=>prog.classList.add("hidden"), 400); }
           const url = await getDownloadURL(task.snapshot.ref);
-          if (progressEl) progressEl.classList.add("hidden");
           resolve(url);
-        }catch(e){ reject(e); }
-      }
-    );
+          if (input) input.value = "";
+        }
+      );
+    }catch(e){
+      reject(e);
+    }
   });
 }
 
 async function attachPhotoURL(taskId, url){
-  const ref = doc(db, "requests", taskId);
-  await updateDoc(ref, {
+  const docRef = doc(db, "requests", taskId);
+  await updateDoc(docRef, {
     photoURL: url,
-    // ★ 標記完成（上傳即完成）
     status: "completed",
-    completedAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
 
-  // ★ 關閉臨時聊天室（理由：report_uploaded）
+  // ★ 閉臨時聊天室（理由：report_uploaded）
   try {
     await closeMatch({ taskId, reason: "report_uploaded", by: "volunteer" });
     console.log("[closeMatch] done after upload:", taskId);
@@ -311,7 +320,7 @@ container.addEventListener("click", async (e) => {
   const btn = e.target.closest("button");
   if (!btn) return;
 
-  // 導航：優先 & 阻止冒泡
+  // 導航：優先 & 阻止冒泡（冗餘保險，與捕獲監聽一起守護）
   if (btn.classList.contains("nav-meet") || btn.classList.contains("nav-hospital")) {
     e.preventDefault();
     e.stopPropagation();
@@ -355,11 +364,14 @@ container.addEventListener("click", async (e) => {
     const url    = btn.dataset.url || btn.getAttribute("data-url");
     if (!taskId || !url) return;
     if (!confirm("確定要刪除這張回報照片嗎？")) return;
-    await deletePhoto(taskId, url);
+    try{
+      await deletePhoto(taskId, url);
+      alert("已刪除");
+    }catch{}
     return;
   }
 
-  // ★ 取消配對（開啟 modal）
+  // 取消配對（先開 modal 填原因）
   if (btn.classList.contains("cancel-match")) {
     const taskId = btn.dataset.id || btn.getAttribute("data-id");
     if (!taskId) return;
@@ -391,26 +403,25 @@ cancelConfirmBtn?.addEventListener("click", async () => {
       updatedAt: serverTimestamp()
     });
 
-    // ★ 關閉臨時聊天室（理由：volunteer_cancelled）
+    // ★ 關閉臨時聊天室（理由：volunteer_cancel）
     try {
-      await closeMatch({ taskId: pendingCancelTaskId, reason: "volunteer_cancelled", by: "volunteer", note });
+      await closeMatch({ taskId: pendingCancelTaskId, reason: "volunteer_cancel", by: "volunteer" });
+      console.log("[closeMatch] done after cancel:", pendingCancelTaskId);
     } catch (e) {
-      console.warn("[closeMatch] failed on cancel:", e);
+      console.warn("[closeMatch] failed after cancel:", e);
     }
 
     closeCancelModal();
-    alert("已取消配對，聊天室已關閉，任務已回到待接。");
-    // 監聽器會自動把這張卡從「我的任務」移除（因為 volunteerId 已清空）
-  }catch(err){
-    console.error("[cancel-match] error:", err);
-    alert("取消失敗，請稍後再試");
+    alert("已取消配對，任務已回到待接列表。");
+  }catch(e){
+    console.error("[cancel] error:", e);
+    alert("取消失敗，請稍後重試");
   }
 });
 
-// ===== 快速上傳回報（由 my-tasks.html 呼叫） =====
-// 也一併關閉聊天室
-window.handleQuickReportUpload = async (taskId, files) => {
-  if (!taskId || !files || !files.length) throw new Error("缺少任務或檔案");
+// ===== 快速上傳（多檔 → 單筆任務） =====
+export const quickReport = async (taskId, files) => {
+  if (!taskId || !files?.length) { alert("請選擇任務與檔案"); return; }
   const first = files[0];
   const url = await uploadSingle(taskId, first);
   await attachPhotoURL(taskId, url); // 內含：標記完成 + closeMatch
