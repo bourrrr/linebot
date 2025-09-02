@@ -8,12 +8,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 import { cityDistricts } from "./district-data.js";
-
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 // ---------- 初始化 ----------
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 const LIFF_ID = "2007877199-Y5R2LenL";
-
+const functions = getFunctions(app);
 // ---------- DOM ----------
 const taskContainer = document.getElementById("taskContainer");
 const emptyState    = document.getElementById("emptyState");
@@ -35,6 +35,10 @@ const escapeHtml = (s) => String(s ?? "")
   .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
   .replaceAll('"',"&quot;").replaceAll("'","&#039;");
 
+async function createMatch(taskId, patientUserId, volunteerUserId, patientAuthUid, volunteerAuthUid) {
+  const fn = httpsCallable(functions, 'createMatch');
+  await fn({ taskId, patientUserId, volunteerUserId, patientAuthUid, volunteerAuthUid });
+}
 function roleKey(s){
   const m = String(s||"").trim().toLowerCase();
   if (m === "患者" || m === "patient") return "patient";
@@ -223,7 +227,7 @@ taskContainer?.addEventListener("click", async (e)=>{
   const taskId = btn.dataset.id;
   const status = btn.classList.contains("accept") ? "accepted" : "rejected";
 
-  try{
+  try {
     // 重新讀取任務與患者，避免被繞過
     const tRef  = doc(db, "requests", taskId);
     const tSnap = await getDoc(tRef);
@@ -243,12 +247,26 @@ taskContainer?.addEventListener("click", async (e)=>{
       volunteerId: currentUid,
       updatedAt: new Date()
     });
-    alert(`任務已${status==='accepted'?'接受':'拒絕'}`);
-  }catch(err){
+
+    // === 🔥 加入聊天室配對 ===
+    if (status === "accepted") {
+      const patientSnap = await getDoc(doc(db, "users", t.userId));
+      const volunteerSnap = await getDoc(doc(db, "users", currentUid));
+
+      if (!patientSnap.exists() || !volunteerSnap.exists()) {
+        console.warn("找不到用戶資料，無法建立聊天室");
+      } else {
+        await createMatch(taskId, t.userId, currentUid, patientSnap.id, volunteerSnap.id);
+      }
+    }
+
+    alert(`任務已${status==='accepted'?'接受，聊天室已建立！':'拒絕'}`);
+  } catch(err){
     console.error(err);
     alert("操作失敗，請稍後再試");
   }
 });
+
 
 // ---------- 主流程 ----------
 (async ()=>{

@@ -307,3 +307,49 @@ exports.authApi = functions
   .region('asia-east1')
   .runWith({ secrets: ['MAIN_LINE_LOGIN_CHANNEL_ID'] })
   .https.onRequest(loginApp);
+  // 匯出：主系統登入驗證 API
+
+// === Auto close expired chats (time + 1.5h) ===
+exports.autoCloseExpiredChats = functions.pubsub
+  .schedule("every 60 minutes")
+  .timeZone("Asia/Taipei")
+  .onRun(async () => {
+    const now = Date.now();
+    const cutoff = now - 90 * 60 * 1000;
+
+    const ms = await db.collection("matches").where("status","==","active").get();
+    const batch = db.batch();
+
+    for (const d of ms.docs) {
+      const m = d.data();
+      if (!m.taskId) continue;
+
+      const taskSnap = await db.collection("requests").doc(m.taskId).get();
+      if (!taskSnap.exists) continue;
+
+      const t = taskSnap.data();
+      const tMs =
+        (t.time && t.time.toMillis && t.time.toMillis()) ||
+        (t.time && Date.parse(t.time)) ||
+        0;
+
+      if (tMs && tMs < cutoff) {
+        batch.update(d.ref, {
+          status: "closed",
+          closedBy: "system",
+          closedReason: "expired_1h30",
+          closedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        if (t.status !== "completed") {
+          batch.update(taskSnap.ref, {
+            status: "expired",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+        }
+      }
+    }
+
+    await batch.commit();
+    return null;
+  });

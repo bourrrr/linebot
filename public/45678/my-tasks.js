@@ -2,9 +2,9 @@
 // 功能重點：
 // 1) 導航優先（避免誤觸上傳）
 // 2) 目的地雙保險：lat,lng → city+district+road / hospital
-// 3) 上傳回報：單筆上傳 & 快速上傳
+// 3) 上傳回報：單筆上傳 & 快速上傳（★ 上傳成功 → 標記完成 + 關閉聊天室）
 // 4) 列表即時：監聽 requests，依 volunteerId 過濾
-// 5) 新增：取消配對（選擇原因→確認→回退到 pending、清 volunteerId、紀錄取消資訊）
+// 5) 取消配對（選擇原因→確認→回退 pending、清 volunteerId、紀錄取消資訊 → ★ 關閉聊天室）
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -14,6 +14,7 @@ import {
 import {
   getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 import { firebaseConfig } from "./firebase-config.js";
 
 // ===== 初始化 =====
@@ -21,6 +22,10 @@ const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 const st  = getStorage(app);
 const LIFF_ID = "2007877199-Y5R2LenL";
+
+// ★ Functions：closeMatch（臨時聊天室關閉）
+const functions = getFunctions(app);
+const closeMatch = httpsCallable(functions, "closeMatch");
 
 // ===== 小工具與 DOM =====
 const $ = (sel, root=document) => root.querySelector(sel);
@@ -274,8 +279,19 @@ async function attachPhotoURL(taskId, url){
   const ref = doc(db, "requests", taskId);
   await updateDoc(ref, {
     photoURL: url,
+    // ★ 標記完成（上傳即完成）
+    status: "completed",
+    completedAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
+
+  // ★ 關閉臨時聊天室（理由：report_uploaded）
+  try {
+    await closeMatch({ taskId, reason: "report_uploaded", by: "volunteer" });
+    console.log("[closeMatch] done after upload:", taskId);
+  } catch (e) {
+    console.warn("[closeMatch] failed after upload:", e);
+  }
 }
 
 async function deletePhoto(taskId, url){
@@ -312,7 +328,7 @@ container.addEventListener("click", async (e) => {
     return;
   }
 
-  // 上傳回報照片
+  // 上傳回報照片 → attachPhotoURL 內會：標記完成 + closeMatch
   if (btn.classList.contains("upload-btn")) {
     const taskId = btn.dataset.id || btn.getAttribute("data-id");
     const input  = container.querySelector(`input[type="file"][data-id="${taskId}"]`);
@@ -325,7 +341,7 @@ container.addEventListener("click", async (e) => {
       const url  = await uploadSingle(taskId, file);
       await attachPhotoURL(taskId, url);
       input.value = "";
-      alert("上傳完成！");
+      alert("上傳完成並已關閉聊天室！");
     }catch(e){
       console.error("[upload-btn] error:", e);
       alert("上傳失敗，請稍後再試");
@@ -352,7 +368,7 @@ container.addEventListener("click", async (e) => {
   }
 });
 
-// 確認取消配對
+// 確認取消配對 → 回退 pending + closeMatch
 cancelConfirmBtn?.addEventListener("click", async () => {
   if (!pendingCancelTaskId) return;
   const reason = (cancelReasonSel?.value || "").trim();
@@ -374,8 +390,16 @@ cancelConfirmBtn?.addEventListener("click", async () => {
       canceledAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
+
+    // ★ 關閉臨時聊天室（理由：volunteer_cancelled）
+    try {
+      await closeMatch({ taskId: pendingCancelTaskId, reason: "volunteer_cancelled", by: "volunteer", note });
+    } catch (e) {
+      console.warn("[closeMatch] failed on cancel:", e);
+    }
+
     closeCancelModal();
-    alert("已取消配對，此任務已回到待接清單。");
+    alert("已取消配對，聊天室已關閉，任務已回到待接。");
     // 監聽器會自動把這張卡從「我的任務」移除（因為 volunteerId 已清空）
   }catch(err){
     console.error("[cancel-match] error:", err);
@@ -384,12 +408,13 @@ cancelConfirmBtn?.addEventListener("click", async () => {
 });
 
 // ===== 快速上傳回報（由 my-tasks.html 呼叫） =====
+// 也一併關閉聊天室
 window.handleQuickReportUpload = async (taskId, files) => {
   if (!taskId || !files || !files.length) throw new Error("缺少任務或檔案");
   const first = files[0];
   const url = await uploadSingle(taskId, first);
-  await attachPhotoURL(taskId, url);
-  alert("回報已上傳！");
+  await attachPhotoURL(taskId, url); // 內含：標記完成 + closeMatch
+  alert("回報已上傳並關閉聊天室！");
 };
 
 // ===== 啟動 =====
