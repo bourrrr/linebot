@@ -344,7 +344,16 @@ if (event.type === 'postback' && event.postback && event.postback.data) {
   }
 }
 
-
+const data = event.postback?.data || '';
+  if (data === 'switch=care' || data === 'switch=service') {
+     const menuType = data.split('=')[1]; // 'care' | 'service'
+     try {
+       await switchRichMenu(event.source.userId, menuType);
+     } catch (e) {
+       console.error('切換 Rich Menu 失敗:', e);
+     }
+     return; // 一定記得結束
+  }
 
 
       // ===== 其餘指令分支（每個分支記得 return）=====
