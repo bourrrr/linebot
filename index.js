@@ -289,9 +289,7 @@ async function replyHealthWithDiet(event, client, userId) {
 
 // 處理個別事件
 // ==== 直接覆蓋原本的 handleEvent ====
-async function handleEvent(event, client) {
-  try {
-    // --- 去重（LINE 偶爾會重送同一事件）---
+
     // ==== 直接覆蓋整個 handleEvent ====
 async function handleEvent(event, client) {
   try {
@@ -509,3 +507,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 伺服器啟動成功，監聽 port 3000！ ${PORT}`);
 });
+
