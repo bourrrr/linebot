@@ -31,22 +31,16 @@
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
-  <div class="mx-auto max-w-[1120px]">
-    <div class="card rounded-3xl p-8 md:p-12 min-h-[82vh] md:min-h-[86vh] flex flex-col">
-      <!-- Header -->
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <!-- 左邊 Logo + 標題 -->
-        <div class="flex items-center gap-5">
-          <img src="MakeWell.jpg" alt="MakeWell Logo"
-              class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
+  <div class="mx-auto max-w-[1080px]">
+    <div class="card rounded-3xl p-6 md:p-10">
+      <header class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+          <img src="MakeWell.jpg" alt="MakeWell Logo" class="w-12 h-12 md:w-14 md:h-14 object-contain rounded-xl border border-[var(--border)] bg-white">
           <div>
-            <h1 class="text-3xl md:text-4xl font-extrabold leading-tight">📝 個人資訊</h1>
-            <p class="text-base md:text-lg" style="color:var(--muted)">
-              更新你的聯絡方式與偏好資料（患者）
-            </p>
+            <h1>📝 個人資訊</h1>
+            <p>更新你的聯絡方式與偏好資料（患者）</p>
           </div>
         </div>
-        <a href="home.html" class="self-start md:self-auto ...">← 回首頁</a>
       </header>
 
       <div class="mt-6 flex items-center gap-3">
@@ -82,10 +76,12 @@
           </div>
 
           <div>
+            <!-- 標題與說明分行（避免擠壓） -->
             <div class="flex items-center gap-3">
               <span class="text-xl font-bold">慢性病史</span>
-              <span class="hint text-sm">（可多選，自訂請輸入後按 Enter）</span>
             </div>
+            <p class="hint text-sm mt-1">（可多選，自訂請輸入後按 Enter）</p>
+
             <div class="mt-3">
               <div id="chronicTags" class="flex flex-wrap gap-2"></div>
               <div class="mt-3 relative">
@@ -95,15 +91,15 @@
             </div>
           </div>
 
-          <!-- 身心障礙程度（新增） -->
+          <!-- 身心障礙程度（改為必填） -->
           <div>
             <div class="flex items-center gap-3">
               <span class="text-xl font-bold">身心障礙程度</span>
-              <span class="hint text-sm">（選填）</span>
+              <span class="hint text-sm">（必填）</span>
             </div>
             <div class="mt-4">
-              <label for="disability" class="label">程度</label>
-              <select id="disability" class="input">
+              <label for="disability" class="label">程度 <span class="text-red-600">*</span></label>
+              <select id="disability" class="input" required>
                 <option value="">請選擇</option>
                 <option value="無">無</option>
                 <option value="輕度">輕度</option>
@@ -132,10 +128,14 @@
               </div>
             </div>
           </div>
-
-          <div class="pt-2">
-            <button id="saveBtn" class="btn-primary">💾 儲存變更</button>
+          <div class="flex items-center justify-center min-h-screen">
+            <button type="submit" class="btn-primary">
+              💾 儲存變更
+            </button>
           </div>
+          <div class="mt-6 text-center text-[15px]">
+              <a href="home.html" class="underline font-semibold" style="color:var(--primary)">← 回首頁</a>
+            </div>
         </section>
       </main>
     </div>
@@ -168,14 +168,13 @@
     // ----- 小工具 -----
     const el = (id) => document.getElementById(id);
     const roleBadge      = el('roleBadge');
-    const patientSection = el('patientSection');
     const saveBtn        = el('saveBtn');
     const saveHint       = el('saveHint');
 
     const citySel     = /** @type {HTMLSelectElement} */(el('city'));
     const districtSel = /** @type {HTMLSelectElement} */(el('district'));
     const roadInput   = /** @type {HTMLInputElement} */(el('road'));
-    const disabilitySel = /** @type {HTMLSelectElement} */(el('disability')); // ← 新增：身心障礙程度欄位
+    const disabilitySel = /** @type {HTMLSelectElement} */(el('disability'));
 
     // ===== 慢性病史 Tag =====
     const CHRONIC_OPTIONS = [
@@ -274,29 +273,26 @@
 
       const data = snap.data() || {};
       const { isPatient, isVolunteer } = getUserRoles(data);
-      if (!isPatient) {                   // 不是患者？
+      if (!isPatient) {
         if (isVolunteer) { location.href = "volunteer.html"; return; }
         location.href = "register-profile.html"; return;
       }
 
+      // 帶值
       roleBadge.textContent = '患者';
       roleBadge.classList.remove('hidden');
 
-      // 帶值
       el('name').value           = data.name || '';
       el('phone').value          = data.phone || '';
       el('emergencyName').value  = data.emergencyName || '';
       el('emergencyPhone').value = data.emergencyPhone || '';
 
       setChronicArray(Array.isArray(data.chronic) ? data.chronic : (data.chronic ? String(data.chronic).split(',') : []));
-      disabilitySel.value = data.disability || ''; // ← 新增：帶入身心障礙程度
+      disabilitySel.value = data.disability || '';
 
       const city = data.patientCity || '';
       const district = data.patientDistrict || '';
       const road = data.patientRoad || '';
-      if (city){ citySel.value = city; fillDistricts(city, district); } else { fillDistricts('', ''); }
-      roadInput.value = road;
-
       if (city){ citySel.value = city; fillDistricts(city, district); } else { fillDistricts('', ''); }
       roadInput.value = road;
     })();
@@ -309,13 +305,20 @@
         saveBtn.setAttribute('disabled','true');
         saveHint.textContent = '儲存中…';
 
+        // ★ 身心障礙程度為必填
+        if (!disabilitySel.value) {
+          saveHint.textContent = '⚠️ 請選擇身心障礙程度（必填）';
+          saveBtn.removeAttribute('disabled');
+          return;
+        }
+
         const updates = {
           name: el('name').value.trim(),
           phone: el('phone').value.trim(),
           emergencyName: el('emergencyName').value.trim(),
           emergencyPhone: el('emergencyPhone').value.trim(),
           chronic: getChronicArray(),
-          disability: disabilitySel.value || '' // ← 新增：儲存身心障礙程度
+          disability: disabilitySel.value  // 不能為空
         };
 
         const city = citySel.value || '';
@@ -323,7 +326,7 @@
         const road = roadInput.value.trim();
 
         if (!city){ saveHint.textContent = '⚠️ 請選擇縣市'; saveBtn.removeAttribute('disabled'); return; }
-        if (!district){ saveHint.text內容 = '⚠️ 請選擇行政區'; saveBtn.removeAttribute('disabled'); return; }
+        if (!district){ saveHint.textContent = '⚠️ 請選擇行政區'; saveBtn.removeAttribute('disabled'); return; }
         if (!road){ saveHint.textContent = '⚠️ 請輸入詳細地址'; saveBtn.removeAttribute('disabled'); return; }
 
         updates.patientCity = city;

@@ -5,7 +5,7 @@
 
 const COLORS = {
   primary: "#588157",   // 重綠
-  secondary: "#659963de", // 淺綠 (目前沒用到，但可保留)
+  secondary: "#659963", // 淺綠 (目前沒用到，但可保留)
   gray: "#8e8e8cf2",
   light: "#efede9",    // 小奶黃
   neutral: "#dad7cd",  // 奶灰
@@ -112,12 +112,12 @@ function buildFeatureShopStyleCarousel(items) {
           type: "box",
           layout: "horizontal",
           spacing: "md",
-          backgroundColor: COLORS.neutral,
+          backgroundColor: COLORS.light,
           contents: [
             {
               type: "button",
               style: "primary",
-              color: COLORS.primary,
+              color: COLORS.secondary,
               action: { type: "postback", label: "使用說明", data: `help=open&key=${it.key}` }
             },
             {

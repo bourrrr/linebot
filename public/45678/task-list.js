@@ -1,19 +1,21 @@
-// task-list.js  — 任務待接區
+// task-list.js  — 任務待接區（方案 A：移除 orderBy，前端排序）
 // 規格：requests 集合 / 僅顯示未過期 + 待接 / 隱藏自己發的任務 / 顯示圖片
-// ★ 新增：如果「發布者（患者）」為身心障礙（非「無」），或任務 requiresCert === true，僅顯示給「有志工證照」的志工；接單也再檢查一次。
+// ★ 若任務需證照（task.requiresCert=true 或患者為身障），且我沒證照 → 不顯示
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getFirestore, collection, doc, getDoc, onSnapshot, query, where, updateDoc, orderBy
+  getFirestore, collection, doc, getDoc, onSnapshot, query, where, updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 import { cityDistricts } from "./district-data.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
+
 // ---------- 初始化 ----------
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 const LIFF_ID = "2007877199-Y5R2LenL";
 const functions = getFunctions(app);
+
 // ---------- DOM ----------
 const taskContainer = document.getElementById("taskContainer");
 const emptyState    = document.getElementById("emptyState");
@@ -23,7 +25,7 @@ const resetBtn      = document.getElementById("resetFilters");
 const toggleAllBtn  = document.getElementById("toggleAllDistricts");
 
 // ---------- 狀態 ----------
-let currentUid = "";                  // 以 line:${userId}
+let currentUid = "";                  // line:${userId}
 let myHasCertificate = false;         // 當前志工是否有證照
 let selectedDistricts = new Set();    // 篩選 chips
 let allTasks = [];                    // 原始任務（onSnapshot 撈回）
@@ -35,10 +37,12 @@ const escapeHtml = (s) => String(s ?? "")
   .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
   .replaceAll('"',"&quot;").replaceAll("'","&#039;");
 
+// 產生聊天室配對
 async function createMatch(taskId, patientUserId, volunteerUserId, patientAuthUid, volunteerAuthUid) {
   const fn = httpsCallable(functions, 'createMatch');
   await fn({ taskId, patientUserId, volunteerUserId, patientAuthUid, volunteerAuthUid });
 }
+
 function roleKey(s){
   const m = String(s||"").trim().toLowerCase();
   if (m === "患者" || m === "patient") return "patient";
@@ -86,25 +90,28 @@ function computeHasCertificate(u){
 
 // 判斷「此任務是否需要有證照」：來自任務本身或患者身障
 async function taskRequiresCertificate(task){
-  // 任務標記（若你的建立流程有寫 requiresCert，就會直接生效）
   if (task?.requiresCert === true) return true;
-
-  // 若任務沒有 userId（患者 id），則無法判斷患者狀態 → 視為不強制
   const pid = task?.userId;
   if (!pid) return false;
-
   const patient = await getUser(pid);
   const disability = String(patient?.disability || "").trim();
   return (disability && disability !== "無");
 }
 
-// 是否過期（若任務含 expiresAt / deadline / requestTime 等欄位，可自行擴充）
+// 是否過期（若任務含 expiresAt / deadline 等欄位，可自行擴充）
 function isExpired(task){
   const ex = task?.expiresAt || task?.deadline;
   if (!ex) return false;
-  // ex 可能是 Timestamp 或日期字串
   const t = (ex?.toDate && typeof ex.toDate==="function") ? ex.toDate().getTime() : Date.parse(ex);
   return Number.isFinite(t) ? (Date.now() > t) : false;
+}
+
+// 取得毫秒（用於前端排序，兼容 Timestamp/字串/空值）
+function tsMs(v){
+  if (!v) return 0;
+  if (v?.toDate) return v.toDate().getTime() || 0;
+  const ms = Date.parse(v);
+  return Number.isFinite(ms) ? ms : 0;
 }
 
 // ---------- 篩選 UI ----------
@@ -127,7 +134,7 @@ function renderDistrictChips(city){
 }
 citySelect?.addEventListener("change", ()=>{
   renderDistrictChips(citySelect.value);
-  draw(); // 重新套用篩選
+  draw();
 });
 chipsWrap?.addEventListener("click", (e)=>{
   const b = e.target.closest("button[data-val]");
@@ -187,21 +194,16 @@ function renderCard(t){
 }
 
 async function draw(){
-  // 依目前篩選過濾
   const city = citySelect?.value || "";
   const districts = selectedDistricts;
 
-  // 逐筆檢查是否需證照（含患者身障）
   const out = [];
   for (const t of allTasks){
     if (t.userId === currentUid) continue;     // 不顯示自己發的
     if (isExpired(t)) continue;                // 過期不顯示
-
     if (city && t.city !== city) continue;
     if (districts.size && !districts.has(t.district)) continue;
 
-    // ★ 如果此任務需要證照，且我沒有 → 不顯示
-    //   （task.requiresCert 或 發布者是身障患者）
     const needsCert = await taskRequiresCertificate(t);
     if (needsCert && !myHasCertificate) continue;
 
@@ -210,7 +212,10 @@ async function draw(){
 
   if (!out.length){
     taskContainer.innerHTML = "";
-    emptyState?.classList.remove("hidden");
+    if (emptyState){
+      emptyState.classList.remove("hidden");
+      emptyState.textContent = "目前沒有符合條件的任務。";
+    }
     return;
   }
 
@@ -228,34 +233,23 @@ taskContainer?.addEventListener("click", async (e)=>{
   const status = btn.classList.contains("accept") ? "accepted" : "rejected";
 
   try {
-    // 重新讀取任務與患者，避免被繞過
     const tRef  = doc(db, "requests", taskId);
     const tSnap = await getDoc(tRef);
     if (!tSnap.exists()) { alert("任務不存在或已被刪除"); return; }
     const t = { id: taskId, ...tSnap.data() };
 
-    // ★ 再次資格檢查
     const needsCert = await taskRequiresCertificate(t);
     if (status === "accepted" && needsCert && !myHasCertificate){
       alert("此任務限『有志工證照』者接受");
       return;
     }
 
-    // 標記接/拒
-    await updateDoc(tRef, {
-      status,
-      volunteerId: currentUid,
-      updatedAt: new Date()
-    });
+    await updateDoc(tRef, { status, volunteerId: currentUid, updatedAt: new Date() });
 
-    // === 🔥 加入聊天室配對 ===
     if (status === "accepted") {
       const patientSnap = await getDoc(doc(db, "users", t.userId));
       const volunteerSnap = await getDoc(doc(db, "users", currentUid));
-
-      if (!patientSnap.exists() || !volunteerSnap.exists()) {
-        console.warn("找不到用戶資料，無法建立聊天室");
-      } else {
+      if (patientSnap.exists() && volunteerSnap.exists()) {
         await createMatch(taskId, t.userId, currentUid, patientSnap.id, volunteerSnap.id);
       }
     }
@@ -266,7 +260,6 @@ taskContainer?.addEventListener("click", async (e)=>{
     alert("操作失敗，請稍後再試");
   }
 });
-
 
 // ---------- 主流程 ----------
 (async ()=>{
@@ -283,21 +276,27 @@ taskContainer?.addEventListener("click", async (e)=>{
   // 3) 填選單
   fillCities();
 
-  // 4) 監聽任務（僅待接 / 你可依專案調整狀態值）
-  //    如你使用 'open' / 'pending' / 'published' 等，請改成適用的 where 條件
-  //    （若不確定，先移除 where 直接監聽整個集合也可行，但成本較高）
+  // 4) 監聽任務（僅待接）
+  //    方案 A：移除 orderBy（免 Composite Index），改在前端排序
   const qRef = query(
     collection(db, "requests"),
-    where("status", "==", "pending"),
-    orderBy("createdAt", "desc")
+    where("status", "==", "pending")
   );
 
   onSnapshot(qRef, (snap)=>{
     allTasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    draw(); // 套用目前篩選與資格條件
+
+    // 🔽 前端排序：以 createdAt 新→舊，兼容 Timestamp/字串/空值
+    allTasks.sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
+
+    draw();
   }, (err)=> {
     console.error(err);
     allTasks = [];
     draw();
+    if (emptyState){
+      emptyState.classList.remove("hidden");
+      emptyState.textContent = "讀取失敗或需要建立索引";
+    }
   });
 })();
