@@ -309,6 +309,19 @@ async function handleEvent(event, client) {
     // --- 1) 先處理 postback（有處理就 return）---
     if (event.type === 'postback') {
       console.log('收到 postback:', JSON.stringify(event, null, 2));
+	
+	 // ❶ 先處理 Rich Menu 切換（不要回任何訊息）
+     const data = event.postback?.data || '';
+     if (data.startsWith('switch=')) {
+		const menuType = data.split('=')[1]; // 'care' | 'service'
+		try {
+		  await switchRichMenu(event.source.userId, menuType);
+		} catch (e) {
+		  console.error('切換 Rich Menu 失敗:', e);
+		}
+		return; // 結束，不回覆訊息
+
+
 
       // 先走提醒（建立/清單/刪除）
       const handledByReminder = await handleReminderPostback(event, db, client);
@@ -327,34 +340,6 @@ async function handleEvent(event, client) {
       const msg = (event.message.text || '').trim();
 
 	// 放在 handleEvent 最前面或文字分支之前
-if (event.type === 'postback' && event.postback && event.postback.data) {
-  const data = event.postback.data;          // e.g. 'switch=care'
-  if (data === 'switch=care' || data === 'switch=service') {
-    const menuType = data.split('=')[1];     // 'care' | 'service'
-    try {
-      await switchRichMenu(event.source.userId, menuType);
-      // 不回覆訊息，僅 200 OK 即可；若想回覆可補一段 replyMessage
-      return;
-    } catch (e) {
-      console.error('切換 Rich Menu 失敗:', e);
-      // 可選：回覆一句錯誤提示
-      // return client.replyMessage(event.replyToken, { type:'text', text:'切換失敗，請稍後再試' });
-      return;
-    }
-  }
-}
-
-const data = event.postback?.data || '';
-  if (data === 'switch=care' || data === 'switch=service') {
-     const menuType = data.split('=')[1]; // 'care' | 'service'
-     try {
-       await switchRichMenu(event.source.userId, menuType);
-     } catch (e) {
-       console.error('切換 Rich Menu 失敗:', e);
-     }
-     return; // 一定記得結束
-  }
-
 
       // ===== 其餘指令分支（每個分支記得 return）=====
       if (msg === '藥局地圖') {
