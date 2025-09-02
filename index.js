@@ -314,19 +314,8 @@ async function handleEvent(event, client) {
       setTimeout(() => processedTokens.delete(event.replyToken), 60 * 1000);
     }
 
-    // 1) 先處理 postback
-   // === Postback 統一處理 ===
-if (event.type === 'postback') {
-  const data = event.postback?.data || '';
-  console.log('[postback]', data);
 
-  // ① Rich Menu 切換（你原本就有）
-  if (data.startsWith('switch=')) {
-    const menuType = data.split('=')[1]; // 'care' | 'service'
-    try { await switchRichMenu(event.source.userId, menuType); }
-    catch (e) { console.error('切換 Rich Menu 失敗:', e); }
-    return;
-  }
+  
 
   // ② 開啟功能（需要用「文字流程」啟動的三個）
 // === Postback 統一處理（完整覆蓋原本的 postback 區塊）===
