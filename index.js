@@ -63,9 +63,13 @@ app.use(express.static('public'));
 app.use(cors({ origin: true }));
 // LINE Bot 設定
 const config = {
-  channelAccessToken: '94atJ6+sSP5pXt3wgHHUyNFaaq53Q+hs/nM79XLa4LO5A2LV0UGm7y1kUSLm+29qX16GkZAyOdE2BlxSaBfvl8BGeRLbHgUGQO+AUy8g6/LcdOB7Gdgd2bis2LH0HOuBQmKUVA52SpuTkr7+zFxrVgdB04t89/1O/w1cDnyilFU=',
-  channelSecret: '3da6c5c600c1ee5897209607a02b42d9'
+channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
+  channelSecret: process.env.CHANNEL_SECRET
 };
+if (!config.channelAccessToken || !config.channelSecret) {
+  console.error('❌ 缺少 LINE 金鑰，請設定 CHANNEL_ACCESS_TOKEN / CHANNEL_SECRET');
+  process.exit(1);
+}
 const client = new line.Client(config);
 const {
   startReminderCron,
@@ -383,6 +387,44 @@ async function handleEvent(event, client) {
         console.log('✅ 收到志工配對指令');
         return client.replyMessage(event.replyToken, loginFlex());
       }
+	  
+	  
+	  
+	  if (msg === '切換到健康照護') {
+        try {
+          await switchRichMenu(event.source.userId, 'service');
+          return client.replyMessage(event.replyToken, {
+            type: 'text',
+            text: '✅ 已切換到健康照護選單'
+          });
+        } catch (error) {
+          console.error('切換到健康照護失敗:', error);
+          return client.replyMessage(event.replyToken, {
+            type: 'text',
+            text: '❌ 選單切換失敗，請稍後再試'
+          });
+        }
+      }
+
+      if (msg === '切換到社區服務') {
+        try {
+          await switchRichMenu(event.source.userId, 'care');
+          return client.replyMessage(event.replyToken, {
+            type: 'text',
+            text: '✅ 已切換到社區服務選單'
+          });
+        } catch (error) {
+          console.error('切換到社區服務失敗:', error);
+          return client.replyMessage(event.replyToken, {
+            type: 'text',
+            text: '❌ 選單切換失敗，請稍後再試'
+          });
+        }
+      }
+	  
+	  
+	  
+	  
 
 
 
@@ -468,81 +510,14 @@ const {
 // 在 handleEvent 函數中的文字訊息處理部分，加入這些邏輯：
 
       // ===== 選單切換處理 =====
-      if (msg === '切換到健康照護') {
-        try {
-          await switchRichMenu(event.source.userId, 'service');
-          return client.replyMessage(event.replyToken, {
-            type: 'text',
-            text: '✅ 已切換到健康照護選單'
-          });
-        } catch (error) {
-          console.error('切換到健康照護失敗:', error);
-          return client.replyMessage(event.replyToken, {
-            type: 'text',
-            text: '❌ 選單切換失敗，請稍後再試'
-          });
-        }
-      }
+      
 
-      if (msg === '切換到社區服務') {
-        try {
-          await switchRichMenu(event.source.userId, 'care');
-          return client.replyMessage(event.replyToken, {
-            type: 'text',
-            text: '✅ 已切換到社區服務選單'
-          });
-        } catch (error) {
-          console.error('切換到社區服務失敗:', error);
-          return client.replyMessage(event.replyToken, {
-            type: 'text',
-            text: '❌ 選單切換失敗，請稍後再試'
-          });
-        }
-      }
-
-// 在 index.js 最後，現有的 Rich Menu 路由附近加入：
-
-// ✅ 使用 message 方式的 Rich Menu（取代原本的）
-app.get('/rebuild-richmenus-v2', async (_req, res) => {
-  try {
-    const result = await rebuildRichMenus();
-    res.json({ ok: true, result, message: '使用 message 切換方式重建成功' });
-  } catch (e) {
-    console.error('⚠️ 重建 Rich Menu 失敗:', e);
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-// ✅ 手動切換用戶選單
-app.get('/switch-menu', async (req, res) => {
-  try {
-    const userId = req.query.userId;
-    const menuType = req.query.type || 'care';
-    
-    if (!userId) {
-      return res.status(400).json({ 
-        ok: false, 
-        error: '缺少 userId 參數。使用方式: /switch-menu?userId=Uxxxx&type=care' 
-      });
-    }
-    
-    const result = await switchRichMenu(userId, menuType);
-    res.json({ ok: true, result });
-  } catch (e) {
-    console.error('⚠️ 切換選單失敗:', e);
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-// ✅ 查看當前 Rich Menu IDs
 app.get('/richmenu-status', async (_req, res) => {
   try {
     const ids = getCurrentRichMenuIds();
-    const client = getLineClient();
     const menuList = await client.getRichMenuList();
-    
-    res.json({ 
-      ok: true, 
+    res.json({
+      ok: true,
       storedIds: ids,
       allMenus: menuList.map(m => ({ id: m.richMenuId, name: m.name }))
     });
