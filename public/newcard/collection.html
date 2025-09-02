@@ -2,198 +2,231 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📕 我的圖鑑 - MakeWell</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-  <script src="https://static.line-scdn.net/liff/edge/2.1/sdk.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>我的圖鑑｜Make Well</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { background-color: #efede9; color: #363636; font-family: sans-serif; padding: 20px; }
-    h1, h2 { text-align: center; color: #588157; }
-    .card-grid {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 12px;
+    :root{
+      --green-dark:#588157;   /* 重綠 */
+      --green-light:#659963de;/* 淺綠 */
+      --gray-soft:#dad7cd;    /* 奶灰 */
+      --gray-deep:#8e8e8cf2;  /* 灰色 */
+      --yellow-soft:#efede9;  /* 小奶黃 */
+      --black-soft:#363636;   /* 黑(不死黑) */
     }
-    .card {
-      border: 2px solid #dad7cd;
-      border-radius: 8px;
-      padding: 8px;
-      background: #fff;
-      width: 120px;
-      text-align: center;
-      box-shadow: 2px 2px 6px rgba(0,0,0,0.08);
+    body{ background:var(--yellow-soft); color:var(--black-soft); font-family:system-ui,sans-serif; }
+    h1,h2{ color:var(--green-dark); }
+
+    /* 共用按鈕樣式 */
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      gap:.4rem; padding:.65rem 1rem; border-radius:.75rem; font-weight:600;
+      transition:transform .06s ease, opacity .2s ease, background .2s ease;
+      text-decoration:none;
     }
-    .card img {
-      display: block;
-      margin: auto;
-      max-width: 100px;
+    .btn:active{ transform:translateY(1px); }
+    .btn-primary{ background:var(--green-dark); color:#fff; border:1px solid var(--green-dark); }
+    .btn-primary:hover{ opacity:.9; }
+    .btn-ghost{ color:var(--green-dark); background:transparent; border:1px solid var(--green-dark); }
+    .btn-ghost:hover{ background:var(--gray-soft); }
+
+    /* 卡片 */
+    .card{
+      background:#fff; border:1px solid var(--gray-soft); border-radius:1rem;
+      box-shadow:0 4px 6px rgba(0,0,0,.06); padding:12px;
+      transition: box-shadow .2s ease, border-color .2s ease, transform .06s ease;
     }
-    .history-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 6px;
-      border-bottom: 1px solid #dad7cd;
-      background: #f9f9f9;
+    .card:hover{ border-color:var(--green-light); box-shadow:0 6px 10px rgba(0,0,0,.08); }
+    .card:active{ transform:translateY(1px); }
+    .card img{ width:100%; height:auto; border-radius:.75rem; border:1px solid var(--gray-soft); background:#fff; }
+    .card h3{ font-weight:700; margin-top:.5rem; color:var(--black-soft); }
+    .badge{
+      display:inline-block; font-size:.75rem; padding:.15rem .5rem; border-radius:999px;
+      color:#fff; background:var(--green-dark);
     }
-    .history-item img {
-      width: 50px;
-      border-radius: 4px;
+
+    /* 資訊條 */
+    .info-box{
+      background:var(--gray-soft); color:var(--black-soft);
+      padding:6px 12px; border-radius:.5rem; border:1px solid var(--green-light); font-weight:500;
     }
-    .history-text {
-      flex: 1;
-    }
-    .btn-back {
-      display: block;
-      margin: 20px auto;
-      background: #659963de;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 999px;
-      cursor: pointer;
-    }
-    .btn-back:hover {
-      background: #588157;
-    }
+
+    /* 除錯面板（可關） */
+    #debug{ background:#fff; border:1px dashed var(--green-light); color:var(--black-soft); }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>📕 我的長輩圖圖鑑</h1>
+  <main class="max-w-4xl mx-auto p-5">
+    <header class="flex items-center justify-between gap-2 mb-3">
+      <h1 class="text-2xl font-bold">我的圖鑑</h1>
+      <nav class="flex items-center gap-2">
+        <a href="index.html" class="btn btn-ghost">← 返回首頁</a>
+        <a href="knowledge-draw.html" class="btn btn-primary">前往抽卡</a>
+      </nav>
+    </header>
 
-    <!-- 圖鑑區 -->
-    <section>
-      <h2>我的圖鑑</h2>
-      <div id="collectionDisplay" class="card-grid"></div>
-      <p id="totalCount" style="text-align:center; margin-top:10px;"></p>
+    <p class="text-sm mb-4" style="color:var(--gray-deep)">
+      查看你收集到的知識圖片與獲得次數。
+    </p>
+
+    <!-- 統計 -->
+    <section class="flex flex-wrap items-center gap-2 mb-4">
+      <span class="info-box">已收集：<b id="statUnique">-</b> 張</span>
+      <span class="info-box">總獲得：<b id="statTotal">-</b> 次</span>
     </section>
 
-    <!-- 歷史紀錄區 -->
-    <section style="margin-top: 30px;">
-      <h2>抽卡歷史紀錄</h2>
-      <div id="historyDisplay"></div>
+    <!-- 圖鑑格狀 -->
+    <section id="gallery" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+      <!-- JS 動態注入 -->
     </section>
 
-    <button class="btn-back" onclick="location.href='indexcard.html'">← 回到抽卡</button>
-  </div>
+    <!-- 下方再放一次導覽，方便返回 -->
+    <div class="flex items-center gap-2 mt-6">
+      <a href="index.html" class="btn btn-ghost">← 返回首頁</a>
+      <a href="knowledge-draw.html" class="btn btn-primary">前往抽卡</a>
+    </div>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', async () => {
-      await liff.init({ liffId: "你的 LIFF ID" });
-      if (!liff.isLoggedIn()) {
-        liff.login();
+    <!-- 除錯面板（開發期可看，正式可刪） -->
+    <pre id="debug" class="mt-6 text-xs rounded p-3 whitespace-pre-wrap"></pre>
+  </main>
+
+  <!-- LIFF（非 module） -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <!-- 主腳本（module） -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    // === 開關 ===
+    const SKIP_LIFF_LOGIN = true;  // 開發時可跳過，正式請改 false
+    const SHOW_DEBUG = true;
+
+    // === DOM ===
+    const g = (id)=>document.getElementById(id);
+    const gallery = g('gallery');
+    const statUnique = g('statUnique');
+    const statTotal  = g('statTotal');
+    const debugEl    = g('debug');
+    const log = (...a)=>{ if(SHOW_DEBUG){ debugEl.textContent += a.map(x=>typeof x==='string'?x:JSON.stringify(x,null,2)).join(' ') + "\\n"; } console.log(...a); };
+
+    // === Utils ===
+    function mockUid(){
+      const k="dev_mock_uid"; let id=localStorage.getItem(k);
+      if(!id){ id="DEV_"+Math.random().toString(36).slice(2,10); localStorage.setItem(k,id); }
+      return id;
+    }
+    async function loadFirebaseConfig(){
+      try{
+        const mod = await import("./firebase-config.js");
+        const cfg = mod.firebaseConfig || mod.default;
+        if(cfg) return cfg;
+      }catch(e){}
+      // fallback（你提供的設定）
+      return {
+        apiKey:"AIzaSyCCUzkxpn1quR9PPSBeZBGGl7XVh8vPzjY",
+        authDomain:"medwell-test1.firebaseapp.com",
+        projectId:"medwell-test1",
+        messagingSenderId:"860851688843",
+        appId:"1:860851688843:web:622eb8feccad45ce640b8e"
+      };
+    }
+
+    // === 讀取圖鑑資料（優先 card_collection，否則回退 draw_history） ===
+    async function fetchFromCardCollection(db, userId){
+      const snap = await getDocs(query(collection(db,"card_collection"), where("userId","==",userId)));
+      const items = [];
+      snap.forEach(d=>{
+        const x=d.data();
+        items.push({
+          id: x.cardName || x.id || x.image || crypto.randomUUID?.() || Math.random().toString(36).slice(2),
+          name: x.cardName || x.name || "未命名",
+          image: x.image,
+          count: Number(x.count || 1)
+        });
+      });
+      return items;
+    }
+    async function fetchFromDrawHistory(db, userId){
+      // 每日彙總：{ userId, date, items:[{id,name,image,ts}] }
+      const snap = await getDocs(query(collection(db,"draw_history"), where("userId","==",userId)));
+      const map = new Map(); // key: id|image|name → {name,image,count}
+      snap.forEach(d=>{
+        const x=d.data();
+        const arr = Array.isArray(x.items) ? x.items : [];
+        for(const it of arr){
+          const key = it.id || it.image || it.name;
+          if(!map.has(key)){
+            map.set(key, { id:key, name: it.name || "未命名", image: it.image, count: 0 });
+          }
+          map.get(key).count += 1;
+        }
+      });
+      return Array.from(map.values());
+    }
+
+    function renderGallery(items){
+      gallery.innerHTML = "";
+      if(!items.length){
+        gallery.innerHTML = '<div class="col-span-full text-center text-sm" style="color:var(--gray-deep)">尚未蒐集到任何圖片，去「前往抽卡」試試吧！</div>';
+        statUnique.textContent = "0"; statTotal.textContent = "0";
         return;
       }
-      const profile = await liff.getProfile();
-      const userId = profile.userId;
-
-      // ===== Firebase 設定 =====
-      const firebaseConfig = {
-        apiKey: "AIzaSyCCUzkxpn1quR9PPSBeZBGGl7XVh8vPzjY",
-        authDomain: "medwell-test1.firebaseapp.com",
-        projectId: "medwell-test1",
-        storageBucket: "medwell-test1.appspot.com", // 修正 Storage Bucket
-        messagingSenderId: "860851688843",
-        appId: "1:860851688843:web:622eb8feccad45ce640b8e"
-      };
-      firebase.initializeApp(firebaseConfig);
-      const db = firebase.firestore();
-
-      loadCollection(userId);
-      loadHistory(userId);
-
-      // 載入圖鑑
-      function loadCollection(userId) {
-        const cardGrid = document.getElementById('collectionDisplay');
-        const totalCountEl = document.getElementById('totalCount');
-        cardGrid.innerHTML = '';
-
-        db.collection('card_collection')
-          .where('userId', '==', userId)
-          .get()
-          .then(snapshot => {
-            let cardsArr = [];
-            let total = 0;
-
-            snapshot.forEach(doc => {
-              const data = doc.data();
-              total += data.count;
-              cardsArr.push(data);
-            });
-
-            // 稀有度排序：超稀有 > 稀有 > 普通
-            const rarityOrder = { '超稀有': 1, '稀有': 2, '普通': 3 };
-            cardsArr.sort((a, b) => {
-              const rarityDiff = rarityOrder[a.rarity] - rarityOrder[b.rarity];
-              if (rarityDiff !== 0) return rarityDiff;
-              return a.cardName.localeCompare(b.cardName, 'zh-Hant');
-            });
-
-            // 顯示
-            cardsArr.forEach(data => {
-              const div = document.createElement('div');
-              div.className = 'card';
-              div.setAttribute('data-rarity', data.rarity);
-              div.innerHTML = `
-                <img src="${data.image}" alt="${data.cardName}" />
-                <h4>${data.cardName}</h4>
-                <p>數量：${data.count}</p>
-              `;
-              cardGrid.appendChild(div);
-            });
-
-            totalCountEl.textContent = total > 0 ? `📈 總收集數量：${total} 張` : '目前尚未收集到任何卡片';
-          });
+      let total=0;
+      for(const it of items){
+        total += Number(it.count||0);
+        const card = document.createElement('div');
+        card.className = "card";
+        card.innerHTML = `
+          <img src="${it.image}" alt="${it.name}" />
+          <div class="flex items-center justify-between mt-2">
+            <h3 class="truncate pr-2">${it.name}</h3>
+            <span class="badge">× ${it.count || 1}</span>
+          </div>
+        `;
+        gallery.appendChild(card);
       }
+      statUnique.textContent = String(items.length);
+      statTotal.textContent  = String(total);
+    }
 
-      // 載入抽卡歷史
-      function loadHistory(userId) {
-        const historyDisplay = document.getElementById('historyDisplay');
-        historyDisplay.innerHTML = '';
+    // === Main ===
+    (async ()=>{
+      try{
+        // 1) Firebase
+        const firebaseConfig = await loadFirebaseConfig();
+        const app = initializeApp(firebaseConfig);
+        const db  = getFirestore(app);
 
-        db.collection('draw_history')
-          .where('userId', '==', userId)
-          .orderBy('timestamp', 'desc')
-          .get()
-          .then(snapshot => {
-            if (snapshot.empty) {
-              historyDisplay.innerHTML = '<p>目前沒有抽卡紀錄</p>';
-              return;
-            }
+        // 2) 取得 userId（可跳過 LIFF）
+        let userId;
+        try{
+          await liff.init({ liffId: "2007870072-ZNeMmll2" });
+          if(!SKIP_LIFF_LOGIN){
+            if(!liff.isLoggedIn()){ liff.login(); return; }
+            userId = (await liff.getProfile()).userId;
+          }else{
+            userId = mockUid();
+            log("[DEV] Skip LIFF. mock userId =", userId);
+          }
+        }catch(e){
+          userId = mockUid();
+          log("[DEV] LIFF init failed. use mock userId =", userId, e?.message||e);
+        }
 
-            let historyArr = [];
-            snapshot.forEach(doc => {
-              historyArr.push(doc.data());
-            });
+        // 3) 先試 card_collection，若無資料則回退 draw_history
+        let items = await fetchFromCardCollection(db, userId);
+        if(!items.length){
+          items = await fetchFromDrawHistory(db, userId);
+        }
+        renderGallery(items);
+        log({ source: items.length ? "collection/draw_history(auto)" : "none", count: items.length });
 
-            // 稀有度排序
-            const rarityOrder = { '超稀有': 1, '稀有': 2, '普通': 3 };
-            historyArr.sort((a, b) => {
-              const rarityDiff = rarityOrder[a.rarity] - rarityOrder[b.rarity];
-              if (rarityDiff !== 0) return rarityDiff;
-              return (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0);
-            });
-
-            historyArr.forEach(data => {
-              const div = document.createElement('div');
-              div.className = 'history-item';
-              div.innerHTML = `
-                <img src="${data.image}" alt="${data.cardName}" />
-                <div class="history-text">
-                  <strong>${data.cardName}</strong>（${data.rarity}）
-                  <br>
-                  ${data.timestamp ? data.timestamp.toDate().toLocaleString() : ''}
-                </div>
-              `;
-              historyDisplay.appendChild(div);
-            });
-          });
+      }catch(e){
+        gallery.innerHTML = '<div class="col-span-full text-center text-sm text-red-600">載入圖鑑失敗：'+(e?.message||e)+'</div>';
+        console.error(e);
       }
-    });
+    })();
   </script>
 </body>
 </html>
