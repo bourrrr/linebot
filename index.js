@@ -456,30 +456,21 @@ app.get('/health', (_, res) => res.send('ok'));
 
 
 
-// 在您的 index.js 中加入這些處理邏輯
+// 在 index.js 中找到 Rich Menu 相關的引用，替換為：
 
-// 引入新的不使用 alias 的 Rich Menu 設定
 const { 
   rebuildRichMenus, 
   updateRichMenuImage,
   switchRichMenu,
-  switchRichMenuForAllUsers 
-} = require('./OCR_modules/menu/richmenu-setup-no-alias');
+  getCurrentRichMenuIds 
+} = require('./OCR_modules/menu/richmenu-setup');
 
-// 在 handleEvent 函數中加入選單切換處理
-async function handleEvent(event, client) {
-  try {
-    // ... 現有的去重和 postback 處理邏輯 ...
+// 在 handleEvent 函數中的文字訊息處理部分，加入這些邏輯：
 
-    // --- 2) 處理文字訊息 ---
-    if (event.type === 'message' && event.message.type === 'text') {
-      const msg = (event.message.text || '').trim();
-      const userId = event.source.userId;
-
-      // ===== 新增：選單切換處理 =====
+      // ===== 選單切換處理 =====
       if (msg === '切換到健康照護') {
         try {
-          await switchRichMenu(userId, 'service');
+          await switchRichMenu(event.source.userId, 'service');
           return client.replyMessage(event.replyToken, {
             type: 'text',
             text: '✅ 已切換到健康照護選單'
@@ -495,7 +486,7 @@ async function handleEvent(event, client) {
 
       if (msg === '切換到社區服務') {
         try {
-          await switchRichMenu(userId, 'care');
+          await switchRichMenu(event.source.userId, 'care');
           return client.replyMessage(event.replyToken, {
             type: 'text',
             text: '✅ 已切換到社區服務選單'
@@ -509,50 +500,15 @@ async function handleEvent(event, client) {
         }
       }
 
-      // ===== 其餘現有的指令處理邏輯 =====
-      if (msg === '藥局地圖') {
-        return client.replyMessage(event.replyToken, [madmapflex]);
-      }
+// 在 index.js 最後，現有的 Rich Menu 路由附近加入：
 
-      // ... 其他現有邏輯保持不變 ...
-    }
-
-    // ... 其他事件處理 ...
-  } catch (err) {
-    const detail = err.response?.data ? JSON.stringify(err.response.data, null, 2) : (err.message || String(err));
-    console.error('⚠️ handleEvent error:', detail);
-  }
-}
-
-// 更新 Rich Menu 相關的路由
-// ✅ 完整重建（不使用 alias）
+// ✅ 使用 message 方式的 Rich Menu（取代原本的）
 app.get('/rebuild-richmenus-v2', async (_req, res) => {
   try {
     const result = await rebuildRichMenus();
-    res.json({ ok: true, result });
+    res.json({ ok: true, result, message: '使用 message 切換方式重建成功' });
   } catch (e) {
     console.error('⚠️ 重建 Rich Menu 失敗:', e);
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-// ✅ 更新圖片（使用選單類型）
-app.get('/update-richmenu-image-v2', async (req, res) => {
-  try {
-    const menuType = req.query.type; // 'care' 或 'service'
-    const file = req.query.file;     // 圖片路徑
-    
-    if (!menuType || !file) {
-      return res.status(400).json({ 
-        ok: false, 
-        error: '缺少必要參數：type (care/service) 和 file' 
-      });
-    }
-    
-    const result = await updateRichMenuImage(menuType, file);
-    res.json({ ok: true, result });
-  } catch (e) {
-    console.error('⚠️ 更新圖片失敗:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
@@ -566,7 +522,7 @@ app.get('/switch-menu', async (req, res) => {
     if (!userId) {
       return res.status(400).json({ 
         ok: false, 
-        error: '缺少 userId 參數' 
+        error: '缺少 userId 參數。使用方式: /switch-menu?userId=Uxxxx&type=care' 
       });
     }
     
@@ -578,19 +534,23 @@ app.get('/switch-menu', async (req, res) => {
   }
 });
 
-// ✅ 批量設定預設選單
-app.get('/set-default-menu', async (req, res) => {
+// ✅ 查看當前 Rich Menu IDs
+app.get('/richmenu-status', async (_req, res) => {
   try {
-    const menuType = req.query.type || 'care';
-    const result = await switchRichMenuForAllUsers(menuType);
-    res.json({ ok: true, result });
+    const ids = getCurrentRichMenuIds();
+    const client = getLineClient();
+    const menuList = await client.getRichMenuList();
+    
+    res.json({ 
+      ok: true, 
+      storedIds: ids,
+      allMenus: menuList.map(m => ({ id: m.richMenuId, name: m.name }))
+    });
   } catch (e) {
-    console.error('⚠️ 設定預設選單失敗:', e);
+    console.error('⚠️ 獲取狀態失敗:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
-
-
 
 
 
