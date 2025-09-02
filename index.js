@@ -456,28 +456,136 @@ app.get('/health', (_, res) => res.send('ok'));
 
 
 
-const { rebuildRichMenus, updateRichMenuImage } = require('./OCR_modules/menu/richmenu-setup');
+// 在您的 index.js 中加入這些處理邏輯
 
-// ✅ 完整重建
-app.get('/rebuild-richmenus', async (_req, res) => {
+// 引入新的不使用 alias 的 Rich Menu 設定
+const { 
+  rebuildRichMenus, 
+  updateRichMenuImage,
+  switchRichMenu,
+  switchRichMenuForAllUsers 
+} = require('./OCR_modules/menu/richmenu-setup-no-alias');
+
+// 在 handleEvent 函數中加入選單切換處理
+async function handleEvent(event, client) {
+  try {
+    // ... 現有的去重和 postback 處理邏輯 ...
+
+    // --- 2) 處理文字訊息 ---
+    if (event.type === 'message' && event.message.type === 'text') {
+      const msg = (event.message.text || '').trim();
+      const userId = event.source.userId;
+
+      // ===== 新增：選單切換處理 =====
+      if (msg === '切換到健康照護') {
+        try {
+          await switchRichMenu(userId, 'service');
+          return client.replyMessage(event.replyToken, {
+            type: 'text',
+            text: '✅ 已切換到健康照護選單'
+          });
+        } catch (error) {
+          console.error('切換到健康照護失敗:', error);
+          return client.replyMessage(event.replyToken, {
+            type: 'text',
+            text: '❌ 選單切換失敗，請稍後再試'
+          });
+        }
+      }
+
+      if (msg === '切換到社區服務') {
+        try {
+          await switchRichMenu(userId, 'care');
+          return client.replyMessage(event.replyToken, {
+            type: 'text',
+            text: '✅ 已切換到社區服務選單'
+          });
+        } catch (error) {
+          console.error('切換到社區服務失敗:', error);
+          return client.replyMessage(event.replyToken, {
+            type: 'text',
+            text: '❌ 選單切換失敗，請稍後再試'
+          });
+        }
+      }
+
+      // ===== 其餘現有的指令處理邏輯 =====
+      if (msg === '藥局地圖') {
+        return client.replyMessage(event.replyToken, [madmapflex]);
+      }
+
+      // ... 其他現有邏輯保持不變 ...
+    }
+
+    // ... 其他事件處理 ...
+  } catch (err) {
+    const detail = err.response?.data ? JSON.stringify(err.response.data, null, 2) : (err.message || String(err));
+    console.error('⚠️ handleEvent error:', detail);
+  }
+}
+
+// 更新 Rich Menu 相關的路由
+// ✅ 完整重建（不使用 alias）
+app.get('/rebuild-richmenus-v2', async (_req, res) => {
   try {
     const result = await rebuildRichMenus();
     res.json({ ok: true, result });
   } catch (e) {
-    console.error('❌ 重建 Rich Menu 失敗:', e);
+    console.error('⚠️ 重建 Rich Menu 失敗:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
 
-// ✅ 只換圖（?alias=alias-care-v2-care&file=./OCR_modules/menu/assets/richmenu-care.png）
-app.get('/update-richmenu-image', async (req, res) => {
+// ✅ 更新圖片（使用選單類型）
+app.get('/update-richmenu-image-v2', async (req, res) => {
   try {
-    const alias = req.query.alias; // 例：alias-care-v2-care 或 alias-care-v2-service
-    const file  = req.query.file;  // 例：./OCR_modules/menu/assets/richmenu-care.png
-    const result = await updateRichMenuImage(alias, file);
+    const menuType = req.query.type; // 'care' 或 'service'
+    const file = req.query.file;     // 圖片路徑
+    
+    if (!menuType || !file) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: '缺少必要參數：type (care/service) 和 file' 
+      });
+    }
+    
+    const result = await updateRichMenuImage(menuType, file);
     res.json({ ok: true, result });
   } catch (e) {
-    console.error('❌ 換圖失敗:', e);
+    console.error('⚠️ 更新圖片失敗:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ✅ 手動切換用戶選單
+app.get('/switch-menu', async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    const menuType = req.query.type || 'care';
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: '缺少 userId 參數' 
+      });
+    }
+    
+    const result = await switchRichMenu(userId, menuType);
+    res.json({ ok: true, result });
+  } catch (e) {
+    console.error('⚠️ 切換選單失敗:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ✅ 批量設定預設選單
+app.get('/set-default-menu', async (req, res) => {
+  try {
+    const menuType = req.query.type || 'care';
+    const result = await switchRichMenuForAllUsers(menuType);
+    res.json({ ok: true, result });
+  } catch (e) {
+    console.error('⚠️ 設定預設選單失敗:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });

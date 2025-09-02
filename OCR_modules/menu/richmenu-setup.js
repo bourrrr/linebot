@@ -1,4 +1,4 @@
-// OCR_modules/menu/richmenu-setup.js
+// OCR_modules/menu/richmenu-setup-no-alias.js
 const fs = require('fs');
 const { Client } = require('@line/bot-sdk');
 
@@ -9,51 +9,18 @@ function getLineClient() {
   });
 }
 
-// 改進的 alias 處理函數
-async function upsertAlias(client, richMenuAliasId, richMenuId) {
-  try {
-    // 先檢查 alias 是否存在
-    let aliasExists = false;
-    try {
-      await client.getRichMenuAlias(richMenuAliasId);
-      aliasExists = true;
-      console.log(`📋 alias 已存在: ${richMenuAliasId}`);
-    } catch (err) {
-      console.log(`📋 alias 不存在，將創建新的: ${richMenuAliasId}`);
-    }
+// 儲存 Rich Menu ID 到記憶體（生產環境建議存到資料庫）
+let richMenuIds = {
+  care: null,
+  service: null
+};
 
-    if (aliasExists) {
-      // 如果存在就更新
-      await client.updateRichMenuAlias(richMenuAliasId, { richMenuId });
-      console.log(`✅ 成功更新 alias: ${richMenuAliasId} -> ${richMenuId}`);
-    } else {
-      // 如果不存在就創建
-      await client.createRichMenuAlias({ richMenuAliasId, richMenuId });
-      console.log(`✅ 成功創建 alias: ${richMenuAliasId} -> ${richMenuId}`);
-    }
-    
-  } catch (error) {
-    console.error(`❌ alias 操作失敗: ${richMenuAliasId}`, error?.response?.data || error);
-    
-    // 如果是格式問題，給出更具體的建議
-    if (error?.response?.status === 400) {
-      console.error('💡 可能原因：');
-      console.error('   1. alias 名稱格式不符合 LINE 要求');
-      console.error('   2. alias 名稱包含不允許的字符');
-      console.error('   3. alias 名稱過長或過短');
-      console.error('   建議使用英文、數字、連字符，避免特殊字符');
-    }
-    
-    throw error;
-  }
-}
-
-// A. 完整重建（刪舊建新 + 綁 alias + 設預設）
+// A. 完整重建（不使用 alias，用 message 觸發切換）
 async function rebuildRichMenus() {
   const client = getLineClient();
 
   try {
-    console.log('🚀 開始重建 Rich Menus...');
+    console.log('🚀 開始重建 Rich Menus (不使用 alias)...');
 
     // 1. 刪除現有的 Rich Menu
     console.log('📝 獲取現有 Rich Menu 列表...');
@@ -65,28 +32,13 @@ async function rebuildRichMenus() {
       await client.deleteRichMenu(rm.richMenuId);
     }
 
-    // 2. 刪除現有的 alias（使用簡化的名稱）
-    const aliasesToDelete = ['care-menu', 'service-menu'];
-    for (const aliasId of aliasesToDelete) {
-      try {
-        // 先檢查是否存在
-        await client.getRichMenuAlias(aliasId);
-        // 存在就刪除
-        await client.deleteRichMenuAlias(aliasId);
-        console.log(`✅ 成功刪除 alias: ${aliasId}`);
-      } catch (err) {
-        if (err?.response?.status === 404) {
-          console.log(`ℹ️ alias 不存在，無需刪除: ${aliasId}`);
-        } else {
-          console.log(`⚠️ 刪除 alias 時發生錯誤: ${aliasId}`, err?.response?.data || err.message);
-        }
-      }
-    }
+    // 2. 不再處理 alias（完全跳過）
+    console.log('⏭️ 跳過 alias 處理');
 
     // 3. 創建新的 Rich Menu
     const size = { width: 2500, height: 1686 };
 
-    // 社區服務 Menu
+    // 社區服務 Menu (使用 message 而非 richmenuswitch)
     console.log('📋 創建社區服務 Rich Menu...');
     const careMenuData = {
       size,
@@ -95,13 +47,9 @@ async function rebuildRichMenus() {
       chatBarText: 'MakeWell',
       areas: [
         { 
-          // Top bar：切換到健康照護
+          // Top bar：用訊息觸發切換
           bounds: { x: 1250, y: 0, width: 1250, height: 220 },
-          action: { 
-            type: 'richmenuswitch', 
-            richMenuAliasId: 'service-menu', 
-            data: 'to-service' 
-          }
+          action: { type: 'message', text: '切換到健康照護' }
         },
         { 
           // 藥局地圖
@@ -122,20 +70,18 @@ async function rebuildRichMenus() {
     };
 
     const careRichMenu = await client.createRichMenu(careMenuData);
+    richMenuIds.care = careRichMenu; // 儲存 ID
     console.log(`✅ 社區服務 Rich Menu 創建成功: ${careRichMenu}`);
 
-    // 檢查圖片文件是否存在
+    // 檢查並上傳圖片
     const careImagePath = './OCR_modules/menu/assets/richmenu-care.png';
     if (!fs.existsSync(careImagePath)) {
       throw new Error(`圖片文件不存在: ${careImagePath}`);
     }
-
     await client.setRichMenuImage(careRichMenu, fs.createReadStream(careImagePath));
     console.log('✅ 社區服務選單圖片上傳成功');
 
-    await upsertAlias(client, 'care-menu', careRichMenu);
-
-    // 健康照護 Menu
+    // 健康照護 Menu (使用 message 而非 richmenuswitch)
     console.log('📋 創建健康照護 Rich Menu...');
     const serviceMenuData = {
       size,
@@ -144,13 +90,9 @@ async function rebuildRichMenus() {
       chatBarText: 'MakeWell',
       areas: [
         {
-          // Top bar：切換到社區服務
+          // Top bar：用訊息觸發切換
           bounds: { x: 0, y: 0, width: 1250, height: 220 },
-          action: { 
-            type: 'richmenuswitch', 
-            richMenuAliasId: 'care-menu', 
-            data: 'to-care' 
-          }
+          action: { type: 'message', text: '切換到社區服務' }
         },
         { 
           // 功能說明
@@ -179,25 +121,26 @@ async function rebuildRichMenus() {
     };
 
     const serviceRichMenu = await client.createRichMenu(serviceMenuData);
+    richMenuIds.service = serviceRichMenu; // 儲存 ID
     console.log(`✅ 健康照護 Rich Menu 創建成功: ${serviceRichMenu}`);
 
-    // 檢查圖片文件是否存在
+    // 檢查並上傳圖片
     const serviceImagePath = './OCR_modules/menu/assets/richmenu-service.png';
     if (!fs.existsSync(serviceImagePath)) {
       throw new Error(`圖片文件不存在: ${serviceImagePath}`);
     }
-
     await client.setRichMenuImage(serviceRichMenu, fs.createReadStream(serviceImagePath));
     console.log('✅ 健康照護選單圖片上傳成功');
-
-    await upsertAlias(client, 'service-menu', serviceRichMenu);
 
     // 設定預設選單
     await client.setDefaultRichMenu(careRichMenu);
     console.log('✅ 設定預設 Rich Menu 成功');
 
     console.log('🎉 Rich Menu 重建完成！');
-    return { careRichMenu, serviceRichMenu };
+    console.log(`📋 社區服務 ID: ${careRichMenu}`);
+    console.log(`📋 健康照護 ID: ${serviceRichMenu}`);
+
+    return { careRichMenu, serviceRichMenu, richMenuIds };
 
   } catch (error) {
     console.error('❌ Rich Menu 重建失敗:', error?.response?.data || error);
@@ -205,32 +148,77 @@ async function rebuildRichMenus() {
   }
 }
 
-// B. 只換圖（alias → 找 richMenuId → setRichMenuImage）
-async function updateRichMenuImage(aliasId, imagePath) {
+// 手動切換 Rich Menu 的函數
+async function switchRichMenu(userId, menuType = 'care') {
   const client = getLineClient();
   
   try {
-    if (!aliasId) throw new Error('aliasId 是必填');
-    if (!imagePath) throw new Error('imagePath 是必填');
+    const menuId = menuType === 'care' ? richMenuIds.care : richMenuIds.service;
+    
+    if (!menuId) {
+      throw new Error(`找不到 ${menuType} 選單 ID，請先重建選單`);
+    }
+
+    await client.linkRichMenuToUser(userId, menuId);
+    console.log(`✅ 用戶 ${userId} 已切換到 ${menuType} 選單`);
+    
+    return { success: true, userId, menuType, menuId };
+
+  } catch (error) {
+    console.error(`❌ 切換選單失敗:`, error?.response?.data || error);
+    throw error;
+  }
+}
+
+// 批量切換用戶選單
+async function switchRichMenuForAllUsers(menuType = 'care') {
+  const client = getLineClient();
+  
+  try {
+    const menuId = menuType === 'care' ? richMenuIds.care : richMenuIds.service;
+    
+    if (!menuId) {
+      throw new Error(`找不到 ${menuType} 選單 ID，請先重建選單`);
+    }
+
+    // 注意：這會影響所有用戶，請謹慎使用
+    await client.setDefaultRichMenu(menuId);
+    console.log(`✅ 所有用戶的預設選單已切換到 ${menuType}`);
+    
+    return { success: true, menuType, menuId };
+
+  } catch (error) {
+    console.error(`❌ 批量切換選單失敗:`, error?.response?.data || error);
+    throw error;
+  }
+}
+
+// B. 只換圖（直接用 Rich Menu ID）
+async function updateRichMenuImage(menuType, imagePath) {
+  const client = getLineClient();
+  
+  try {
+    if (!menuType || !imagePath) {
+      throw new Error('menuType 和 imagePath 都是必填');
+    }
 
     // 檢查圖片文件是否存在
     if (!fs.existsSync(imagePath)) {
       throw new Error(`圖片文件不存在: ${imagePath}`);
     }
 
-    console.log(`🔄 開始更新 Rich Menu 圖片: ${aliasId}`);
-    
-    const alias = await client.getRichMenuAlias(aliasId); // { richMenuAliasId, richMenuId }
-    const richMenuId = alias.richMenuId;
+    const richMenuId = menuType === 'care' ? richMenuIds.care : richMenuIds.service;
     
     if (!richMenuId) {
-      throw new Error(`找不到 alias: ${aliasId} 對應的 richMenuId`);
+      throw new Error(`找不到 ${menuType} 選單 ID，請先重建選單`);
     }
 
-    await client.setRichMenuImage(richMenuId, fs.createReadStream(imagePath));
-    console.log(`✅ Rich Menu 圖片更新成功: ${aliasId} -> ${richMenuId}`);
+    console.log(`🔄 開始更新 Rich Menu 圖片: ${menuType}`);
     
-    return { aliasId, richMenuId, imagePath };
+    await client.setRichMenuImage(richMenuId, fs.createReadStream(imagePath));
+    console.log(`✅ Rich Menu 圖片更新成功: ${menuType} -> ${richMenuId}`);
+    
+    return { menuType, richMenuId, imagePath };
 
   } catch (error) {
     console.error(`❌ 更新 Rich Menu 圖片失敗:`, error?.response?.data || error);
@@ -238,4 +226,15 @@ async function updateRichMenuImage(aliasId, imagePath) {
   }
 }
 
-module.exports = { rebuildRichMenus, updateRichMenuImage };
+// 獲取當前儲存的 Rich Menu IDs
+function getCurrentRichMenuIds() {
+  return { ...richMenuIds };
+}
+
+module.exports = { 
+  rebuildRichMenus, 
+  updateRichMenuImage,
+  switchRichMenu,
+  switchRichMenuForAllUsers,
+  getCurrentRichMenuIds
+};
