@@ -374,7 +374,9 @@ async function handleEvent(event, client) {
       if (handledByCheckin) return;
 		const ok = await handleHelpPostback(client, event);
 if (ok) return;
-
+		// ④ 使用說明 / 返回選單（help=open&key=xxx 或 help=menu）
+	const handledByHelp = await flexHelp.handleHelpPostback(client, event);
+	if (handledByHelp) return;
       return;
     }
 
