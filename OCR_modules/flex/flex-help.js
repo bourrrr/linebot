@@ -146,6 +146,36 @@ function parseQuery(s) {
   (s || "").split("&").forEach(p => { const [k, v] = p.split("="); if (k) out[decodeURIComponent(k)] = decodeURIComponent(v || ""); });
   return out;
 }
+// flex-help.js
+async function handleHelpPostback(client, event) {
+  const data = event.postback?.data || "";
+  if (!data.startsWith("help=")) return false;
+
+  const q = parseQuery(data);
+  if (q.help === "open" && q.key) {
+    const card = USAGE_CARDS[q.key];
+    if (card) {
+      try {
+        await client.replyMessage(event.replyToken, {
+          type: "flex",
+          altText: "功能使用說明",
+          contents: card
+        });
+        return true;
+      } catch (e) {
+        console.error('[reply usage card error]', e?.response?.data || e);
+        // 發生錯時先回文字，避免使用者看到空白
+        await client.replyMessage(event.replyToken, { type: "text", text: "抱歉，說明卡目前無法顯示。" });
+        return true;
+      }
+    }
+  }
+  if (q.help === "menu") {
+    await client.replyMessage(event.replyToken, buildFeatureShopStyleCarousel(FEATURE_CARDS));
+    return true;
+  }
+  return false;
+}
 
 module.exports = {
   FEATURE_CARDS,
