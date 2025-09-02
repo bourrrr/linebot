@@ -315,70 +315,63 @@ async function handleEvent(event, client) {
     }
 
     // 1) 先處理 postback
-    if (event.type === 'postback') {
-      console.log('收到 postback:', JSON.stringify(event, null, 2));
+   // === Postback 統一處理 ===
+if (event.type === 'postback') {
+  const data = event.postback?.data || '';
+  console.log('[postback]', data);
 
-      // 先處理 Rich Menu 切換（不回覆訊息）
-      const data = event.postback?.data || '';
-      if (data.startsWith('switch=')) {
-        const menuType = data.split('=')[1]; // 'care' | 'service'
-        try {
-          await switchRichMenu(event.source.userId, menuType);
-        } catch (e) {
-          console.error('切換 Rich Menu 失敗:', e);
-        }
-        return; // 結束，不回覆訊息
-      } // ★★★ 這個大括號是你缺少的 ★★★
-		// ② 開啟功能：用文字流程或提示未設定
-	if ((event.postback?.data || '').startsWith('help=launch')) {
-	  const q = new URLSearchParams(event.postback.data);
-	  const key = q.get('key') || '';
+  // ① Rich Menu 切換（你原本就有）
+  if (data.startsWith('switch=')) {
+    const menuType = data.split('=')[1]; // 'care' | 'service'
+    try { await switchRichMenu(event.source.userId, menuType); }
+    catch (e) { console.error('切換 Rich Menu 失敗:', e); }
+    return;
+  }
 
-	  // 這三個走「文字→卡片/流程」
-	  if (key === 'reminder') {
-		// 用藥提醒 → 時段選單 Flex
-		try {
-		  const flex = buildTimeMenuFlex();
-		  await client.replyMessage(event.replyToken, flex);
-		} catch (e) {
-		  console.error('reminder launch error:', e);
-		  await client.replyMessage(event.replyToken, { type: 'text', text: '⚠️ 用藥提醒暫時無法開啟' });
-		}
-		return;
-	  }
+  // ② 開啟功能（需要用「文字流程」啟動的三個）
+  if (data.startsWith('help=launch')) {
+    const q = new URLSearchParams(data);
+    const key = q.get('key') || '';
 
-	  if (key === 'pairing') {
-		// 志工配對 → 你的登入/配對起始卡
-		await client.replyMessage(event.replyToken, loginFlex());
-		return;
-	  }
+    if (key === 'reminder') {
+      try {
+        const flex = buildTimeMenuFlex();           // 用藥提醒 → 時段選單
+        await client.replyMessage(event.replyToken, flex);
+      } catch (e) {
+        console.error('reminder launch error:', e);
+        await client.replyMessage(event.replyToken, { type: 'text', text: '⚠️ 用藥提醒暫時無法開啟' });
+      }
+      return;
+    }
+    if (key === 'pairing') {
+      await client.replyMessage(event.replyToken, loginFlex());   // 志工配對 → 登入/配對卡
+      return;
+    }
+    if (key === 'diet') {
+      await handleRecipeRecommendation(event, client);            // 飲食推薦 → 推薦流程
+      return;
+    }
 
-	  if (key === 'diet') {
-		// 飲食推薦 → 呼叫你的食譜卡處理器
-		await handleRecipeRecommendation(event, client);
-		return;
-	  }
+    // 其餘（藥局地圖/健康數據/圖鑑）若沒設定 URI，就提示
+    await client.replyMessage(event.replyToken, { type: 'text', text: `「${key}」尚未設定開啟方式` });
+    return;
+  }
 
-  // 其他功能（藥局地圖 / 健康數據紀錄 / 圖鑑）
-  // 若在 flex-help.js 有設定 URI，就不會進到這裡；會直接用 URI 開啟
-  await client.replyMessage(event.replyToken, { type: 'text', text: `「${key}」尚未設定開啟方式` });
+  // ③ 先讓提醒 / 簽到系統嘗試處理
+  const handledByReminder = await handleReminderPostback(event, db, client);
+  if (handledByReminder) return;
+
+  const handledByCheckin = await handleCheckin(event, db, client);
+  if (handledByCheckin) return;
+
+  // ④ 最後交給 flex-help（包含：help=open&key=pharmacy、help=menu）
+  const handledByHelp = await flexHelp.handleHelpPostback(client, event);
+  if (handledByHelp) return;
+
+  console.warn('未處理的 postback:', data);
   return;
 }
 
-      // 其它 postback：用藥提醒 / 刪除 / 清單...
-      const handledByReminder = await handleReminderPostback(event, db, client);
-      if (handledByReminder) return;
-
-      // 若未來用 postback 做簽到，也放這裡
-      const handledByCheckin = await handleCheckin(event, db, client);
-      if (handledByCheckin) return;
-		const ok = await handleHelpPostback(client, event);
-if (ok) return;
-		// ④ 使用說明 / 返回選單（help=open&key=xxx 或 help=menu）
-	const handledByHelp = await flexHelp.handleHelpPostback(client, event);
-	if (handledByHelp) return;
-      return;
-    }
 
     // 2) 再處理文字訊息（請不要在這裡再判斷 postback）
     if (event.type === 'message' && event.message.type === 'text') {
