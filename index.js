@@ -292,86 +292,69 @@ async function replyHealthWithDiet(event, client, userId) {
 async function handleEvent(event, client) {
   try {
     // --- 去重（LINE 偶爾會重送同一事件）---
-    if (event.deliveryContext?.isRedelivery === true) {
-      console.log('🔁 redelivery ignored');
-      return;
-    }
+    // ==== 直接覆蓋整個 handleEvent ====
+async function handleEvent(event, client) {
+  try {
+    // 去重
+    if (event.deliveryContext?.isRedelivery) return;
     if (event.replyToken) {
-      if (processedTokens.has(event.replyToken)) {
-        console.log('🔁 duplicate event ignored');
-        return;
-      }
+      if (processedTokens.has(event.replyToken)) return;
       processedTokens.add(event.replyToken);
-      // 1 分鐘後移除，避免集合累積
       setTimeout(() => processedTokens.delete(event.replyToken), 60 * 1000);
     }
 
-    // --- 1) 先處理 postback（有處理就 return）---
+    // 1) 先處理 postback
     if (event.type === 'postback') {
       console.log('收到 postback:', JSON.stringify(event, null, 2));
-	
-	 // ❶ 先處理 Rich Menu 切換（不要回任何訊息）
-     const data = event.postback?.data || '';
-     if (data.startsWith('switch=')) {
-		const menuType = data.split('=')[1]; // 'care' | 'service'
-		try {
-		  await switchRichMenu(event.source.userId, menuType);
-		} catch (e) {
-		  console.error('切換 Rich Menu 失敗:', e);
-		}
-		return; // 結束，不回覆訊息
 
+      // 先處理 Rich Menu 切換（不回覆訊息）
+      const data = event.postback?.data || '';
+      if (data.startsWith('switch=')) {
+        const menuType = data.split('=')[1]; // 'care' | 'service'
+        try {
+          await switchRichMenu(event.source.userId, menuType);
+        } catch (e) {
+          console.error('切換 Rich Menu 失敗:', e);
+        }
+        return; // 結束，不回覆訊息
+      } // ★★★ 這個大括號是你缺少的 ★★★
 
-
-      // 先走提醒（建立/清單/刪除）
+      // 其它 postback：用藥提醒 / 刪除 / 清單...
       const handledByReminder = await handleReminderPostback(event, db, client);
       if (handledByReminder) return;
 
-      // 再走簽到（若你未來用 postback 觸發簽到，可在這裡判斷 action）
+      // 若未來用 postback 做簽到，也放這裡
       const handledByCheckin = await handleCheckin(event, db, client);
       if (handledByCheckin) return;
 
-      // 沒人處理就結束
       return;
     }
 
-    // --- 2) 再處理文字訊息 ---
+    // 2) 再處理文字訊息（請不要在這裡再判斷 postback）
     if (event.type === 'message' && event.message.type === 'text') {
       const msg = (event.message.text || '').trim();
 
-	// 放在 handleEvent 最前面或文字分支之前
-
-      // ===== 其餘指令分支（每個分支記得 return）=====
       if (msg === '藥局地圖') {
         return client.replyMessage(event.replyToken, [madmapflex]);
       }
-
       if (msg === '健康AI分析') {
         return replyHealthWithDiet(event, client, event.source.userId);
       }
-
-      // ✅ 只在「簽到」關鍵字時才回簽到卡（不再在所有訊息都呼叫 handleCheckin）
       if (msg === '簽到') {
         return client.replyMessage(event.replyToken, cardflex());
       }
-
       if (msg === '血壓地圖') {
         return client.replyMessage(event.replyToken, bpMapFlex);
       }
-
       if (msg === '紀錄數據') {
         return client.replyMessage(event.replyToken, { type: 'text', text: '✅ 你輸入了紀錄數據' });
       }
-
       if (msg === '健康數據紀錄') {
-        console.log('✅ 收到紀錄數據指令');
         return client.replyMessage(event.replyToken, healthCard);
       }
-
       if (msg === '飲食推薦') {
         return handleRecipeRecommendation(event, client);
       }
-
       if (msg.startsWith('步驟 ')) {
         const recipeName = msg.replace('步驟 ', '').trim();
         const snapshot = await db.collection('recipes').where('name', '==', recipeName).limit(1).get();
@@ -380,112 +363,74 @@ async function handleEvent(event, client) {
         }
         const data = snapshot.docs[0].data();
         const steps = data.steps || [];
-        const stepMsg = steps.map((s, idx) => `步驟${idx + 1}：${s}`).join('\n');
+        const stepMsg = steps.map((s, i) => `步驟${i + 1}：${s}`).join('\n');
         return client.replyMessage(event.replyToken, { type: 'text', text: stepMsg });
       }
-
-	if (msg === '用藥提醒') {
-	  try {
-		const flex = buildTimeMenuFlex();
-		console.log('發送 Flex Message:', JSON.stringify(flex, null, 2));
-		return client.replyMessage(event.replyToken, flex);
-	  } catch (error) {
-		console.error('Flex Message 錯誤:', error);
-		return client.replyMessage(event.replyToken, {
-		  type: 'text',
-		  text: '⚠️ 用藥提醒功能暫時無法使用，請稍後再試。'
-		});
-	  }
-	}
-
-
-
-      if (msg === '志工配對') {
-        console.log('✅ 收到志工配對指令');
-        return client.replyMessage(event.replyToken, loginFlex());
-      }
-	  
-	  
-	  
-	  if (msg === '切換到健康照護') {
+      if (msg === '用藥提醒') {
         try {
-          await switchRichMenu(event.source.userId, 'service');
-          return client.replyMessage(event.replyToken, {
-            type: 'text',
-            text: '✅ 已切換到健康照護選單'
-          });
+          const flex = buildTimeMenuFlex();
+          return client.replyMessage(event.replyToken, flex);
         } catch (error) {
-          console.error('切換到健康照護失敗:', error);
-          return client.replyMessage(event.replyToken, {
-            type: 'text',
-            text: '❌ 選單切換失敗，請稍後再試'
-          });
+          console.error('Flex Message 錯誤:', error);
+          return client.replyMessage(event.replyToken, { type: 'text', text: '⚠️ 用藥提醒暫時無法使用' });
         }
       }
-
+      if (msg === '志工配對') {
+        return client.replyMessage(event.replyToken, loginFlex());
+      }
+      if (msg === '切換到健康照護') {
+        try {
+          await switchRichMenu(event.source.userId, 'service');
+          return client.replyMessage(event.replyToken, { type: 'text', text: '✅ 已切換到健康照護選單' });
+        } catch (error) {
+          return client.replyMessage(event.replyToken, { type: 'text', text: '❌ 選單切換失敗，請稍後再試' });
+        }
+      }
       if (msg === '切換到社區服務') {
         try {
           await switchRichMenu(event.source.userId, 'care');
-          return client.replyMessage(event.replyToken, {
-            type: 'text',
-            text: '✅ 已切換到社區服務選單'
-          });
+          return client.replyMessage(event.replyToken, { type: 'text', text: '✅ 已切換到社區服務選單' });
         } catch (error) {
-          console.error('切換到社區服務失敗:', error);
-          return client.replyMessage(event.replyToken, {
-            type: 'text',
-            text: '❌ 選單切換失敗，請稍後再試'
-          });
+          return client.replyMessage(event.replyToken, { type: 'text', text: '❌ 選單切換失敗，請稍後再試' });
         }
       }
-	  
-	  
-	  
-	  
 
+      if (msg === '更多建議') {
+        const record = await getLatestHealthRecord(event.source.userId);
+        if (!record) {
+          return client.replyMessage(event.replyToken, { type: 'text', text: '找不到您的健康數據，請先上傳記錄！' });
+        }
+        const detailPrompt = [
+          '請以專業健康管理師口吻，針對以下健康紀錄提供「較詳細」建議：',
+          '1) 可能的風險與重點（勿誇大）',
+          '2) 一週可行的飲食調整（列點、分早餐/午餐/晚餐）',
+          '3) 生活作息與運動建議（簡明列點）',
+          '4) 若有可疑異常，提醒就醫但避免醫療診斷',
+          '（請保持總字數約 100–150 字，中文回答）',
+          '',
+          ...Object.entries(record.data).map(([k, v]) => `${k}: ${v}`)
+        ].join('\n');
 
+        const response = await openai.chat.completions.create({
+          model: 'gpt-4o',
+          messages: [{ role: 'user', content: detailPrompt }],
+          max_tokens: 360,
+          temperature: 0.6
+        });
 
-		// 使用者想要更多建議 → 給長一點的說明（純文字）
-if (msg === '更多建議') {
-  const record = await getLatestHealthRecord(event.source.userId);
-  if (!record) {
-    return client.replyMessage(event.replyToken, { type: 'text', text: '找不到您的健康數據，請先上傳記錄！' });
-  }
+        const advice = response.choices[0].message.content?.trim()
+          || '目前無法產生建議，稍後再試看看。';
 
-  const detailPrompt = [
-    '請以專業健康管理師口吻，針對以下健康紀錄提供「較詳細」建議：',
-    '1) 可能的風險與重點（勿誇大）',
-    '2) 一週可行的飲食調整（列點、分早餐/午餐/晚餐）',
-    '3) 生活作息與運動建議（簡明列點）',
-    '4) 若有可疑異常，提醒就醫但避免醫療診斷',
-    '（請保持總字數約 100–150 字，中文回答）',
-    '',
-    ...Object.entries(record.data).map(([k, v]) => `${k}: ${v}`)
-  ].join('\n');
+        const text = formatWarmAdvice(advice);
+        return client.replyMessage(event.replyToken, { type: 'text', text });
+      }
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [{ role: 'user', content: detailPrompt }],
-    max_tokens: 360,
-    temperature: 0.6
-  });
-
-  const advice = response.choices[0].message.content?.trim()
-    || '目前無法產生建議，稍後再試看看。';
-
-  const text = formatWarmAdvice(advice);
-  return client.replyMessage(event.replyToken, { type: 'text', text });
-}
-
-      // （可在此繼續加你的其他指令）
       return;
     }
-
-    // 其他事件型別如需處理可在這裡加
   } catch (err) {
-  const detail = err.response?.data ? JSON.stringify(err.response.data, null, 2) : (err.message || String(err));
-  console.error('❌ handleEvent error:', detail);
-}
+    const detail = err.response?.data ? JSON.stringify(err.response.data, null, 2) : (err.message || String(err));
+    console.error('❌ handleEvent error:', detail);
+  }
 }
 
 
