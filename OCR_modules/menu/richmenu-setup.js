@@ -9,20 +9,42 @@ function getLineClient() {
   });
 }
 
-// 先嘗試 update，不行再 create（避免 alias 已存在時 400 衝突）
+// 改進的 alias 處理函數
 async function upsertAlias(client, richMenuAliasId, richMenuId) {
   try {
-    await client.updateRichMenuAlias(richMenuAliasId, { richMenuId }); // 已存在 → 指到新 menu
-    console.log(`✅ 成功更新 alias: ${richMenuAliasId}`);
-  } catch (updateError) {
-    console.log(`❌ 更新 alias 失敗，嘗試創建: ${richMenuAliasId}`);
+    // 先檢查 alias 是否存在
+    let aliasExists = false;
     try {
-      await client.createRichMenuAlias({ richMenuAliasId, richMenuId }); // 不存在 → 建立
-      console.log(`✅ 成功創建 alias: ${richMenuAliasId}`);
-    } catch (createError) {
-      console.error(`❌ 創建 alias 失敗: ${richMenuAliasId}`, createError?.response?.data || createError);
-      throw createError;
+      await client.getRichMenuAlias(richMenuAliasId);
+      aliasExists = true;
+      console.log(`📋 alias 已存在: ${richMenuAliasId}`);
+    } catch (err) {
+      console.log(`📋 alias 不存在，將創建新的: ${richMenuAliasId}`);
     }
+
+    if (aliasExists) {
+      // 如果存在就更新
+      await client.updateRichMenuAlias(richMenuAliasId, { richMenuId });
+      console.log(`✅ 成功更新 alias: ${richMenuAliasId} -> ${richMenuId}`);
+    } else {
+      // 如果不存在就創建
+      await client.createRichMenuAlias({ richMenuAliasId, richMenuId });
+      console.log(`✅ 成功創建 alias: ${richMenuAliasId} -> ${richMenuId}`);
+    }
+    
+  } catch (error) {
+    console.error(`❌ alias 操作失敗: ${richMenuAliasId}`, error?.response?.data || error);
+    
+    // 如果是格式問題，給出更具體的建議
+    if (error?.response?.status === 400) {
+      console.error('💡 可能原因：');
+      console.error('   1. alias 名稱格式不符合 LINE 要求');
+      console.error('   2. alias 名稱包含不允許的字符');
+      console.error('   3. alias 名稱過長或過短');
+      console.error('   建議使用英文、數字、連字符，避免特殊字符');
+    }
+    
+    throw error;
   }
 }
 
@@ -43,14 +65,21 @@ async function rebuildRichMenus() {
       await client.deleteRichMenu(rm.richMenuId);
     }
 
-    // 2. 刪除現有的 alias（忽略錯誤）
-    const aliasesToDelete = ['alias-care-v2-care', 'alias-care-v2-service'];
+    // 2. 刪除現有的 alias（使用簡化的名稱）
+    const aliasesToDelete = ['care-menu', 'service-menu'];
     for (const aliasId of aliasesToDelete) {
       try {
+        // 先檢查是否存在
+        await client.getRichMenuAlias(aliasId);
+        // 存在就刪除
         await client.deleteRichMenuAlias(aliasId);
-        console.log(`✅ 刪除 alias: ${aliasId}`);
+        console.log(`✅ 成功刪除 alias: ${aliasId}`);
       } catch (err) {
-        console.log(`⚠️ alias 不存在或已刪除: ${aliasId}`);
+        if (err?.response?.status === 404) {
+          console.log(`ℹ️ alias 不存在，無需刪除: ${aliasId}`);
+        } else {
+          console.log(`⚠️ 刪除 alias 時發生錯誤: ${aliasId}`, err?.response?.data || err.message);
+        }
       }
     }
 
@@ -70,7 +99,7 @@ async function rebuildRichMenus() {
           bounds: { x: 1250, y: 0, width: 1250, height: 220 },
           action: { 
             type: 'richmenuswitch', 
-            richMenuAliasId: 'alias-care-v2-service', 
+            richMenuAliasId: 'service-menu', 
             data: 'to-service' 
           }
         },
@@ -104,7 +133,7 @@ async function rebuildRichMenus() {
     await client.setRichMenuImage(careRichMenu, fs.createReadStream(careImagePath));
     console.log('✅ 社區服務選單圖片上傳成功');
 
-    await upsertAlias(client, 'alias-care-v2-care', careRichMenu);
+    await upsertAlias(client, 'care-menu', careRichMenu);
 
     // 健康照護 Menu
     console.log('📋 創建健康照護 Rich Menu...');
@@ -119,7 +148,7 @@ async function rebuildRichMenus() {
           bounds: { x: 0, y: 0, width: 1250, height: 220 },
           action: { 
             type: 'richmenuswitch', 
-            richMenuAliasId: 'alias-care-v2-care', 
+            richMenuAliasId: 'care-menu', 
             data: 'to-care' 
           }
         },
@@ -161,7 +190,7 @@ async function rebuildRichMenus() {
     await client.setRichMenuImage(serviceRichMenu, fs.createReadStream(serviceImagePath));
     console.log('✅ 健康照護選單圖片上傳成功');
 
-    await upsertAlias(client, 'alias-care-v2-service', serviceRichMenu);
+    await upsertAlias(client, 'service-menu', serviceRichMenu);
 
     // 設定預設選單
     await client.setDefaultRichMenu(careRichMenu);
