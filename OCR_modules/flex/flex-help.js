@@ -16,9 +16,9 @@ const COLORS = {
 // ✅ 直接吃環境變數，沒填就留空（會走 fallback postback）
 const FEATURE_CARDS = [
   { key: 'pharmacy', title: '藥局地圖',   subtitle: '找附近藥局，一鍵導航',         image: 'https://picsum.photos/800/533?pharmacy', uri: process.env.LIFF_PHARMACY_URL },
-  { key: 'diet',     title: '飲食推薦',   subtitle: '依健康紀錄給菜單建議',         image: 'https://picsum.photos/800/533?diet'},
+  { key: 'diet',     title: '飲食推薦',   subtitle: '🤔想不到要吃什麼嗎？ 🍴','💡讓我來幫你出主意！👩‍🍳'         image: 'https://picsum.photos/800/533?diet'},
   { key: 'pairing',  title: '志工配對',   subtitle: '陪診/領藥一鍵媒合',             image: 'https://picsum.photos/800/533?pairing'},
-  { key: 'records',  title: '健康數據紀錄', subtitle: '上傳報告、看趨勢',            image: 'https://picsum.photos/800/533?records',  uri: process.env.LIFF_RECORDS_URL },
+  { key: 'records',  title: '健康數據紀錄', subtitle: '✨依健康紀錄讓AI推薦給您最佳菜單建議','✨還可以立即給你更多健康建議           image: 'https://picsum.photos/800/533?records',  uri: process.env.LIFF_RECORDS_URL },
   { key: 'reminder', title: '用藥提醒',   subtitle: '到點通知＋簽到統計',             image: 'https://picsum.photos/800/533?reminder' },
   { key: 'pokedex',  title: '圖鑑',       subtitle: '抽卡蒐集，記錄成就',             image: 'https://picsum.photos/800/533?pokedex',  uri: process.env.LIFF_POKEDEX_URL },
 ];
@@ -27,35 +27,54 @@ const FEATURE_CARDS = [
 const USAGE_CARDS = {
   pharmacy: bubbleCard({
     title: '藥局/醫院地圖｜快速上手',
-    steps: ['先選擇領藥或掛號','開啟定位或選擇縣市、行政區','用「是否營業中／服務方式」快速篩選','點藥局卡片看資訊，按「導航」直接帶路'],
-    tips:  ['支援判斷營業中狀態','若地標有誤可回報校正']
+    steps: [
+      '📝 先選擇「領藥」或「掛號」',
+      '📍 開啟定位，或手動選擇縣市、行政區',
+      '⚡ 用「是否營業中／服務方式」快速篩選',
+      '🏥 點藥局卡片看資訊，按「導航」即可帶路'
+    ],
+    tips:  ['✅ 支援判斷營業中狀態','🛠️ 若地標有誤可回報校正']
   }),
   diet: bubbleCard({
     title: '飲食推薦｜怎麼用',
-    steps: ['想不到吃什麼嗎??','讓我來幫你想','健康又美味'],
+    steps: [
+      '🍴 點擊「開啟功能」或下方「飲食推薦」',
+      '✨ 立即出現美味又健康的食譜',
+      '📌 可搭配健康數據，讓 AI 推薦更符合您身體所需'
+    ],
     tips:  ['僅供參考，若不適請就醫','搭配規律量測更準確']
   }),
   pairing: bubbleCard({
     title: '志工配對｜如何發出請求',
-    steps: ['選擇請求類型與時間地點','志工接受後建立臨時聊天室','任務結束上傳回報或逾時自動關閉'],
+    steps: [ '🗂️ 選擇請求類型、時間與地點','🤝 志工接受後，系統會建立臨時聊天室','✅ 任務結束上傳回報，或逾時自動關閉'],
     tips:  ['身心障礙患者可要求志工證照','志工端支援地圖導航']
   }),
   records: bubbleCard({
     title: '健康數據紀錄｜上傳與查看',
-    steps: ['上傳報告"照片"自動解析','檢查後「確認」存入紀錄','資訊有錯誤可手動調整修改','保障你我資訊安全'],
-    tips:  ['就醫後立即上傳最佳','OCR 異常可手動編輯']
+    steps: ['📖 主頁顯示每筆健康紀錄','➕ 右下角「+」可上傳您的健康數據','📷 上傳「照片」將自動解析數據','📝 檢查後點「確認」存入紀錄'],
+    tips:  [' 就醫後立即上傳最佳','OCR 辨識異常可手動編輯']
   }),
   reminder: bubbleCard({
     title: '用藥提醒｜快速上手',
-    steps: ['新增提醒：藥名、時間、頻率','到點推送提醒','點「簽到」統計，完成當日可抽卡'],
-    tips:  ['同藥多時段建議分開建','刪除提醒立即生效']
+    steps: [
+      '⏰ 選擇提醒方式 👉 單次提醒 / 重複提醒',
+      '📌 單次提醒：僅一次提醒，若未點擊確認，將每分鐘再提醒一次',
+      '🔁 重複提醒：可設定星期循環，到點會出現「簽到」按鈕統計',
+      '🎴 當日完成所有提醒，最後一次會送出抽卡連結'
+    ],
+    tips:  ['🗑刪除提醒立即生效','每日「簽到」最多可獲 3 次抽卡','提醒訊息若送達 10 次後將不再提醒']
   }),
   pokedex: bubbleCard({
     title: '圖鑑｜抽卡與收藏',
-    steps: ['每日完成提醒可抽卡一次','卡片加入圖鑑，顯示稀有度/收集率','可下載或分享卡片'],
-    tips:  ['連續簽到可能有加碼','後續可解鎖主題卡包']
+    steps: [
+      '🎲 透過每日「簽到」獲得抽卡',
+      '⭐ 顯示卡片稀有度與收集率',
+      '📥 可下載或 📤 分享卡片'
+    ],
+    tips:  ['連續簽到將有加碼🔥','後續可解鎖主題卡包']
   })
 };
+
 
 // === 建立商店風格 Carousel（使用說明：postback；開啟功能：URI or fallback） ===
 function buildFeatureShopStyleCarousel(items) {
@@ -117,7 +136,7 @@ function bubbleCard({ title, steps = [], tips = [] }) {
 }));
   const tipContents = tips.length ? [
     { type: "text", text: "小提醒", weight: "bold", size: "sm", margin: "md", color: COLORS.black },
-    ...tips.map(t => ({ type: "text", text: `• ${t}`, size: "xs", wrap: true, color: COLORS.gray }))
+    ...tips.map(t => ({ type: "text", text: `❣ ${t}`, size: "xs", wrap: true, color: COLORS.gray }))
   ] : [];
   return {
     type: "bubble",
