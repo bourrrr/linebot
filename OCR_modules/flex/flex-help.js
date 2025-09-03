@@ -20,7 +20,7 @@ const FEATURE_CARDS = [
   { key: 'pairing',  title: '志工配對',   subtitle: '陪診/領藥一鍵媒合',             image: 'https://picsum.photos/800/533?pairing'},
   { key: 'records',  title: '健康數據紀錄', subtitle: '✨依健康紀錄讓AI推薦給您最佳菜單建議\n✨還可以立即給你更多健康建議',           image: 'https://picsum.photos/800/533?records',  uri: 'https://medwell-test1.web.app/ocr_data1.html' },
   { key: 'reminder', title: '用藥提醒',   subtitle: '到點通知＋簽到統計',             image: 'https://picsum.photos/800/533?reminder' },
-  { key: 'pokedex',  title: '圖鑑',       subtitle: '抽卡蒐集，記錄成就',             image: 'https://picsum.photos/800/533?pokedex',  uri: 'medwell-test1.web.app/newcard/collection.html' },
+  { key: 'pokedex',  title: '圖鑑',       subtitle: '抽卡蒐集，記錄成就',             image: 'https://picsum.photos/800/533?pokedex',  uri: 'https://medwell-test1.web.app/newcard/collection.html' },
 ];
 
 // 使用說明卡片
