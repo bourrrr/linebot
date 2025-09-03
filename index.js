@@ -54,12 +54,7 @@ console.log({
 });
 
 
-const LIFF_URLS = {
-  pharmacy: process.env.LIFF_PHARMACY_URL,
-  records:  process.env.LIFF_RECORDS_URL,
-  pokedex:  process.env.LIFF_POKEDEX_URL,
-  // diet / pairing / reminder 不用 URL，改走文字流程
-};
+
 
 const { db, bucket } = require('./firebase'); // ✅ 引入 bucket，會觸發 firebase.js 裡的 console.log
 
