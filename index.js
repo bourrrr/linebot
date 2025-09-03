@@ -9,6 +9,7 @@ console.log('🔥 This is the REAL index.js 正在執行！');
 require('module-alias/register');
 const cors = require("cors");
 require('dotenv').config();
+console.log('ENV pharmacy =', process.env.LIFF_PHARMACY_URL);
 // ---- 時區設定（只在 index.js 放一次就好）----
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
@@ -52,7 +53,7 @@ console.log({
   hasHandleRecipeRecommendation: typeof handleRecipeRecommendation === 'function'
 });
 
-require('dotenv').config();
+
 const LIFF_URLS = {
   pharmacy: process.env.LIFF_PHARMACY_URL,
   records:  process.env.LIFF_RECORDS_URL,
