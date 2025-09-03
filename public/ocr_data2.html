@@ -276,7 +276,7 @@
     function collapseTableRowsFront(rawText) {
       const lines = (rawText || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
       const merged = [];
-      const isNameLike = (t) => /^(總膽固醇|血清總膽固醇|三酸甘油|三酸甘油脂|中性脂肪|HDL|LDL|Cholesterol|Triglyceride|HDL\s*Cholesterol|LDL\s*Cholesterol|血壓|脈搏|心率|血糖|BMI|身高|體重|尿蛋白|尿糖|血小板|白血球|紅血球|HbA1c|CRP|TSH|T3|T4|Ferritin|Vitamin\s*D|鈣|鈉|鉀|氯|膽紅素|AST|ALT|GOT|GPT|ALP|GGT|eGFR|Creatinine|BUN|尿酸|MCV|MCH|MCHC|Hct|HGB)/i.test(t);
+      const isNameLike = (t) => /^(總膽固醇|血清總膽固醇|血清膽固醇|三酸甘油|三酸甘油脂|中性脂肪|HDL|LDL|Cholesterol|Triglyceride|HDL\s*Cholesterol|LDL\s*Cholesterol|血壓|脈搏|心率|血糖|BMI|身高|體重|尿蛋白|尿糖|血小板|白血球|紅血球|HbA1c|CRP|TSH|T3|T4|Ferritin|Vitamin\s*D|鈣|鈉|鉀|氯|膽紅素|AST|ALT|GOT|GPT|ALP|GGT|eGFR|Creatinine|BUN|尿酸|MCV|MCH|MCHC|Hct|HGB)/i.test(t);
       const isValueLike = (s) =>
 	  /^([<>]?\s*\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?|(?:\d{2,3}\s*\/\s*\d{2,3}))$/i.test(String(s || ''));
 
@@ -304,89 +304,141 @@
     }
 
     /* ====== 放寬且擴充的 OCR 解析 ====== */
-    function parseOCRResultFlexible(text){
-      const result = {};
-      if (!text) return result;
+function parseOCRResultFlexible(text){
+  const result = {};
+  if (!text) return result;
 
-      const pre = collapseTableRowsFront(text);
-      const lines = pre.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  // 先把直欄表格「名稱/值/參考/單位」併回一行（你檔案裡已定義過）
+  const pre   = collapseTableRowsFront(text);
+  const lines = pre.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
 
-      // 1) 可辨識鍵的集合（大幅擴充）
-      const keyHints = new RegExp([
-        '(?:血壓|血糖(?:\\(空腹\\)|\\(飯後\\))?|脈搏|心率|血氧|體溫|體重|身高|BMI|腰圍|體脂)',
-        '(?:|HDL(?:-?C)?|LDL(?:-?C)?|高密度膽固醇|低密度膽固醇|非HDL|總膽固醇|三酸甘油脂|Triglyceride|Cholesterol)',
-        '(?:|GOT\\(AST\\)|GPT\\(ALT\\)|AST|ALT|SGOT|SGPT|ALP|GGT|膽紅素|T-?Bil|D-?Bil)',
-        '(?:|尿酸|BUN|Creatinine|Creat|eGFR|微量白蛋白|尿蛋白|尿糖|ACR|UACR)',
-        '(?:|HbA1c|CRP|TSH|T3|T4|Ferritin|維生素D|Vitamin\\s*D|鈣|鈉|鉀|氯|鎂|磷|尿鈉|尿鉀)',
-        '(?:|白血球|紅血球|血紅素|血色素|血小板|WBC|RBC|HGB|Hb|Hct|MCV|MCH|MCHC|PLT|Neutrophil|Lymphocyte|Eosinophil|Basophil|Monocyte)',
-        '(?:|Risk|危險因子指數|AIP|非HDL\\s*膽固醇|TG\\/HDL)'
-      ].join('|'), 'i');
+  // 小工具：只含英文/點/斜線/空白的括號，視為別名（如 "(ALT)"）
+  const isAliasParen = (s='') => /^\(?\s*[A-Za-z][A-Za-z.\-\/\s]*\s*\)?$/.test(String(s||''));
+  // 去掉鍵名中的（英文）括號別名（含全形）
+  const stripEnglishParen = (s='') =>
+    String(s||'').replace(/[（(]\s*[A-Za-z][A-Za-z.\-\/\s]*\s*[)）]/g, '').trim();
 
-      // 2) 醫囑/建議等「長文字」鍵，允許自由文本
-      const noteKeyReg = /^(醫師建議|醫囑|醫師囑言|診斷|印象|影像結論|評估|處置|衛教|注意事項|備註|建議|說明|Summary|Impression|Plan|Assessment|Recommendation)s?$/i;
+  // 1) 可辨識鍵（大幅擴充＋含舊寫法）
+  const keyHints = new RegExp([
+    // 一般生命徵象/常見欄
+    '(?:血壓|血糖(?:\\(空腹\\)|\\(飯後\\))?|脈搏|心率|血氧|體溫|體重|身高|BMI|腰圍|體脂)',
+    // 血脂/膽固醇（含血清寫法）
+    '(?:|HDL(?:-?C)?|LDL(?:-?C)?|高密度膽固醇|低密度膽固醇|非HDL|總膽固醇|血清膽固醇|血清總膽固醇|三酸甘油脂|Triglyceride|Cholesterol)',
+    // 肝功能（含舊寫法與括號）
+    '(?:|GOT\\(AST\\)|GPT\\(ALT\\)|AST|ALT|SGOT|SGPT|S\\.G\\.O\\.T|S\\.G\\.P\\.T|r-?GTP|GGT|ALP|膽紅素|T-?Bil|D-?Bil)',
+    // 腎功能
+    '(?:|尿酸|BUN|Creatinine|Creat|eGFR|微量白蛋白|尿蛋白|尿糖|ACR|UACR)',
+    // 內分泌/發炎/維生素/電解質
+    '(?:|HbA1c|CRP|TSH|T3|T4|Ferritin|維生素D|Vitamin\\s*D|鈣|鈉|鉀|氯|鎂|磷|尿鈉|尿鉀)',
+    // 血球
+    '(?:|白血球|紅血球|血紅素|血色素|血小板|WBC|RBC|HGB|Hb|Hct|MCV|MCH|MCHC|PLT|Neutrophil|Lymphocyte|Eosinophil|Basophil|Monocyte)',
+    // 風險指標
+    '(?:|Risk|危險因子指數|AIP|非HDL\\s*膽固醇|TG\\/HDL)'
+  ].join('|'), 'i');
 
-      // 3) 一般「key: value」或「key  value」行
-      const keyValRegex1 = /^(.{1,30}?)[：:]\s*(.+)$/;            // 帶冒號
-      const keyValRegex2 = /^(.{1,30}?)\s{1,3}(.{1,80})$/;        // 兩欄靠空白
+  // 2) 「長文字」鍵（醫囑/診斷/備註…）允許多行累積
+  const noteKeyReg =
+    /^(醫師建議|醫囑|醫師囑言|診斷|印象|影像結論|評估|處置|衛教|注意事項|備註|建議|說明|Summary|Impression|Plan|Assessment|Recommendation)s?$/i;
 
-      // 4) 數值行
-      const valueLine = /^([<>]?\s*\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?(?:\/\d+(?:\.\d+)?)?)\s*(?:[a-zA-Z%°/]+|mmHg|mg\/?d[l1I]|g\/?d[l1I]|mmol\/?L|bpm)?$/i;
+  // 3) key: value 或 key  value
+  const keyValRegex1 = /^(.{1,30}?)[：:]\s*(.+)$/;      // 帶冒號
+  const keyValRegex2 = /^(.{1,30}?)\s{1,3}(.{1,80})$/;  // 兩欄靠空白
 
-      // 5) 名稱正規化（同義詞）
-      const normalizeMap = {
-        '心率':'脈搏','高密度膽固醇':'HDL','低密度膽固醇':'LDL','血紅素':'血色素(Hb)','血色素':'血色素(Hb)',
-        '白血球':'白血球(WBC)','紅血球':'紅血球(RBC)','血小板':'血小板(PLT)','HbA1c':'糖化血色素(HbA1c)',
-        'GOT':'AST','GPT':'ALT','T Bil':'T-Bil','D Bil':'D-Bil','維生素D':'Vitamin D','非HDL':'非HDL膽固醇'
-      };
-      const nk = k => (normalizeMap[k] || k);
+  // 4) 像數值/範圍/血壓的「值」行（可含單位）
+  const valueLine =
+    /^([<>]?\s*\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?(?:\/\d+(?:\.\d+)?)?)\s*(?:[a-zA-Z%°/]+|mmHg|mg\/?d[l1I]|g\/?d[l1I]|mmol\/?L|bpm|mL\/min\/1\.73m²|U\/L|fL|pg)?$/i;
 
-      // 6) 掃描逐行
-      for (let i=0;i<lines.length;i++){
-        const line = lines[i];
+  // 5) 名稱正規化（同義詞→中文標準名）
+  const normalizeMap = {
+    // 既有
+    '心率':'脈搏','高密度膽固醇':'HDL','低密度膽固醇':'LDL',
+    '血紅素':'血色素(Hb)','血色素':'血色素(Hb)',
+    '白血球':'白血球(WBC)','紅血球':'紅血球(RBC)','血小板':'血小板(PLT)',
+    'HbA1c':'糖化血色素(HbA1c)',
+    'GOT':'AST','GPT':'ALT','T Bil':'T-Bil','D Bil':'D-Bil',
+    '維生素D':'Vitamin D','非HDL':'非HDL膽固醇',
+    '血清膽固醇':'總膽固醇','血清總膽固醇':'總膽固醇',
 
-        // (A) 先抓「key: value」類型
-        let m = line.match(keyValRegex1) || line.match(keyValRegex2);
-        if (m){
-          const rawKey = (m[1] || '').trim();
-          const key = nk(rawKey);
-          const val = normalizeUnitFront((m[2] || '').trim());
+    // 新增（英文/舊寫法 → 中文）
+    'AST':'天門冬胺酸轉胺酶',
+    'S.G.O.T':'天門冬胺酸轉胺酶',
+    'S.G.O.T(AST)':'天門冬胺酸轉胺酶',
 
-          // 如果是長文字欄（醫囑/建議/備註…），允許多行累積到下一個可能的鍵之前
-          if (noteKeyReg.test(rawKey)) {
-            let buf = [val];
-            // 往下累計，直到遇到下一個疑似鍵或空兩行
-            let j = i + 1;
-            while (j < lines.length) {
-              const next = lines[j].trim();
-              const looksLikeNextKey = keyValRegex1.test(next) || keyValRegex2.test(next) || keyHints.test(next);
-              if (looksLikeNextKey) break;
-              buf.push(next);
-              j++;
-            }
-            result[key] = buf.join('\n').trim();
-            i = j - 1;
-            continue;
+    'ALT':'丙胺酸轉胺酶',
+    'GPT':'丙胺酸轉胺酶',
+    'S.G.P.T':'丙胺酸轉胺酶',
+    'S.G.P.T(ALT)':'丙胺酸轉胺酶',
+
+    'GGT':'γ-穀胱甘肽轉移酶',
+    'r-GTP':'γ-穀胱甘肽轉移酶',
+    'r-GTP(GGT)':'γ-穀胱甘肽轉移酶'
+  };
+  const nk = k => (normalizeMap[k] || k);
+
+  // 逐行解析
+  for (let i = 0; i < lines.length; i++){
+    const line = lines[i];
+
+    // (A) 先處理 "key: value" / "key  value"
+    let m = line.match(keyValRegex1) || line.match(keyValRegex2);
+    if (m){
+      const rawKey = (m[1] || '').trim();
+
+      // 去掉鍵名內的 (ALT)/(AST)… 再做正規化成中文
+      const key = nk(stripEnglishParen(rawKey));
+
+      let val = normalizeUnitFront((m[2] || '').trim());
+
+      // 值若只是 "(ALT)" 這類英文別名 → 視為註記，不當值；向下一行抓真數值
+      if (isAliasParen(val)) {
+        if (i + 1 < lines.length && valueLine.test(lines[i + 1])) {
+          val = normalizeUnitFront(lines[++i].trim());
+          // 嘗試再多吃一行單位（選擇性）
+          if (i + 1 < lines.length &&
+              /(mmHg|mg\/?dL|g\/?dL|%|bpm|°C|cm|kg|U\/L|mL\/min\/1\.73m²|mmol\/L|fL|pg)/i.test(lines[i+1])) {
+            val = `${val} ${normalizeUnitFront(lines[++i].trim())}`;
           }
-
-          // 一般鍵：若 key 在 keyHints 內或看起來像數值/單位，才收
-          if (key && (keyHints.test(key) || valueLine.test(val) || /mmHg|mg\/dL|g\/dL|%|bpm|cm|kg|°C/i.test(val))) {
-            if (!(key in result) || String(result[key]??'').trim()==='') result[key]=val;
-          }
-          continue;
-        }
-
-        // (B) 上一行是鍵，下一行是值（表格直列）
-        if (keyHints.test(line) && i+1<lines.length && valueLine.test(lines[i+1])) {
-          const key = nk(line);
-          const val = normalizeUnitFront(lines[i+1].trim());
-          if (!(key in result) || String(result[key]??'').trim()==='') result[key]=val;
-          i++;
+        } else {
+          // 下一行也不是數值 → 略過這筆，避免把 (ALT) 寫入
           continue;
         }
       }
 
-      return result;
+      // 長文字鍵：允許自由文本多行
+      if (noteKeyReg.test(rawKey)) {
+        const buf = [val];
+        let j = i + 1;
+        while (j < lines.length) {
+          const next = lines[j].trim();
+          const looksLikeNextKey = keyValRegex1.test(next) || keyValRegex2.test(next) || keyHints.test(next);
+          if (looksLikeNextKey) break;
+          buf.push(next);
+          j++;
+        }
+        result[key] = buf.join('\n').trim();
+        i = j - 1;
+        continue;
+      }
+
+      // 一般鍵：key 類型正確或 value 像數值/含單位就收
+      if (key && (keyHints.test(key) || valueLine.test(val) || /mmHg|mg\/dL|g\/dL|%|bpm|cm|kg|°C/i.test(val))) {
+        if (!(key in result) || String(result[key]??'').trim()==='') result[key]=val;
+      }
+      continue;
     }
+
+    // (B) 直欄：本行是鍵、下一行是值
+    if (keyHints.test(line) && i+1<lines.length && valueLine.test(lines[i+1])) {
+      const key = nk(stripEnglishParen(line));
+      const val = normalizeUnitFront(lines[i+1].trim());
+      if (!(key in result) || String(result[key]??'').trim()==='') result[key]=val;
+      i++;
+      continue;
+    }
+  }
+
+  return result;
+}
 
     /* ====== 去噪/正規化（放寬，允許長文字欄位） ====== */
     function sanitizeDynamicData(data) {
@@ -415,8 +467,66 @@
         if (!hasLetters(key)) return true;
         if (/^\d/.test(key)) return true;
         if (/^(cm|kg|mmhg|mg\/dl|bpm|％|%|公分|公斤|單位|I)$/i.test(key)) return true;
+		if (/^[A-Za-z\s]+$/.test(key)) return true;
+
         return false;
       };
+
+		// 依文件自上而下排序欄位
+		function sortByDocOrder(data, rawText){
+		  if (!rawText) return data;
+
+		  // 針對常見同義/縮寫做別名映射（可再擴充）
+		  const alias = {
+			'天門冬胺酸轉胺酶': ['天門冬胺酸轉胺酶','AST','GOT','S.G.O.T','S.G.O.T(AST)'],
+			'丙胺酸轉胺酶': ['丙胺酸轉胺酶','ALT','GPT','S.G.P.T','S.G.P.T(ALT)'],
+			'γ-穀胱甘肽轉移酶': ['γ-穀胱甘肽轉移酶','GGT','r-GTP','r-GTP(GGT)'],
+			'總膽固醇': ['總膽固醇','血清膽固醇','血清總膽固醇','Cholesterol'],
+			'三酸甘油脂': ['三酸甘油脂','Triglyceride','中性脂肪'],
+			'HDL': ['HDL','高密度膽固醇','HDL-C'],
+			'LDL': ['LDL','低密度膽固醇','LDL-C'],
+			'血壓': ['血壓','BP'],
+			'血糖': ['血糖','AC Sugar','FPG','Glucose'],
+			'脈搏': ['脈搏','心率','Pulse'],
+			'Creatinine': ['Creatinine','肌酸酐','肌酐','Cr'],
+			'BUN': ['BUN','尿素氮'],
+			'尿酸': ['尿酸','Uric Acid'],
+			'eGFR': ['eGFR','腎絲球過濾率'],
+			'T-Bil': ['T-Bil','總膽紅素','TBil','T Bil','膽紅素'],
+			'D-Bil': ['D-Bil','直接膽紅素','DBil','D Bil'],
+		  };
+
+		  const stripEnglishParen = s => String(s||'')
+			.replace(/[（(]\s*[A-Za-z][A-Za-z.\-\/\s]*\s*[)）]/g, '')
+			.trim();
+		  const norm = s => String(s||'').toLowerCase().replace(/\s+/g,'');
+
+		  // 用你現有的合併器，確保與解析相同的行序
+		  const lines = collapseTableRowsFront(rawText)
+			.split(/\r?\n/).map(s => stripEnglishParen(s.trim()));
+
+		  const seen = new Set();
+		  const order = [];
+
+		  lines.forEach(line => {
+			const L = norm(line);
+			Object.keys(data).forEach(k => {
+			  if (seen.has(k)) return;
+			  const cands = [k].concat(alias[k] || []);
+			  for (const c of cands) {
+				if (c && L.includes(norm(c))) { order.push(k); seen.add(k); break; }
+			  }
+			});
+		  });
+
+		  // 沒在文件中比對到的欄位，維持原本插入順序接在後面
+		  Object.keys(data).forEach(k => { if (!seen.has(k)) order.push(k); });
+
+		  const out = {};
+		  order.forEach(k => out[k] = data[k]);
+		  return out;
+		}
+
 
       const isBadVal = (k, v) => {
         const val = String(v ?? '').trim();

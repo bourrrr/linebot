@@ -1,209 +1,281 @@
-// public/js/knowledge-draw.js
+// ./js/knowledge-draw.js
+// 需要：
+// 1) public/cards.json（或改 fetch 路徑）
+// 2) ./js/firebase-config.js 輸出 firebaseConfig
+// 3) 已在 HTML 先載入 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getFirestore, collection, query, where, getDocs, doc, getDoc, setDoc, updateDoc, arrayUnion
+  getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction, serverTimestamp,
+  collection, query, where, getDocs, increment
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { firebaseConfig } from './firebase-config.js';
 
-// ---- 可調整開關 ----
-const SKIP_LIFF_LOGIN = true;   // ← 開發時 true 可跳過 LIFF；上線改 false
-const SHOW_DEBUG      = true;   // ← 顯示除錯資訊
-const COUNT_MODE      = "DOC_COUNT"; // "DOC_COUNT": 一筆=一時段；"TIMES_FIELD": 用 times/plannedCount
+// ========== ⚙️ 路徑設定（請依你的實際集合調整） ==================
+const CHECKIN_COLLECTION_ROOT = "checkins"; // 方案A：簽到彙總
+// 結構建議：checkins/{uid}/days/{YYYYMMDD} => { total_plans, completed_count }
+// （若你已有 completion_rate 也可直接用）
 
-const liff = window.liff;
+const REMINDER_COLLECTION = "reminders";    // 方案B：從提醒集合推算
+// 建議字段示意：
+// reminders/{reminderId} => { userId, active: true, scheduleDays: [1..7], logs: { '2025-09-03': true/false } }
+// 其中 logs[dateKey] 為是否完成
 
-// ---- DOM ----
-const quotaEl  = document.getElementById("quota");
-const usedEl   = document.getElementById("used");
-const drawBtn  = document.getElementById("drawBtn");
-const errEl    = document.getElementById("errorMsg");
-const resultEl = document.getElementById("result");
-const cardImg  = document.getElementById("cardImg");
-const cardName = document.getElementById("cardName");
-const debugEl  = document.getElementById("debug");
-function log(...a){ if(SHOW_DEBUG && debugEl){ debugEl.textContent += a.map(x=>typeof x==='string'?x:JSON.stringify(x,null,2)).join(' ') + "\n"; } console.log(...a); }
+const DRAWS_SUBCOL = "daily_draws";         // users/{uid}/daily_draws/{YYYYMMDD}
+const CARDS_JSON_URL = "/cards.json";       // 卡片清單（可改路徑）
 
-// ---- Utils ----
-function todayStr(){
-  const d=new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+// ========== 基礎初始化 ==========
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+// ========== DOM ==========
+const $quota   = document.getElementById("quota");
+const $used    = document.getElementById("used");
+const $drawBtn = document.getElementById("drawBtn");
+const $error   = document.getElementById("errorMsg");
+const $result  = document.getElementById("result");
+const $cardName= document.getElementById("cardName");
+const $cardImg = document.getElementById("cardImg");
+const $debug   = document.getElementById("debug");
+
+// ========== 工具 ==========
+const TZ = 'Asia/Taipei';
+function todayKey() {
+  const now = new Date();
+  const y = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year:'numeric'}).format(now);
+  const m = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, month:'2-digit'}).format(now);
+  const d = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, day:'2-digit'}).format(now);
+  return `${y}-${m}-${d}`; // YYYY-MM-DD
 }
-function pick(list){ return list[Math.floor(Math.random()*list.length)]; }
-function mockUid(){
-  const k="dev_mock_uid";
-  let id=localStorage.getItem(k);
-  if(!id){ id="DEV_"+Math.random().toString(36).slice(2,10); localStorage.setItem(k,id); }
-  return id;
+function weekdayTaipei() {
+  // 1-7 => 1=Mon ... 7=Sun（習慣用法，可依你 reminders 的定義調整）
+  const wd = parseInt(new Intl.DateTimeFormat('en-GB', { timeZone: TZ, weekday:'numeric' }).format(new Date()), 10);
+  return wd === 0 ? 7 : wd; // 防呆：某些實作會回 0
 }
-async function loadManifest(){
-  const res = await fetch("./cards-manifest.json", { cache:"no-store" });
-  if(!res.ok) throw new Error("載入 cards-manifest.json 失敗");
-  const data = await res.json();
-  if(!Array.isArray(data) || data.length===0) throw new Error("cards-manifest.json 為空或格式錯誤");
-  return data;
-}
-async function loadFirebaseConfig(){
-  // 嘗試讀 ../firebase-config.js 的 named 或 default export；失敗則用 fallback（你提供的）
+function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+function logDebug(obj, title="DEBUG"){
   try{
-    const mod = await import("../firebase-config.js");
-    const cfg = mod.firebaseConfig || mod.default;
-    if(cfg) return cfg;
-  }catch(e){ /* ignore and fallback */ }
-  return {
-    apiKey: "AIzaSyCCUzkxpn1quR9PPSBeZBGGl7XVh8vPzjY",
-    authDomain: "medwell-test1.firebaseapp.com",
-    projectId: "medwell-test1",
-    // storageBucket 可省略；需用 Storage 再改成 medwell-test1.appspot.com
-    messagingSenderId: "860851688843",
-    appId: "1:860851688843:web:622eb8feccad45ce640b8e"
-  };
+    const now = new Date().toLocaleString('zh-TW', { timeZone: TZ });
+    const prev = $debug.textContent ? $debug.textContent + "\n\n" : "";
+    $debug.textContent = `${prev}[${now}] ${title}:\n${JSON.stringify(obj, null, 2)}`;
+  }catch(e){}
+}
+function showError(msg){
+  $error.textContent = msg || "";
 }
 
-// ---- Firestore helpers ----
-async function getPlannedAndDone(db, userId, date){
-  // 計畫數
-  const s1 = await getDocs(query(collection(db,"reminders"), where("userId","==",userId), where("date","==",date)));
-  let plannedCount = 0;
-  if (COUNT_MODE === "DOC_COUNT"){
-    plannedCount = s1.size;
-  } else {
-    s1.forEach(docSnap=>{
-      const d=docSnap.data();
-      if(Array.isArray(d.times)) plannedCount += d.times.length;
-      else if(typeof d.plannedCount === "number") plannedCount += d.plannedCount;
-      else if(typeof d.times === "number") plannedCount += d.times;
-    });
+// ========== 抽卡邏輯 ==========
+async function fetchCards() {
+  const resp = await fetch(CARDS_JSON_URL);
+  if (!resp.ok) throw new Error(`讀取 cards.json 失敗：${resp.status}`);
+  return resp.json(); // 期待格式：[{id,name,image,rarity,weight}, ...]
+}
+
+function randomPickByWeight(items) {
+  // items: { weight: number }
+  const total = items.reduce((s,it)=>s+(it.weight||1), 0);
+  let r = Math.random() * total;
+  for (const it of items){
+    r -= (it.weight||1);
+    if (r <= 0) return it;
   }
-  // 完成數（每筆=完成一次）
-  const s2 = await getDocs(query(collection(db,"checkins"), where("userId","==",userId), where("date","==",date)));
-  const doneCount = s2.size;
-  return { plannedCount, doneCount };
+  return items[items.length-1];
 }
-function computeQuota(plannedCount, doneCount){
-  if(doneCount<=0) return 0;
-  const base=1;
-  const pct = Math.round((plannedCount>0?doneCount/plannedCount:1)*100);
-  let bonus=0;
-  if(pct>=80) bonus+=1;
-  if(plannedCount>=3 && pct===100) bonus+=1;
-  return Math.min(base+bonus, 3);
+
+function computeQuota({ totalPlans, completedCount }){
+  // 規則：保底 1 + 完成度≥80% +（當日計畫≥3 且 100% 再 +1），上限 3
+  const base = 1;
+  const rate = totalPlans > 0 ? (completedCount/totalPlans) : 0;
+  let q = base;
+  if (rate >= 0.8) q += 1;
+  if (totalPlans >= 3 && completedCount === totalPlans) q += 1;
+  return clamp(q, 1, 3);
 }
-const drawDocId=(uid,date)=>`${uid}_${date}`;
-async function getTodayUsed(db, uid, date){
-  const snap = await getDoc(doc(db,"draw_history",drawDocId(uid,date)));
-  if(!snap.exists()) return 0;
-  return Number((snap.data()||{}).draws||0);
-}
-async function appendDraw(db, uid, date, card){
-  const ref  = doc(db,"draw_history",drawDocId(uid,date));
+
+// ========== 方案A：從 checkins/{uid}/days/{YYYYMMDD} 讀取 ==========
+async function getTodayStatusFromCheckins(uid, dateKey){
+  const ref = doc(db, CHECKIN_COLLECTION_ROOT, uid, "days", dateKey);
   const snap = await getDoc(ref);
-  const entry = { id: card.id, name: card.name, image: card.image, ts: Date.now() };
-  if(!snap.exists()){
-    await setDoc(ref, { userId:uid, date, draws:1, items:[entry] });
-  }else{
-    const data = snap.data()||{};
-    await updateDoc(ref, { draws: Number(data.draws||0)+1, items: arrayUnion(entry) });
-  }
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  const total = Number(data.total_plans || 0);
+  const done  = Number(data.completed_count || 0);
+  return { totalPlans: total, completedCount: done, source: 'checkins' };
 }
 
-// ---- Main ----
-(async()=>{
+// ========== 方案B：從 reminders 推算（可刪） ==========
+async function getTodayStatusFromReminders(uid, dateKey){
+  // 假設 reminders 有 userId 欄、active、scheduleDays（1-7），logs[dateKey] = true/false
+  const qq = query(
+    collection(db, REMINDER_COLLECTION),
+    where("userId","==", uid),
+    where("active","==", true)
+  );
+  const cursor = await getDocs(qq);
+  let total = 0, done = 0;
+  const wk = weekdayTaipei();
+  cursor.forEach(docSnap=>{
+    const r = docSnap.data() || {};
+    const days = r.scheduleDays || [];
+    const isTodayPlanned = days.includes(wk) || days.includes(String(wk));
+    if (isTodayPlanned) {
+      total += 1;
+      const logs = r.logs || {};
+      if (logs[dateKey] === true) done += 1;
+    }
+  });
+  if (total === 0) return null; // 沒有計畫就回 null 讓 A 方案接手
+  return { totalPlans: total, completedCount: done, source: 'reminders' };
+}
+
+// ========== 讀/寫當日抽卡計數 ==========
+function drawDocRef(uid, dateKey){
+  return doc(db, "users", uid, DRAWS_SUBCOL, dateKey);
+}
+async function readDailyDraw(uid, dateKey){
+  const snap = await getDoc(drawDocRef(uid, dateKey));
+  return snap.exists() ? snap.data() : null;
+}
+async function initDailyDrawIfNeeded(uid, dateKey, quota, meta){
+  const ref = drawDocRef(uid, dateKey);
+  await setDoc(ref, {
+    quota,
+    used: 0,
+    history: [], // { cardId, name, image, ts }
+    computed_from: meta, // { totalPlans, completedCount, source }
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+}
+async function tryConsumeDraw(uid, dateKey){
+  const ref = drawDocRef(uid, dateKey);
+  await runTransaction(db, async (tx)=>{
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error("今日抽卡資料不存在");
+    const data = snap.data();
+    const { quota=1, used=0 } = data;
+    if (used >= quota) throw new Error("抽卡次數已用完");
+    tx.update(ref, { used: increment(1), updatedAt: serverTimestamp() });
+  });
+}
+async function appendHistory(uid, dateKey, record){
+  const ref = drawDocRef(uid, dateKey);
+  await runTransaction(db, async (tx)=>{
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error("今日抽卡資料不存在");
+    const data = snap.data();
+    const history = Array.isArray(data.history) ? data.history : [];
+    history.push(record);
+    tx.update(ref, { history, updatedAt: serverTimestamp() });
+  });
+}
+
+// ========== 主流程 ==========
+async function main(){
   try{
-    // 1) Firebase
-    const firebaseConfig = await loadFirebaseConfig();
-    const app = initializeApp(firebaseConfig);
-    const db  = getFirestore(app);
+    showError("");
+    $drawBtn.disabled = true;
 
-    // 2) LIFF / userId（可跳過）
-    let userId;
-    try{
-      await liff.init({ liffId: "2007870072-ZNeMmll2" });
-      if(!SKIP_LIFF_LOGIN){
-        if(!liff.isLoggedIn()){ liff.login(); return; }
-        userId = (await liff.getProfile()).userId;
-      }else{
-        userId = mockUid();
-        log("[DEV] Skip LIFF. mock userId =", userId);
+    // 1) LIFF
+    if (!liff.isInClient()) {
+      // 仍可用 LIFF（web）登入
+    }
+    if (!liff.isLoggedIn()) {
+      liff.login();
+      return;
+    }
+    const prof = await liff.getProfile();
+    const uid  = prof.userId;
+    const dateKey = todayKey();
+
+    logDebug({ uid, dateKey }, "LIFF");
+
+    // 2) 抓當日完成度 → 算 quota
+    let status = await getTodayStatusFromCheckins(uid, dateKey);
+    if (!status){
+      // fallback：若你還沒做 checkins 匯總，可先用 reminders 推估
+      status = await getTodayStatusFromReminders(uid, dateKey);
+    }
+    // 若兩個來源都沒有，就當成「今日無設定計畫」：保底 1
+    const totalPlans = status ? status.totalPlans : 0;
+    const completed  = status ? status.completedCount : 0;
+    const quota = computeQuota({ totalPlans, completedCount: completed });
+
+    // 3) 初始化/讀取今日抽卡檔
+    const existing = await readDailyDraw(uid, dateKey);
+    if (!existing){
+      await initDailyDrawIfNeeded(uid, dateKey, quota, {
+        totalPlans, completedCount: completed, source: status?.source || "none"
+      });
+    }else{
+      // 若 quota 算法更新、或完成度改變，可選擇同步（避免使用者「晚簽到」時 quota 沒更新）
+      const shouldSyncQuota = typeof existing.quota !== 'number' || existing.quota !== quota;
+      if (shouldSyncQuota){
+        await updateDoc(drawDocRef(uid, dateKey), {
+          quota, computed_from: { totalPlans, completedCount: completed, source: status?.source || "none" },
+          updatedAt: serverTimestamp()
+        });
       }
-    }catch(e){
-      userId = mockUid();
-      log("[DEV] LIFF init failed. use mock userId =", userId, e?.message||e);
     }
 
-    const date = todayStr();
-    // ==== DEV：自動塞今天的測試資料（只在跳過 LIFF 登入時執行）====
-if (SKIP_LIFF_LOGIN) {
-  const PLANNED = 3; // 今天計畫的時段數（想測 1 抽就改 1）
-  const DONE    = 3; // 今天完成的次數   （想測 1 抽就改 1）
+    // 4) 顯示 UI
+    const nowDoc = await readDailyDraw(uid, dateKey);
+    const used = Number(nowDoc?.used || 0);
+    $quota.textContent = String(nowDoc?.quota ?? quota);
+    $used.textContent  = String(used);
+    $drawBtn.disabled  = used >= (nowDoc?.quota ?? quota);
 
-  // 1) 建立今日 reminders（依 COUNT_MODE 不同而不同）
-  if (COUNT_MODE === "DOC_COUNT") {
-    // 一筆 = 一個時段 → 建幾筆就是幾個時段
-    for (let i = 0; i < PLANNED; i++) {
-      await setDoc(
-        doc(db, "reminders", `${userId}_${date}_p${i}`),
-        { userId, date } // 你的 schema 有其它欄位可一併放進來
-      );
-    }
-  } else {
-    // 用 times/plannedCount 欄位計算
-    await setDoc(
-      doc(db, "reminders", `${userId}_${date}`),
-      { userId, date, plannedCount: PLANNED },
-      { merge: true }
-    );
-  }
+    // 5) 綁定抽卡
+    const cards = await fetchCards();
+    $drawBtn.onclick = async ()=>{
+      try{
+        showError("");
+        // 5-1) 交易扣次（防重入）
+        await tryConsumeDraw(uid, dateKey);
 
-  // 2) 建立今日 checkins（每筆 = 完成一次）
-  for (let i = 0; i < DONE; i++) {
-    await setDoc(
-      doc(db, "checkins", `${userId}_${date}_c${i}`),
-      { userId, date }
-    );
+        // 5-2) 隨機抽卡
+        const item = randomPickByWeight(cards);
+        // 5-3) 存歷史
+        const record = {
+          cardId: item.id || item.name || Math.random().toString(36).slice(2),
+          name: item.name || "卡片",
+          image: item.image,
+          rarity: item.rarity || "common",
+          ts: Date.now()
+        };
+        await appendHistory(uid, dateKey, record);
+
+        // 5-4) 更新 UI
+        $cardName.textContent = record.name;
+        $cardImg.src = record.image;
+        $result.classList.remove("hidden");
+
+        // 5-5) 重新讀 used/quota
+        const after = await readDailyDraw(uid, dateKey);
+        $quota.textContent = String(after?.quota ?? quota);
+        $used.textContent  = String(after?.used ?? (used+1));
+        $drawBtn.disabled  = (after?.used ?? (used+1)) >= (after?.quota ?? quota);
+
+        logDebug({ picked: record, after }, "抽卡成功");
+      }catch(err){
+        console.error(err);
+        showError(err.message || "抽卡失敗，請稍後再試");
+        logDebug({ error: String(err) }, "抽卡失敗");
+      }
+    };
+
+    logDebug({ status, quotaShown: $quota.textContent, usedShown: $used.textContent }, "初始化完成");
+  }catch(err){
+    console.error(err);
+    showError("初始化失敗，請重新整理或稍後再試");
+    logDebug({ error: String(err) }, "初始化錯誤");
   }
 }
 
-
-    // 3) 載入卡片清單
-    const manifest = await loadManifest();
-
-    // 4) 計算 quota / used
-    const { plannedCount, doneCount } = await getPlannedAndDone(db, userId, date);
-    const quota = computeQuota(plannedCount, doneCount);
-    const used  = await getTodayUsed(db, userId, date);
-
-    quotaEl.textContent = String(quota);
-    usedEl.textContent  = String(used);
-
-    log({ plannedCount, doneCount, quota, used, cards: manifest.length });
-
-    // 5) 抽卡
-    drawBtn.addEventListener("click", async ()=>{
-      const latestUsed = await getTodayUsed(db, userId, date);
-
-      if(quota===0){
-        const msg="今天尚未完成任何簽到，無法抽卡。";
-        errEl.textContent = msg; alert(msg); return;
-      }
-      if(latestUsed>=quota){
-        const msg="今日抽卡次數已用完！";
-        errEl.textContent = msg; alert(msg); return;
-      }
-
-      const card = pick(manifest);
-      cardImg.src = card.image;
-      cardName.textContent = card.name;
-      resultEl.classList.remove("hidden");
-
-      await appendDraw(db, userId, date, card);
-      const newUsed = latestUsed + 1;
-      usedEl.textContent = String(newUsed);
-      if(newUsed>=quota) drawBtn.disabled = true;
-
-      log({ action:"draw", picked: card, newUsed });
-    });
-
-  }catch(e){
-    console.error("[knowledge-draw] init error:", e);
-    errEl.textContent = "抽卡初始化失敗：" + (e?.message||e);
-  }
-})();
+// 等 LIFF SDK 可用再啟動
+document.addEventListener("DOMContentLoaded", () => {
+  // 若你的 LIFF 需 init，請在這裡補上 liff.init({ liffId: '...' })
+  // 你的其他頁面應該已做過；若本頁獨立，請取消下行註解並填入：
+  // liff.init({ liffId: '你的LIFF ID' }).then(main);
+  // 如果專案已全域 init，直接跑 main：
+  main();
+});

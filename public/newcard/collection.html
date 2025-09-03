@@ -17,7 +17,6 @@
     body{ background:var(--yellow-soft); color:var(--black-soft); font-family:system-ui,sans-serif; }
     h1,h2{ color:var(--green-dark); }
 
-    /* 共用按鈕樣式 */
     .btn{
       display:inline-flex; align-items:center; justify-content:center;
       gap:.4rem; padding:.65rem 1rem; border-radius:.75rem; font-weight:600;
@@ -30,7 +29,6 @@
     .btn-ghost{ color:var(--green-dark); background:transparent; border:1px solid var(--green-dark); }
     .btn-ghost:hover{ background:var(--gray-soft); }
 
-    /* 卡片 */
     .card{
       background:#fff; border:1px solid var(--gray-soft); border-radius:1rem;
       box-shadow:0 4px 6px rgba(0,0,0,.06); padding:12px;
@@ -45,13 +43,11 @@
       color:#fff; background:var(--green-dark);
     }
 
-    /* 資訊條 */
     .info-box{
       background:var(--gray-soft); color:var(--black-soft);
       padding:6px 12px; border-radius:.5rem; border:1px solid var(--green-light); font-weight:500;
     }
 
-    /* 除錯面板（可關） */
     #debug{ background:#fff; border:1px dashed var(--green-light); color:var(--black-soft); }
   </style>
 </head>
@@ -69,24 +65,18 @@
       查看你收集到的知識圖片與獲得次數。
     </p>
 
-    <!-- 統計 -->
     <section class="flex flex-wrap items-center gap-2 mb-4">
       <span class="info-box">已收集：<b id="statUnique">-</b> 張</span>
       <span class="info-box">總獲得：<b id="statTotal">-</b> 次</span>
     </section>
 
-    <!-- 圖鑑格狀 -->
-    <section id="gallery" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-      <!-- JS 動態注入 -->
-    </section>
+    <section id="gallery" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"></section>
 
-    <!-- 下方再放一次導覽，方便返回 -->
     <div class="flex items-center gap-2 mt-6">
       <a href="index.html" class="btn btn-ghost">← 返回首頁</a>
       <a href="knowledge-draw.html" class="btn btn-primary">前往抽卡</a>
     </div>
 
-    <!-- 除錯面板（開發期可看，正式可刪） -->
     <pre id="debug" class="mt-6 text-xs rounded p-3 whitespace-pre-wrap"></pre>
   </main>
 
@@ -97,18 +87,19 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getStorage, ref as storageRef, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
     // === 開關 ===
-    const SKIP_LIFF_LOGIN = true;  // 開發時可跳過，正式請改 false
+    const SKIP_LIFF_LOGIN = true;      // 正式請改為 false
     const SHOW_DEBUG = true;
 
     // === DOM ===
-    const g = (id)=>document.getElementById(id);
-    const gallery = g('gallery');
-    const statUnique = g('statUnique');
-    const statTotal  = g('statTotal');
-    const debugEl    = g('debug');
-    const log = (...a)=>{ if(SHOW_DEBUG){ debugEl.textContent += a.map(x=>typeof x==='string'?x:JSON.stringify(x,null,2)).join(' ') + "\\n"; } console.log(...a); };
+    const $ = (id)=>document.getElementById(id);
+    const gallery = $('gallery');
+    const statUnique = $('statUnique');
+    const statTotal  = $('statTotal');
+    const debugEl    = $('debug');
+    const log = (...a)=>{ if(SHOW_DEBUG){ debugEl.textContent += a.map(x=>typeof x==='string'?x:JSON.stringify(x,null,2)).join(' ') + "\n"; } console.log(...a); };
 
     // === Utils ===
     function mockUid(){
@@ -118,21 +109,40 @@
     }
     async function loadFirebaseConfig(){
       try{
-        const mod = await import("./firebase-config.js");
+        const mod = await import("./firebase-config.js"); // 若檔案在上層，改成 "../firebase-config.js"
         const cfg = mod.firebaseConfig || mod.default;
         if(cfg) return cfg;
       }catch(e){}
-      // fallback（你提供的設定）
       return {
         apiKey:"AIzaSyCCUzkxpn1quR9PPSBeZBGGl7XVh8vPzjY",
         authDomain:"medwell-test1.firebaseapp.com",
         projectId:"medwell-test1",
+        storageBucket:"medwell-test1.appspot.com",         // ★ Storage bucket 必填
         messagingSenderId:"860851688843",
         appId:"1:860851688843:web:622eb8feccad45ce640b8e"
       };
     }
 
-    // === 讀取圖鑑資料（優先 card_collection，否則回退 draw_history） ===
+    // === 解析圖片到 Firebase Storage 下載網址 ===
+    async function resolveImageUrl(storage, imageField){
+      if (!imageField) return "";
+      const looksHttp = s => /^https?:\/\//i.test(s||"");
+      const looksAbs  = s => /^\//.test(s||"");
+      // 已是完整網址或網站絕對路徑，直接用
+      if (looksHttp(imageField) || looksAbs(imageField)) return imageField;
+
+      // 支援 "003.png" / "knowledge/003.png" / "images/knowledge/003.png"
+      let path = (imageField||"").trim();
+      if (!path.includes("/")) path = `knowledge/${path}`;        // "003.png" → "knowledge/003.png"
+      if (!path.startsWith("images/")) path = `images/${path}`;   // "knowledge/003.png" → "images/knowledge/003.png"
+
+      const ref = storageRef(storage, path);
+      const url = await getDownloadURL(ref);
+      log("[Storage] getDownloadURL:", path, "→", url);
+      return url;
+    }
+
+    // === 優先 card_collection，否則回退 draw_history ===
     async function fetchFromCardCollection(db, userId){
       const snap = await getDocs(query(collection(db,"card_collection"), where("userId","==",userId)));
       const items = [];
@@ -148,9 +158,8 @@
       return items;
     }
     async function fetchFromDrawHistory(db, userId){
-      // 每日彙總：{ userId, date, items:[{id,name,image,ts}] }
       const snap = await getDocs(query(collection(db,"draw_history"), where("userId","==",userId)));
-      const map = new Map(); // key: id|image|name → {name,image,count}
+      const map = new Map();
       snap.forEach(d=>{
         const x=d.data();
         const arr = Array.isArray(x.items) ? x.items : [];
@@ -165,27 +174,38 @@
       return Array.from(map.values());
     }
 
-    function renderGallery(items){
+    // === 並行解析 URL + 渲染圖鑑 ===
+    async function renderGallery(items, storage){
       gallery.innerHTML = "";
       if(!items.length){
         gallery.innerHTML = '<div class="col-span-full text-center text-sm" style="color:var(--gray-deep)">尚未蒐集到任何圖片，去「前往抽卡」試試吧！</div>';
-        statUnique.textContent = "0"; statTotal.textContent = "0";
+        statUnique.textContent = "0"; 
+        statTotal.textContent = "0";
         return;
       }
-      let total=0;
-      for(const it of items){
+
+      // 並行把全部圖片的 URL 解析好（快很多）
+      const urls = await Promise.all(items.map(async it => {
+        try { return await resolveImageUrl(storage, it.image); }
+        catch (e){ log("getDownloadURL 失敗：", it.image, e?.message||e); return ""; }
+      }));
+
+      let total = 0;
+      items.forEach((it, i) => {
         total += Number(it.count||0);
+        const url = urls[i] || "./images/placeholder.svg"; // 沒拿到就用占位
         const card = document.createElement('div');
         card.className = "card";
         card.innerHTML = `
-          <img src="${it.image}" alt="${it.name}" />
+          <img src="${url}" alt="${it.name}" referrerpolicy="no-referrer" onerror="this.src='./images/placeholder.svg'"/>
           <div class="flex items-center justify-between mt-2">
             <h3 class="truncate pr-2">${it.name}</h3>
             <span class="badge">× ${it.count || 1}</span>
           </div>
         `;
         gallery.appendChild(card);
-      }
+      });
+
       statUnique.textContent = String(items.length);
       statTotal.textContent  = String(total);
     }
@@ -193,12 +213,12 @@
     // === Main ===
     (async ()=>{
       try{
-        // 1) Firebase
         const firebaseConfig = await loadFirebaseConfig();
         const app = initializeApp(firebaseConfig);
         const db  = getFirestore(app);
+        const storage = getStorage(app); // Storage 服務
 
-        // 2) 取得 userId（可跳過 LIFF）
+        // userId（可跳過 LIFF）
         let userId;
         try{
           await liff.init({ liffId: "2007870072-ZNeMmll2" });
@@ -214,18 +234,40 @@
           log("[DEV] LIFF init failed. use mock userId =", userId, e?.message||e);
         }
 
-        // 3) 先試 card_collection，若無資料則回退 draw_history
+        // 讀取資料：先 collection，再退 draw_history
         let items = await fetchFromCardCollection(db, userId);
         if(!items.length){
           items = await fetchFromDrawHistory(db, userId);
         }
-        renderGallery(items);
-        log({ source: items.length ? "collection/draw_history(auto)" : "none", count: items.length });
 
+        await renderGallery(items, storage);
+        log({ source: items.length ? "collection/draw_history(auto)" : "none", count: items.length });
       }catch(e){
         gallery.innerHTML = '<div class="col-span-full text-center text-sm text-red-600">載入圖鑑失敗：'+(e?.message||e)+'</div>';
         console.error(e);
       }
+    })();
+  </script>
+
+  <!-- ✅ 保險絲補丁：若頁面上仍有 "002.png" 這種相對路徑圖片，強制換成 Storage URL -->
+  <script type="module">
+    import { getStorage, ref as storageRef, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+    const storage = getStorage();
+    const looksShort = s => /^\d{3}\.(png|jpg|jpeg|webp)$/i.test(s || "");
+    (async () => {
+      const imgs = Array.from(document.images);
+      await Promise.all(imgs.map(async img => {
+        try {
+          const src = img.getAttribute('src') || "";
+          if (looksShort(src)) {
+            const path = `images/knowledge/${src}`;   // 你的實際 Storage 路徑
+            const url  = await getDownloadURL(storageRef(storage, path));
+            img.setAttribute('src', url);
+          }
+        } catch (e) {
+          console.warn('[patch] 轉 Storage 失敗：', e);
+        }
+      }));
     })();
   </script>
 </body>

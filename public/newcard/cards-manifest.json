@@ -1,9 +1,9 @@
 [
-  { "id": "k001", "name": "健康知識 001", "image": "images/knowledge/001.png" },
-  { "id": "k002", "name": "健康知識 002", "image": "images/knowledge/002.png" },
-  { "id": "k003", "name": "健康知識 003", "image": "images/knowledge/003.png" },
-  { "id": "k004", "name": "健康知識 004", "image": "images/knowledge/004.png" },
-  { "id": "k005", "name": "健康知識 005", "image": "images/knowledge/005.png" },
-  { "id": "k006", "name": "健康知識 006", "image": "images/knowledge/006.png" },
-  { "id": "k007", "name": "健康知識 007", "image": "images/knowledge/007.png" }
+  { "id": "k001", "name": "健康知識 001", "image": "knowledge/001.png" },
+  { "id": "k002", "name": "健康知識 002", "image": "knowledge/002.png" },
+  { "id": "k003", "name": "健康知識 003", "image": "knowledge/003.png" },
+  { "id": "k004", "name": "健康知識 004", "image": "knowledge/004.png" },
+  { "id": "k005", "name": "健康知識 005", "image": "knowledge/005.png" },
+  { "id": "k006", "name": "健康知識 006", "image": "knowledge/006.png" },
+  { "id": "k007", "name": "健康知識 007", "image": "knowledge/007.png" }
 ]
