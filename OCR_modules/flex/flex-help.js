@@ -16,7 +16,7 @@ const COLORS = {
 // ✅ 直接吃環境變數，沒填就留空（會走 fallback postback）
 const FEATURE_CARDS = [
   { key: 'pharmacy', title: '藥局地圖',   subtitle: '找附近藥局，一鍵導航',         image: 'https://picsum.photos/800/533?pharmacy', uri: process.env.LIFF_PHARMACY_URL },
-  { key: 'diet',     title: '飲食推薦',   subtitle: '🤔想不到要吃什麼嗎？ 🍴','💡讓我來幫你出主意！👩‍🍳'         image: 'https://picsum.photos/800/533?diet'},
+  { key: 'diet',     title: '飲食推薦',   subtitle: '🤔想不到要吃什麼嗎？ 🍴','💡讓我來幫你出主意！👩‍🍳',         image: 'https://picsum.photos/800/533?diet'},
   { key: 'pairing',  title: '志工配對',   subtitle: '陪診/領藥一鍵媒合',             image: 'https://picsum.photos/800/533?pairing'},
   { key: 'records',  title: '健康數據紀錄', subtitle: '✨依健康紀錄讓AI推薦給您最佳菜單建議','✨還可以立即給你更多健康建議           image: 'https://picsum.photos/800/533?records',  uri: process.env.LIFF_RECORDS_URL },
   { key: 'reminder', title: '用藥提醒',   subtitle: '到點通知＋簽到統計',             image: 'https://picsum.photos/800/533?reminder' },
