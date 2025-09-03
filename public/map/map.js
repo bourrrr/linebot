@@ -1,6 +1,5 @@
-//
 const customIcon = new L.Icon({
-  iconUrl: 'my-marker.svg', // 根據你的路徑修改
+  iconUrl: 'my-marker.svg', 
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
@@ -21,13 +20,16 @@ let currentMode = null;
 let userLocation = null;
 let suppressNextZoomCollapse = false; // 🔧 用來跳過一次 zoomend 收起
 let showDistance = false;
-//資料來源
+let suppressZoomCollapseCount = 0;
+let userMarker = null; // 全域變數存放使用者標記
+let preloadedData = {};
 const dataSources = {
   pharmacy: 'points.json',
   clinic: 'clinic_points_format.json'
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+   preloadData(); 
   if (window.innerWidth > 700) {
     locateUser();  // 只有寬度超過 700px 的才定位（桌面）
   }
@@ -35,8 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastZoom = map.getZoom();
 
 map.on('zoomend', () => {
-  if (suppressNextZoomCollapse) {
-    suppressNextZoomCollapse = false; // ✅ 跳過一次收起
+  if (suppressZoomCollapseCount > 0) {
+    suppressZoomCollapseCount--;
     return;
   }
 
@@ -46,6 +48,18 @@ map.on('zoomend', () => {
   }
   lastZoom = newZoom;
 });
+
+function preloadData() {
+  Object.entries(dataSources).forEach(([mode, url]) => {
+    fetch(url)
+      .then(res => res.json())
+      .then(json => {
+        preloadedData[mode] = json.features;
+        console.log(`✅ ${mode} 資料已預載 (${json.features.length} 筆)`);
+      })
+      .catch(err => console.error(`❌ ${mode} 載入失敗`, err));
+  });
+}
 
 
   map.on('click', (e) => {
@@ -61,20 +75,82 @@ map.on('zoomend', () => {
 
 
   document.getElementById('btn-clinic').addEventListener('click', () => {
-    currentMode = 'clinic';
-    updateModeButtonStyle();
-    loadData();
-    document.getElementById('bottom-sheet').classList.add('collapsed');
-    document.getElementById('results-list').innerHTML = '<div class="no-result">請先搜尋</div>';
+  // 🔹 清空所有條件
+  showDistance = false;
+
+  const citySelect = document.getElementById('citySelect');
+  const districtSelect = document.getElementById('districtSelect');
+  citySelect.value = '';
+  districtSelect.value = '';
+  districtSelect.disabled = true;
+  document.getElementById('keywordInput').value = '';
+
+  document.getElementById('results-list').innerHTML = '<div class="no-result">請先搜尋</div>';
+  document.getElementById('bottom-sheet').classList.add('collapsed');
+
+  allMarkers.forEach(m => {
+    map.removeLayer(m);
+    m.meta.distance = undefined;
   });
 
-  document.getElementById('btn-pharmacy').addEventListener('click', () => {
-    currentMode = 'pharmacy';
-    updateModeButtonStyle();
-    loadData();
-    document.getElementById('bottom-sheet').classList.add('collapsed');
-    document.getElementById('results-list').innerHTML = '<div class="no-result">請先搜尋</div>';
+  allMarkers = [];
+  rawData = [];
+  activeMarker = null;
+  activePopup = null;
+  map.closePopup();
+  map.setView([23.5, 121], 7.2);
+
+  if (userMarker) {
+    map.removeLayer(userMarker);
+    userMarker = null;
+  }
+  userLocation = null;
+
+  // 🔹 切換模式
+  currentMode = 'clinic';
+  updateModeButtonStyle();
+  loadData();
+});
+
+document.getElementById('btn-pharmacy').addEventListener('click', () => {
+  // 🔹 清空所有條件
+  showDistance = false;
+
+  const citySelect = document.getElementById('citySelect');
+  const districtSelect = document.getElementById('districtSelect');
+  citySelect.value = '';
+  districtSelect.value = '';
+  districtSelect.disabled = true;
+  document.getElementById('keywordInput').value = '';
+
+  document.getElementById('results-list').innerHTML = '<div class="no-result">請先搜尋</div>';
+  document.getElementById('bottom-sheet').classList.add('collapsed');
+
+  allMarkers.forEach(m => {
+    map.removeLayer(m);
+    m.meta.distance = undefined;
   });
+
+  allMarkers = [];
+  rawData = [];
+  activeMarker = null;
+  activePopup = null;
+  map.closePopup();
+  map.setView([23.5, 121], 7.2);
+
+  if (userMarker) {
+    map.removeLayer(userMarker);
+    userMarker = null;
+  }
+  userLocation = null;
+
+  // 🔹 切換模式
+  currentMode = 'pharmacy';
+  updateModeButtonStyle();
+  loadData();
+});
+
+
 
 document.getElementById('locateBtn').addEventListener('click', async () => {
   if (!currentMode) {
@@ -82,26 +158,32 @@ document.getElementById('locateBtn').addEventListener('click', async () => {
     return;
   }
 
-  // 這個變數會判斷是否在 LINE LIFF 環境
   const inLiff = (typeof liff !== 'undefined');
-
   try {
     if (inLiff) {
-      // 初始化 LIFF（替換成你的 LIFF ID）
       await liff.init({ liffId: '2007877199-bPxeDZLD' });
     }
   } catch (err) {
     console.warn('⚠️ LIFF 初始化失敗，改用一般定位', err);
   }
 
-  // 直接用 geolocation（在 LIFF WebView 或一般瀏覽器都可以）
   navigator.geolocation.getCurrentPosition(
     pos => {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
       userLocation = { lat, lng };
-      showDistance = true; // ✅ 只有定位才開啟距離顯示
+      showDistance = true;
 
+      // ✅ 畫使用者位置藍點
+      if (userMarker) map.removeLayer(userMarker);
+      userMarker = L.circleMarker([lat, lng], {
+        radius: 7,
+        color: '#136aec',
+        fillColor: '#2a93ee',
+        fillOpacity: 0.9
+      }).addTo(map).bindPopup("📍 您的位置").openPopup();
+
+      // ✅ 找最近診所/藥局
       const nearest = allMarkers
         .map(m => {
           const dist = getDistanceInKm(lat, lng, m.meta.lat, m.meta.lng);
@@ -115,28 +197,44 @@ document.getElementById('locateBtn').addEventListener('click', async () => {
         document.getElementById('districtSelect').disabled = true;
       }
 
-      map.setView([lat, lng], 15);
       applyFilter();
       document.getElementById('bottom-sheet').classList.remove('collapsed');
       document.getElementById('results-list').scrollTo({ top: 0, behavior: 'smooth' });
 
-      alert("✅ 已定位並自動判斷您所在縣市，結果已依距離排序");
+      // ✅ 同時顯示使用者 + 最近診所/藥局
+      if (nearest) {
+        const bounds = L.latLngBounds([
+          [lat, lng],
+          [nearest.marker.meta.lat, nearest.marker.meta.lng]
+        ]);
+        suppressNextZoomCollapse = true;
+        suppressZoomCollapseCount = 2;
+        map.fitBounds(bounds.pad(0.2)); // 包含兩個點
+        suppressNextZoomCollapse = true;
+        suppressZoomCollapseCount = 2;
+
+        map.setZoom(14); // 強制 zoom 到 14 級
+        nearest.marker.openPopup();
+      } else {
+        map.setView([lat, lng], 14); // 沒找到時只顯示自己
+      }
+
+      alert("✅ 已定位並顯示您與最近的醫院/藥局");
     },
     err => {
       let tip = "⚠️ 定位失敗：" + err.message;
 
       if (err.code === err.PERMISSION_DENIED) {
-        tip = "❌ 您拒絕了定位權限，請至設定手動允許定位。";
+        tip = "❌ 您拒絕了定位權限";
         const ua = navigator.userAgent;
         if (ua.includes("Chrome")) {
-          tip += "\n請至設定 > 隱私與安全性 > 網站設定 > 位置 > 本網站 > 允許";
+          tip += "\n請至設定 > 隱私與安全性 > 網站設定 > 位置 > 本網站 > 點選「允許」";
         } else if (ua.includes("Safari")) {
-          tip += "\n請至設定 > 網站 > 位置 > 將本頁設為『允許』";
+          tip += "\n請至 設定 > App > Line > 位置 > 點選「永遠」";
         } else if (ua.includes("Firefox")) {
-          tip += "\n請至設定 > 隱私與安全 > 權限 > 位置 > 設定 > 本網站 > 允許";
+        tip += "\n請至 設定 > App > Line > 位置 > 點選「一律允許」";
         }
       }
-
       alert(tip);
     },
     { enableHighAccuracy: true, timeout: 10000 }
@@ -166,11 +264,8 @@ document.getElementById('locateBtn').addEventListener('click', async () => {
 function locateUser() {
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
-      pos => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        userLocation = { lat, lng };
-        // ✅ 不畫藍圈、不移動地圖
+      () => {
+        // ✅ 不設定位置、不畫藍點，只是觸發一下看瀏覽器支援
       },
       () => console.warn("⚠️ 無法取得您的位置")
     );
@@ -178,6 +273,7 @@ function locateUser() {
     alert("⚠️ 此瀏覽器不支援定位功能");
   }
 }
+
 
 function getDistanceInKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
@@ -258,28 +354,37 @@ function initFilterOptions() {
   });
 
  document.getElementById('clearButton').addEventListener('click', () => {
-    showDistance = false; // 清除不顯示距離
-    citySelect.value = '';
-    districtSelect.value = '';
-    districtSelect.disabled = true;
-    document.getElementById('keywordInput').value = '';
+  showDistance = false;
 
-    document.getElementById('results-list').innerHTML = '<div class="no-result">請先搜尋</div>';
-    document.getElementById('bottom-sheet').classList.add('collapsed');
+  citySelect.value = '';
+  districtSelect.value = '';
+  districtSelect.disabled = true;
+  document.getElementById('keywordInput').value = '';
+  document.getElementById('results-list').innerHTML = '<div class="no-result">請先搜尋</div>';
+  document.getElementById('bottom-sheet').classList.add('collapsed');
 
-    allMarkers.forEach(m => {
-      map.removeLayer(m);
-      m.meta.distance = undefined;
-    });
-    allMarkers = [];
-    rawData = [];
-    currentMode = null;
-    updateModeButtonStyle();
-    activeMarker = null;
-    activePopup = null;
-    map.closePopup();
-    map.setView([23.5, 121], 7.2);
+  allMarkers.forEach(m => {
+    map.removeLayer(m);
+    m.meta.distance = undefined;
   });
+
+  allMarkers = [];
+  rawData = [];
+  currentMode = null;
+  updateModeButtonStyle();
+  activeMarker = null;
+  activePopup = null;
+  map.closePopup();
+  map.setView([23.5, 121], 7.2);
+
+  // ✅✅✅ 加在這裡：清除使用者藍點
+  if (userMarker) {
+    map.removeLayer(userMarker);
+    userMarker = null;
+  }
+  userLocation = null;
+});
+
 }
 
 function applyFilter() {
@@ -513,61 +618,53 @@ function handleCardClick(marker, card) {
  
 
 function loadData() {
-  if (!currentMode || !dataSources[currentMode]) return;
+  if (!currentMode || !preloadedData[currentMode]) {
+    console.warn("⚠️ 尚未預載完成");
+    return;
+  }
 
   allMarkers.forEach(m => map.removeLayer(m));
   allMarkers = [];
   rawData = [];
 
-  fetch(dataSources[currentMode])
-    .then(res => res.json())
-    .then(json => {
-      const data = json.features;
+  const data = preloadedData[currentMode]; // ✅ 直接用記憶體資料
 
-      data.forEach(item => {
-        const [lng, lat] = item.geometry.coordinates;
-        const props = item.properties;
+  data.forEach(item => {
+    const [lng, lat] = item.geometry.coordinates;
+    const props = item.properties;
 
-        const name = props.name || '未提供';
-        const address = props.address || '未提供';
-        const phone = props.phone || '無';
-        const note = props.note || '無';
-        const periods = props.service_periods || '';
-        const dispense = props.dispense_method || [];
-        const dispenseList = Array.isArray(dispense) ? dispense.join('、') : dispense;
+    const marker = L.marker([lat, lng], { icon: customIcon }).bindPopup(`
+      <div style="font-size:15px;">
+        🚩 <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking"
+          target="_blank">${props.name}（導航）</a>
+      </div>
+    `);
 
-        const marker = L.marker([lat, lng], {icon: customIcon}).bindPopup(
-          `<div style="font-size:15px;">
-  
-🚩
-<a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking"
-        target="_blank" style="font-size:16px;margin-bottom:8px;">${name}（導航）
-      </a><br>
-          </div>`
-        );
+    const { city, district } = parseAddress(props.address || '');
+    marker.meta = { 
+      name: props.name || '未提供',
+      address: props.address || '未提供',
+      phone: props.phone || '無',
+      note: props.note || '無',
+      service_periods: props.service_periods || '',
+      dispense_method: props.dispense_method,
+      description: props.description,
+      registration_url: props.registration_url,
+      lat, lng, city, district
+    };
 
-        const { city, district } = parseAddress(address);
+    allMarkers.push(marker);
+    rawData.push(marker.meta);
+  });
 
-        marker.meta = { 
-          name, address, city, district, phone, note, lat, lng, 
-          service_periods: periods,
-          dispense_method: props.dispense_method,
-          description: props.description,
-          registration_url: props.registration_url,
-        };
-        
+  allMarkers.forEach(m => m.addTo(map));
+  setTimeout(() => map.invalidateSize(), 300);
+  initFilterOptions();
 
-        allMarkers.push(marker);
-        rawData.push(marker.meta);
-      });
-
-      allMarkers.forEach(m => m.addTo(map));
-      setTimeout(() => map.invalidateSize(), 300);
-      initFilterOptions();
-      document.getElementById('results-list').innerHTML = '<div class="no-result">請先搜尋</div>';
-      document.getElementById('bottom-sheet').classList.add('collapsed');
-    });
+  document.getElementById('results-list').innerHTML = '<div class="no-result">請先搜尋</div>';
+  document.getElementById('bottom-sheet').classList.add('collapsed');
 }
+
 
 function parseAddress(address) {
   const regex = /^(?<city>[^縣市]+[縣市])(?<district>[^縣市]+[區鄉鎮市])/;
