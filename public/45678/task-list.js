@@ -18,6 +18,7 @@ const toggleAllBtn = document.getElementById("toggleAllDistricts");
 const tpl = document.getElementById("taskCardTemplate");
 
 const functions = getFunctions(app, "us-central1");
+const createMatch = httpsCallable(functions, "createMatch");
 const pureLineId = (uid) => String(uid || "").replace(/^line:/, "");
 
 let currentUid = "";

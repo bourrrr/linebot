@@ -59,7 +59,7 @@ const USAGE_CARDS = {
       '志工接受後，系統會建立臨時聊天室🤝',
       '任務結束後，志工端上傳回報照片，聊天室會自動關閉✅'
     ],
-    tips: ['身心障礙患者搭配擁有專業證照志工']
+    tips: ['若需要特別協助，可選擇有證照的志工']
   }),
   pairing_volunteer: bubbleCard({
     title: '志工配對｜志工端操作說明',
@@ -69,13 +69,13 @@ const USAGE_CARDS = {
       '前往指定地點協助（支援地圖導航）🗺️',
       '完成後上傳照片回報，任務即完成✅'
     ],
-    tips: ['若臨時有事，可隨時取消尚未開始的任務']
+    tips: ['如果臨時不方便，可隨時取消時間還沒到的任務']
   }),
 
   records: bubbleCard({
     title: '健康數據紀錄｜上傳與查看',
     steps: ['主頁顯示每筆健康紀錄📖 ','右下角「+」可上傳您的健康數據➕ ','上傳「照片」或者「PDF」將自動解析數據📷 ','檢查後點「確認」存入紀錄📝 '],
-    tips:  [' 就醫後立即上傳最佳','OCR 辨識異常可手動編輯']
+    tips:  ['就醫後立即上傳最佳','OCR 辨識異常可手動編輯']
   }),
   reminder: bubbleCard({
     title: '用藥提醒｜快速上手',
@@ -108,16 +108,24 @@ function buildFeatureShopStyleCarousel(items) {
       type: "carousel",
       contents: items.map(it => ({
         type: "bubble",
-        hero: it.image ? { type: "image", url: it.image, size: "full", aspectRatio: "20:13", aspectMode: "cover" } : undefined,
+        hero: it.image
+          ? { type: "image", url: it.image, size: "full", aspectRatio: "20:13", aspectMode: "cover" }
+          : undefined,
         body: {
-          type: "box", layout: "vertical", spacing: "md", backgroundColor: COLORS.light,
+          type: "box",
+          layout: "vertical",
+          spacing: "md",
+          backgroundColor: COLORS.light,
           contents: [
             { type: "text", text: it.title, weight: "bold", size: "lg", color: COLORS.black },
             { type: "text", text: it.subtitle || "", size: "sm", color: COLORS.gray, wrap: true }
           ]
         },
         footer: {
-          type: "box", layout: "horizontal", spacing: "md", backgroundColor: COLORS.light,
+          type: "box",
+          layout: "horizontal",   // 商店卡片維持兩顆按鈕：使用說明 / 開啟功能
+          spacing: "md",
+          backgroundColor: COLORS.light,
           contents: [
             {
               type: "button", style: "primary", color: COLORS.primary,
@@ -126,38 +134,38 @@ function buildFeatureShopStyleCarousel(items) {
             it.uri
               ? { type: "button", style: "secondary", color: COLORS.primary, action: { type: "uri", label: "開啟功能", uri: it.uri } }
               : { type: "button", style: "primary", color: COLORS.primary, action: { type: "postback", label: "開啟功能", data: `help=launch&key=${it.key}` } }
-
-            ]
+          ]
         }
       }))
     }
   };
 }
 
+
 // 使用說明 Bubble 範本
 function bubbleCard({ title, steps = [], tips = [] }) {
- const stepContents = steps.map((t, i) => ({
-  type: "box",
-  layout: "baseline",
-  spacing: "xs",               // 原本 sm → xs，縮小間距
-  contents: [
-    {                           // 數字欄位固定寬，不要撐開
-      type: "text",
-      text: `${i + 1}.`,
-      size: "sm",
-      color: COLORS.primary,
-      flex: 0                   // ★ 重要：不佔多餘空間
-    },
-    {                           // 正文佔滿剩餘寬度
-      type: "text",
-      text: t,
-      size: "sm",
-      wrap: true,
-      color: COLORS.black,
-      flex: 1                   // ★ 重要：填滿其餘空間
-    }
-  ]
-}));
+  const stepContents = steps.map((t, i) => ({
+    type: "box",
+    layout: "baseline",
+    spacing: "xs",               // 原本 sm → xs，縮小間距
+    contents: [
+      {                           // 數字欄位固定寬，不要撐開
+        type: "text",
+        text: `${i + 1}.`,
+        size: "sm",
+        color: COLORS.primary,
+        flex: 0                   // ★ 重要：不佔多餘空間
+      },
+      {                           // 正文佔滿剩餘寬度
+        type: "text",
+        text: t,
+        size: "sm",
+        wrap: true,
+        color: COLORS.black,
+        flex: 1                   // ★ 重要：填滿其餘空間
+      }
+    ]
+  }));
   const tipContents = tips.length ? [
     { type: "text", text: "小提醒", weight: "bold", size: "sm", margin: "md", color: COLORS.black },
     ...tips.map(t => ({ type: "text", text: `❣ ${t}`, size: "xs", wrap: true, color: COLORS.gray }))
@@ -174,37 +182,25 @@ function bubbleCard({ title, steps = [], tips = [] }) {
     },
     footer: {
       type: "box", layout: "vertical", spacing: "md", backgroundColor: COLORS.light,
-      contents: [{ type: "button", style: "primary", color: COLORS.primary, action: { type: "postback", label: "返回選單", data: "help=menu" } }]
+      contents: [
+        // ★ 只有志工配對系列的使用說明 Bubble 才顯示角色按鈕
+        ...(title.includes('志工配對') ? [
+          {
+            type: "button", style: "primary", color: COLORS.primary,
+            action: { type: "postback", label: "我是患者", data: "help=open&key=pairing_patient" }
+          },
+          {
+            type: "button", style: "primary", color: COLORS.primary,
+            action: { type: "postback", label: "我是志工", data: "help=open&key=pairing_volunteer" }
+          }
+        ] : []),
+        { type: "button", style: "primary", color: COLORS.primary, action: { type: "postback", label: "返回選單", data: "help=menu" } }
+      ]
     }
   };
 }
 
 // Postback handler（處理：help=open&key=xxx、help=menu）
-async function handleHelpPostback(client, event) {
-  const data = event.postback?.data || "";
-  if (!data.startsWith("help=")) return false;
-
-  const q = parseQuery(data);
-  if (q.help === "open" && q.key) {
-    const card = USAGE_CARDS[q.key];
-    if (card) {
-      await client.replyMessage(event.replyToken, { type: "flex", altText: "功能使用說明", contents: card });
-      return true;
-    }
-  }
-  if (q.help === "menu") {
-    await client.replyMessage(event.replyToken, buildFeatureShopStyleCarousel(FEATURE_CARDS));
-    return true;
-  }
-  return false;
-}
-
-function parseQuery(s) {
-  const out = {};
-  (s || "").split("&").forEach(p => { const [k, v] = p.split("="); if (k) out[decodeURIComponent(k)] = decodeURIComponent(v || ""); });
-  return out;
-}
-// flex-help.js
 async function handleHelpPostback(client, event) {
   const data = event.postback?.data || "";
   if (!data.startsWith("help=")) return false;
@@ -222,7 +218,7 @@ async function handleHelpPostback(client, event) {
         return true;
       } catch (e) {
         console.error('[reply usage card error]', e?.response?.data || e);
-        // 發生錯時先回文字，避免使用者看到空白
+        // 發生錯誤時先回文字，避免使用者看到空白
         await client.replyMessage(event.replyToken, { type: "text", text: "抱歉，說明卡目前無法顯示。" });
         return true;
       }
@@ -233,6 +229,12 @@ async function handleHelpPostback(client, event) {
     return true;
   }
   return false;
+}
+
+function parseQuery(s) {
+  const out = {};
+  (s || "").split("&").forEach(p => { const [k, v] = p.split("="); if (k) out[decodeURIComponent(k)] = decodeURIComponent(v || ""); });
+  return out;
 }
 
 module.exports = {
