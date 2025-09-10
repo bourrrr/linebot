@@ -43,22 +43,19 @@
     .feature-badge{ width:28px; height:28px; border-radius:9999px; display:inline-flex; align-items:center; justify-content:center; background:var(--primary); color:#fff; font-size:14px; box-shadow:0 2px 8px rgba(88,129,87,.25); }
   </style>
 </head>
-<body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
-  <div class="mx-auto max-w-[1120px]">
-    <div class="card rounded-3xl p-8 md:p-12 min-h-[82vh] md:min-h-[86vh] flex flex-col">
-      <!-- Header -->
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <!-- 左邊 Logo + 標題 -->
-        <div class="flex items-center gap-5">
-          <img src="MakeWell.jpg" alt="MakeWell Logo"
-              class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
-          <div>
-            <h1 class="text-3xl md:text-4xl font-extrabold leading-tight">發布協助請求</h1>
-            <p class="text-base md:text-lg" style="color:var(--muted)">
-              請填寫以下資訊，系統將通知附近志工進行媒合
-            </p>
-          </div>
-        </div>
+<body class="min-h-screen flex items-center justify-center p-4">
+  <div class="relative w-full max-w-2xl card rounded-3xl overflow-hidden">
+    
+
+    <div class="block">
+      <!-- 右：表單 -->
+      <div class="p-6 sm:p-10">
+        <div class="w-full max-w-[460px] md:mr-auto mx-auto">
+          <h2 class="text-3xl sm:text-4xl font-extrabold mb-3 text-center tracking-tight">📝 發布協助請求</h2>
+          <p class="text-center text-base sm:text-[17px] leading-relaxed mb-6" style="color:var(--muted)">
+            請填寫以下資訊，系統將通知附近志工進行媒合
+          </p>
+
           <form id="publishForm" class="space-y-5">
             <!-- 請求類型 -->
             <div>

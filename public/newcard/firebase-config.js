@@ -10,3 +10,4 @@ export const firebaseConfig = {
   messagingSenderId: "860851688843",
   appId: "1:860851688843:web:622eb8feccad45ce640b8e"
 };
+export const LIFF_ID = "2007870072-ZNeMmll2";

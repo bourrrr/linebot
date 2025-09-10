@@ -1,7 +1,7 @@
 {
   "functions": {
     "source": "functions",
-    "runtime": "nodejs18",
+    "runtime": "nodejs22",
     "region": "asia-east1",
     "secrets": [
       "VOLLINE_LINE_CHANNEL_SECRET",

@@ -178,7 +178,7 @@ document.getElementById('locateBtn').addEventListener('click', async () => {
       if (userMarker) map.removeLayer(userMarker);
       userMarker = L.circleMarker([lat, lng], {
         radius: 7,
-        color: '#136aec',
+        color: '#c1c1c1ff',
         fillColor: '#2a93ee',
         fillOpacity: 0.9
       }).addTo(map).bindPopup("📍 您的位置").openPopup();
@@ -219,7 +219,7 @@ document.getElementById('locateBtn').addEventListener('click', async () => {
         map.setView([lat, lng], 14); // 沒找到時只顯示自己
       }
 
-      alert("✅ 已定位並顯示您與最近的醫院/藥局");
+      alert("已定位並顯示離您最近的醫院/藥局");
     },
     err => {
       let tip = "⚠️ 定位失敗：" + err.message;
@@ -394,7 +394,7 @@ function applyFilter() {
   const keyword = keywordRaw;
 
   if (!city && !district && !keyword) {
-    alert('請輸入至少一個條件再執行篩選');
+    alert('請至少選擇縣市後再點擊「篩選」按鈕');
     return;
   }
   // ✅ 加入這段「只允許文字」
@@ -587,7 +587,7 @@ function focusMarker(marker) {
 
   // Step 3：延遲一點進行上浮偏移（只對地圖移動，不影響 marker）
   setTimeout(() => {
-    map.panBy([0, 135], { animate: true }); // 向上偏移
+    map.panBy([0, 85], { animate: true }); // 向上偏移
   }, 500);
 }
 
@@ -739,10 +739,10 @@ if (hasWebReg && meta.registration_url) {
 }
 
   let detailHtml = `
-    <div style="font-size:22px;font-weight:700;color:#588157;margin-bottom:13px;">
+    <div style="font-size:22px;font-weight:700;color:#588157;margin-bottom:5px;">
       🚩 ${meta.name} ${statusTag}
     </div>
-    <div style="font-size:16px;line-height:2;">
+    <div style="font-size:16px;line-height:1.8;">
       ☎️ ${phone}
       <a href="tel:${phone}" style="color:#659963de;font-size:14px;text-decoration:underline;margin-left:8px;">
         (點我撥打)

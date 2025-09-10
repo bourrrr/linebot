@@ -33,6 +33,7 @@
       padding:.44rem .8rem; border-radius:9999px;
       border:1px solid var(--border); background:#fff; cursor:pointer;
       font-weight:700; user-select:none; transition:.15s transform,.15s background,.15s border-color;
+      white-space:nowrap; line-height:1; min-height:2.25rem;
     }
     .chip[aria-pressed="true"]{
       background:var(--primary-weak); border-color:var(--primary);
@@ -40,130 +41,133 @@
     .chip:disabled{ opacity:.5; cursor:not-allowed; }
     .chips-wrap{ display:flex; flex-wrap:wrap; gap:.5rem; }
   </style>
-<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <!-- Firebase Auth 守門（未登入導回 login） -->
   <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { firebaseConfig } from './firebase-config.js';
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { firebaseConfig } from './firebase-config.js';
 
-  const app = initializeApp(firebaseConfig);
-  const db  = getFirestore(app);
-  const LIFF_ID = "2007877199-Y5R2LenL";
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+    const LIFF_ID = "2007877199-Y5R2LenL";
 
-  (async () => {
-    try {
-      await liff.init({ liffId: LIFF_ID });
+    (async () => {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+        if (!liff.isLoggedIn()) { return liff.login({ redirectUri: location.href }); }
 
-      if (!liff.isLoggedIn()) {
-        return liff.login({ redirectUri: location.href });
+        const p = await liff.getProfile().catch(e => {
+          console.error('[TASK-LIST.html] getProfile error:', e);
+          return null;
+        });
+        if (!p) return liff.login({ redirectUri: location.href });
+
+        const uid = `line:${p.userId}`;
+        const snap = await getDoc(doc(db, "users", uid));
+        if (!snap.exists()) { location.href = "register-profile.html"; return; }
+
+        const raw = snap.data()?.roles;
+        const rolesArr = Array.isArray(raw) ? raw : [];
+        const roles = rolesArr.map(r => String(r).trim().toLowerCase());
+        const isVolunteer = roles.includes('志工') || roles.includes('volunteer');
+        if (!isVolunteer) { location.href = "home.html"; return; }
+      } catch (e) {
+        console.error('[TASK-LIST.html] fatal error:', e);
+        liff.login({ redirectUri: location.href });
       }
-
-      const p = await liff.getProfile().catch(e => {
-        console.error('[MY-TASKS.html] getProfile error:', e);
-        return null;
-      });
-      if (!p) return liff.login({ redirectUri: location.href });
-
-      const uid = `line:${p.userId}`;
-      const snap = await getDoc(doc(db, "users", uid));
-      if (!snap.exists()) {
-        // 沒註冊才導註冊頁，避免誤導去 login
-        location.href = "register-profile.html";
-        return;
-      }
-
-      const raw = snap.data()?.roles;
-      const rolesArr = Array.isArray(raw) ? raw : [];
-      const roles = rolesArr.map(r => String(r).trim().toLowerCase());
-      const isVolunteer = roles.includes('志工') || roles.includes('volunteer');
-
-      console.log('[MY-TASKS.html] uid=', uid);
-      console.log('[MY-TASKS.html] roles=', raw, ' -> ', roles);
-
-      if (!isVolunteer) {
-        location.href = "home.html";
-        return;
-      }
-    } catch (e) {
-      console.error('[MY-TASKS.html] fatal error:', e);
-      // 任何異常也改成走 LIFF 登入，而不是跳 login.html
-      liff.login({ redirectUri: location.href });
-    }
-  })();
-</script>
-
+    })();
+  </script>
 </head>
-<body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
-  <div class="mx-auto max-w-[1120px]">
-    <!-- 主卡片（與 home 一致的高度與留白） -->
-    <div class="card rounded-3xl p-8 md:p-12 min-h-[82vh] md:min-h-[86vh] flex flex-col">
-      <!-- Header -->
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <!-- 左邊 Logo + 標題 -->
-        <div class="flex items-center gap-5">
-          <img src="MakeWell.jpg" alt="MakeWell Logo"
-              class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
-          <div>
-            <h1 class="text-3xl md:text-4xl font-extrabold leading-tight">📋 任務待接區</h1>
-            <p class="text-base md:text-lg" style="color:var(--muted)">
-              依地區篩選可協助的「領藥／陪診」請求，挑選合適任務。
-            </p>
-          </div>
-        </div>
 
-        <!-- 右邊按鈕（小螢幕會掉到下一行靠右） -->
-        <div class="mt-3 md:mt-0 md:ml-auto">
-          <a href="volunteer.html"
-            class="text-sm md:text-base font-bold underline"
-            style="color:var(--primary)">
-            ← 回志工中心
-          </a>
-        </div>
-      </div>
-
-
-      <div class="mt-8 md:mt-10 h-divider"></div>
-
-      <!-- 篩選列 -->
-      <section class="mt-8 filter rounded-2xl p-4 md:p-5">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:items-start">
-          <div>
-            <label for="citySelect" class="block text-sm font-bold mb-1">縣市</label>
-            <select id="citySelect" class="select">
-              <option value="">全部縣市</option>
-            </select>
-          </div>
-          <div class="md:col-span-2">
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-sm font-bold">行政區</span>
-              <button id="toggleAllDistricts" class="btn-ghost text-xs md:text-sm">全選/全不選</button>
+<!-- 外層：高度=視窗高；允許頁面正常滾動（移除 overflow-hidden） -->
+<body class="min-h-[100dvh]">
+  <!-- wrapper: 把頁面 padding 放在這層，避免影響高度計算 -->
+  <div class="px-4 py-4 md:px-6 md:py-8 min-h-[100dvh]">
+    <!-- 固定寬度容器，高度吃滿 -->
+    <div class="mx-auto max-w-[1120px] min-h-[100dvh]">
+      <!-- 主卡片：高度吃滿容器；只有 main 會滾 -->
+      <div class="card rounded-3xl p-8 md:p-12 min-h-[100dvh] flex flex-col overflow-hidden">
+        <!-- Header（固定不動） -->
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 shrink-0">
+          <div class="flex items-center gap-5">
+            <div>
+              <h1 class="text-3xl md:text-4xl font-extrabold leading-tight">📋 任務待接區</h1>
+              <p class="text-base md:text-lg" style="color:var(--muted)">
+                依地區篩選可協助的「領藥／陪診」請求，挑選合適任務。
+              </p>
             </div>
-            <!-- 改為點選式複選 chips -->
-            <div id="districtChips" class="chips-wrap" aria-label="行政區複選" role="group"></div>
-            <p id="districtHint" class="text-xs mt-2" style="color:var(--muted)">
-              先選縣市後即可選擇行政區；可多選。
-            </p>
           </div>
-          <div class="md:col-span-3 flex md:justify-end">
-            <button id="resetFilters" class="btn-ghost w-full md:w-auto">取消</button>
+          <div class="mt-3 md:mt-0 md:ml-auto">
+            <a href="volunteer.html" class="text-sm md:text-base font-bold underline" style="color:var(--primary)">
+              ← 回志工中心
+            </a>
           </div>
         </div>
-      </section>
 
-      <!-- 清單：手機 1 欄、桌面 2 欄 -->
-      <main class="mt-8 md:mt-10 flex-1">
-        <div id="taskContainer" class="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-          <!-- 由 task-list.js 動態插入任務卡片 -->
-        </div>
-        <p id="emptyState" class="text-center text-sm md:text-base mt-8 hidden" style="color:var(--muted)">
-          目前沒有符合條件的任務。
-        </p>
-      </main>
+        <div class="mt-6 md:mt-8 h-divider shrink-0"></div>
+
+        <!-- 篩選列（固定不動） -->
+        <section class="mt-6 filter rounded-2xl p-4 md:p-5 shrink-0">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:items-start">
+            <div>
+              <label for="citySelect" class="block text-sm font-bold mb-1">縣市</label>
+              <select id="citySelect" class="select">
+                <option value="">全部縣市</option>
+              </select>
+            </div>
+            <div class="md:col-span-2">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-sm font-bold">行政區</span>
+                <button id="toggleAllDistricts" class="btn-ghost text-xs md:text-sm">全選/全不選</button>
+              </div>
+              <div id="districtChips" class="chips-wrap" aria-label="行政區複選" role="group"></div>
+              <p id="districtHint" class="text-xs mt-2" style="color:var(--muted)">
+                先選縣市後即可選擇行政區；可多選。
+              </p>
+            </div>
+            <div class="md:col-span-3 flex md:justify-end">
+              <button id="resetFilters" class="btn-ghost w-full md:w-auto">取消</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 清單（僅此區塊滾動） -->
+        <main
+          class="mt-6 md:mt-8 flex-1 overflow-y-auto overscroll-contain pr-1"
+          style="-webkit-overflow-scrolling:touch;"
+        >
+          <div id="taskContainer" class="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6"></div>
+          <p id="emptyState" class="text-center text-sm md:text-base mt-8 hidden" style="color:var(--muted)">
+            目前沒有符合條件的任務。
+          </p>
+
+          <!-- 卡片範本 -->
+          <template id="taskCardTemplate">
+            <div class="task-card card rounded-2xl p-6 border shadow">
+              <div class="flex items-start gap-3">
+                <div class="icon text-3xl">🤝</div>
+                <div class="flex-1">
+                  <div class="flex items-center justify-between">
+                    <h3 class="task-type font-extrabold text-lg"></h3>
+                    <span class="task-time text-sm text-slate-500"></span>
+                  </div>
+                  <p class="task-addr text-sm mt-1"></p>
+                  <p class="task-note text-sm mt-2"></p>
+                  <div class="mt-4 flex gap-3">
+                    <button class="accept flex-1 px-4 py-2 rounded-full bg-[var(--primary)] text-white font-bold">接受</button>
+                    <button class="reject flex-1 px-4 py-2 rounded-full border font-bold">拒絕</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </main>
+      </div>
     </div>
   </div>
 
-  <!-- 你的原本邏輯（已改為 chips） -->
   <script type="module" src="task-list.js"></script>
 </body>
 </html>

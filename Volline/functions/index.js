@@ -3,6 +3,7 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const express = require('express');
 const crypto = require('crypto');
+const { normalizeData, normKey } = require('./normalizer');
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -352,4 +353,191 @@ exports.autoCloseExpiredChats = functions.pubsub
 
     await batch.commit();
     return null;
+  });
+  // 自動標準化：health_records 新增
+exports.healthRecordNormalize = functions
+  .region('asia-east1')
+  .firestore.document('health_records/{id}')
+  .onCreate(async (snap) => {
+    const doc = snap.data() || {};
+    if (!doc.data) return null;
+    if (doc.__normalized === true) return null;
+
+    const { normalized } = await normalizeData(doc.data, { learn: true });
+
+    const same =
+      Object.keys(doc.data).length === Object.keys(normalized).length &&
+      Object.keys(doc.data).every(k => normalized[k] === doc.data[k]);
+
+    await snap.ref.update({
+      data: normalized,
+      orderKeys: Object.keys(normalized),
+      __normalized: true,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    return null;
+  });
+
+// （可選）編輯時也做
+exports.healthRecordNormalizeOnUpdate = functions
+  .region('asia-east1')
+  .firestore.document('health_records/{id}')
+  .onUpdate(async (change) => {
+    const before = change.before.data() || {};
+    const after  = change.after.data()  || {};
+    if (!after.data) return null;
+
+    const changed = JSON.stringify(before.data || {}) !== JSON.stringify(after.data || {});
+    if (!changed) return null;
+
+    const { normalized } = await normalizeData(after.data, { learn: true });
+
+    await change.after.ref.update({
+      data: normalized,
+      orderKeys: Object.keys(normalized),
+      __normalized: true,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    return null;
+  });
+exports.approvePendingAlias = functions
+  .region('asia-east1')
+  .https.onCall(async (req, ctx) => {
+    // TODO: 你可以在這裡檢查 ctx.auth 是否為管理員
+    const { id } = req;
+    if (!id) throw new functions.https.HttpsError('invalid-argument', 'id 必填');
+
+    const db = admin.firestore();
+    const ref = db.collection('pending_aliases').doc(id);
+    const snap = await ref.get();
+    if (!snap.exists) throw new functions.https.HttpsError('not-found', '找不到 pending_alias');
+    const { std, alias, status } = snap.data();
+    if (status === 'approved') return { ok: true, message: '已是核可狀態' };
+    if (status === 'rejected') return { ok: false, message: '已被拒絕' };
+
+    const keyRef = db.collection('key_alias').doc(keyIdForFirestore(std));
+    await db.runTransaction(async (tx) => {
+      tx.set(keyRef, {
+        aliases: admin.firestore.FieldValue.arrayUnion(alias),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      tx.update(ref, {
+        status: 'approved',
+        approvedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    });
+
+    return { ok: true };
+  });
+
+exports.rejectPendingAlias = functions
+  .region('asia-east1')
+  .https.onCall(async (req, ctx) => {
+    // TODO: 同上可檢查權限
+    const { id } = req;
+    if (!id) throw new functions.https.HttpsError('invalid-argument', 'id 必填');
+    const db = admin.firestore();
+    const ref = db.collection('pending_aliases').doc(id);
+    const snap = await ref.get();
+    if (!snap.exists) throw new functions.https.HttpsError('not-found', '找不到 pending_alias');
+    const { status } = snap.data();
+    if (status === 'approved') return { ok: false, message: '已核可，不能拒絕' };
+    if (status === 'rejected') return { ok: true, message: '已是拒絕狀態' };
+
+    await ref.update({
+      status: 'rejected',
+      rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    return { ok: true };
+  });
+
+// 這裡重用 normalizer 的工具方法
+function keyIdForFirestore(stdKey){ return String(stdKey).replace(/\//g,'__'); }
+
+// --- 簽到用 Functions ---
+function todayKey() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+async function initDay(uid, dateKey) {
+  const ref = db.doc(`checkins/${uid}/days/${dateKey}`);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    await ref.set({
+      total_plans: 1,
+      completed_count: 0,
+      completion_rate: 0,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+  }
+  return ref;
+}
+
+exports.markReminderDone = functions
+  .region("asia-east1")
+  .https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "請先登入");
+    const uid = context.auth.uid;
+    const dateKey = data?.dateKey || todayKey();
+    const ref = await initDay(uid, dateKey);
+
+    await db.runTransaction(async tx => {
+      const snap = await tx.get(ref);
+      const cur = snap.data() || {};
+      let total = cur.total_plans || 1;
+      let done = cur.completed_count || 0;
+      done = Math.min(done + 1, total);
+      tx.update(ref, {
+        completed_count: done,
+        completion_rate: total > 0 ? done / total : 1,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    return { ok: true };
+  });
+
+exports.undoReminderDone = functions
+  .region("asia-east1")
+  .https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "請先登入");
+    const uid = context.auth.uid;
+    const dateKey = data?.dateKey || todayKey();
+    const ref = await initDay(uid, dateKey);
+
+    await db.runTransaction(async tx => {
+      const snap = await tx.get(ref);
+      const cur = snap.data() || {};
+      let done = cur.completed_count || 0;
+      done = Math.max(done - 1, 0);
+      tx.update(ref, {
+        completed_count: done,
+        completion_rate: (cur.total_plans || 1) > 0 ? done / (cur.total_plans || 1) : 0,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    return { ok: true };
+  });
+
+exports.recalcDay = functions
+  .region("asia-east1")
+  .https.onCall(async (data, context) => {
+    if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "請先登入");
+    const uid = context.auth.uid;
+    const dateKey = data?.dateKey || todayKey();
+    const ref = await initDay(uid, dateKey);
+
+    await ref.set({
+      total_plans: 1,
+      completed_count: 0,
+      completion_rate: 0,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    return { ok: true };
   });

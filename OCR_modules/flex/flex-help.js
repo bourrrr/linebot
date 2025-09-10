@@ -28,12 +28,11 @@ const USAGE_CARDS = {
   pharmacy: bubbleCard({
     title: '藥局/醫院地圖｜快速上手',
     steps: [
-      '先選擇「領藥」或「掛號」',
-      '開啟定位，或手動選擇縣市、行政區',
-      '用「是否營業中／服務方式」快速篩選',
-      '點藥局卡片看資訊，按「導航」即可帶路'
+      '先選擇要「領藥」或「掛號」🗂️',
+      '可直接點「直接找最近」快速搜尋，或先選縣市再點「篩選」🔍',
+      '點選藥局/醫院的「詳細」按鈕，即可查看更多資訊📋'
     ],
-    tips:  ['支援判斷營業中狀態','支援顯示藥局電話、醫院掛號連結']
+    tips:  ['可查看門診時間表','支援一鍵撥打電話、醫院/診所掛號連結與導航功能']
   }),
   diet: bubbleCard({
     title: '飲食推薦｜怎麼用',
@@ -45,13 +44,37 @@ const USAGE_CARDS = {
     tips:  ['僅供參考，若不適請就醫','搭配規律量測更準確']
   }),
   pairing: bubbleCard({
-    title: '志工配對｜如何發出請求',
-    steps: [ '選擇請求類型、時間與地點🗂️','志工接受後，系統會建立臨時聊天室🤝','任務結束上傳回報，或逾時自動關閉✅ '],
-    tips:  ['身心障礙患者可要求志工證照','志工端支援地圖導航']
+    title: '志工配對｜選擇角色',
+    steps: [
+      '請選擇您是患者或志工 👇',
+    ],
+    tips: ['不同角色會有不同的操作流程']
   }),
+  // 額外新增兩個子卡片
+  pairing_patient: bubbleCard({
+    title: '志工配對｜患者端操作說明',
+    steps: [
+      '選擇請求類型（陪診/領藥）🗂️',
+      '填寫時間與地點，提交請求📍',
+      '志工接受後，系統會建立臨時聊天室🤝',
+      '任務結束後，志工端上傳回報照片，聊天室會自動關閉✅'
+    ],
+    tips: ['身心障礙患者搭配擁有專業證照志工']
+  }),
+  pairing_volunteer: bubbleCard({
+    title: '志工配對｜志工端操作說明',
+    steps: [
+      '查看患者的需求清單📋',
+      '接受請求後會建立臨時聊天室💬',
+      '前往指定地點協助（支援地圖導航）🗺️',
+      '完成後上傳照片回報，任務即完成✅'
+    ],
+    tips: ['若臨時有事，可隨時取消尚未開始的任務']
+  }),
+
   records: bubbleCard({
     title: '健康數據紀錄｜上傳與查看',
-    steps: ['主頁顯示每筆健康紀錄📖 ','右下角「+」可上傳您的健康數據➕ ','上傳「照片」將自動解析數據📷 ','檢查後點「確認」存入紀錄📝 '],
+    steps: ['主頁顯示每筆健康紀錄📖 ','右下角「+」可上傳您的健康數據➕ ','上傳「照片」或者「PDF」將自動解析數據📷 ','檢查後點「確認」存入紀錄📝 '],
     tips:  [' 就醫後立即上傳最佳','OCR 辨識異常可手動編輯']
   }),
   reminder: bubbleCard({
@@ -103,7 +126,8 @@ function buildFeatureShopStyleCarousel(items) {
             it.uri
               ? { type: "button", style: "secondary", color: COLORS.primary, action: { type: "uri", label: "開啟功能", uri: it.uri } }
               : { type: "button", style: "primary", color: COLORS.primary, action: { type: "postback", label: "開啟功能", data: `help=launch&key=${it.key}` } }
-          ]
+
+            ]
         }
       }))
     }

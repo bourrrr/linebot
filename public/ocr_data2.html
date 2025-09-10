@@ -33,8 +33,6 @@
     .mw-input{ width:100%; border:1px solid var(--mw-border); border-radius:14px; padding:.7rem .9rem; background:#fff; }
     .mw-field-row{ display:grid; grid-template-columns:160px 1fr auto; gap:.6rem; align-items:center; }
     @media (max-width: 767px){ .mw-field-row{ grid-template-columns: 1fr 1fr; } .mw-field-row [data-del]{ grid-column: 1 / -1; } }
-    @keyframes fadeInUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-    .animate-fadeInUp{animation:fadeInUp .45s ease-out forwards}
   </style>
 </head>
 <body>
@@ -49,9 +47,7 @@
       </div>
       <img src="https://medwell-test1.web.app/makewell-logo.png" alt="MakeWell" class="h-10 w-auto select-none" />
       <div class="flex-1">
-        <div class="flex items-center gap-2">
-          <h1 id="pageTitle" class="mw-title text-2xl md:text-3xl font-extrabold">健康數據新增</h1>
-        </div>
+        <h1 id="pageTitle" class="mw-title text-2xl md:text-3xl font-extrabold">健康數據新增</h1>
         <p class="mw-sub text-sm mt-1">慢理歲月，樂活永悅</p>
       </div>
       <div class="text-xs text-slate-500 hidden md:block" id="loginStatus">LIFF 準備中…</div>
@@ -63,19 +59,26 @@
     <section class="mw-card p-4 md:p-6">
       <div class="flex flex-col md:flex-row md:items-end gap-4">
         <div class="flex-1">
-          <label class="block text-sm font-semibold mb-1" style="color:var(--mw-green)">選擇圖片 / 相簿</label>
-          <input id="fileInput" type="file" accept="image/*" class="mw-input" placeholder="從裝置選擇影像檔">
+          <label class="block text-sm font-semibold mb-1" style="color:var(--mw-green)">選擇圖片 / PDF</label>
+          <input id="fileInput"
+                 type="file"
+                 accept="image/*,application/pdf,.pdf"
+                 multiple
+                 class="mw-input"
+                 placeholder="選擇影像或 PDF（可多檔）">
           <p class="text-xs mt-2" style="color:var(--mw-gray)">僅做 OCR 辨識，請避開反光、傾斜與過度裁切。</p>
         </div>
         <div class="flex gap-2">
-          <button id="btnUpload" class="mw-btn-primary">上傳辨識</button>
-          <button id="btnFillFromRaw" class="mw-btn-ghost" title="把原文一鍵轉欄位（嘗試）">原文轉欄位</button>
+          <button id="btnUpload" class="mw-btn-primary">上傳並辨識</button>
         </div>
       </div>
 
-      <div id="previewWrap" class="mt-4 hidden" style="background:#f6f6f3; border:1px dashed var(--mw-border); border-radius:16px; padding:.75rem;">
+      <!-- 多檔預覽，可滾動 -->
+      <div id="previewWrap" class="mt-4 hidden"
+           style="background:#f6f6f3; border:1px dashed var(--mw-border); border-radius:16px; padding:.75rem;
+                  max-height:60vh; overflow:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;">
         <p class="text-sm mb-2" style="color:var(--mw-gray)">預覽</p>
-        <img id="previewImg" class="w-full max-h-80 object-contain rounded-md border border-[var(--mw-border)] bg-white" alt="">
+        <div id="previewList" class="space-y-3"></div>
       </div>
 
       <div id="status" class="mt-3 text-sm hidden"></div>
@@ -91,27 +94,28 @@
         <div class="flex gap-2">
           <button id="btnAdd" class="mw-btn-ghost">＋ 新增欄位</button>
           <button id="btnClear" class="mw-btn-ghost">清除全部欄位</button>
+          <button id="btnPretty" class="mw-btn-ghost">閱讀模式</button>
           <button id="btnConfirm" class="mw-btn-primary">確認</button>
         </div>
       </div>
 
       <div id="fields" class="mt-4 space-y-2">
-        <div class="text-sm" style="color:var(--mw-gray)">尚未有資料，請先上傳圖片辨識，或點「＋ 新增欄位」。</div>
+        <div class="text-sm" style="color:var(--mw-gray)">尚未有資料，請先上傳圖片／PDF 辨識，或點「＋ 新增欄位」。</div>
       </div>
-    </section>
 
-    <!-- 原文備查 -->
-    <section id="rawSection" class="mw-card p-4 md:p-6 hidden">
-      <h3 class="text-lg font-semibold mb-2" style="color:var(--mw-green)">原始內容（備查）</h3>
-      <pre id="rawText" class="bg-white rounded-lg border border-[var(--mw-border)] p-3 text-sm whitespace-pre-wrap"></pre>
+      <!-- 友善閱讀模式 -->
+      <div id="prettyView" class="mt-4 hidden">
+        <div class="text-sm" style="color:var(--mw-gray)">（閱讀模式）</div>
+        <div id="prettyList" class="mt-2 space-y-2"></div>
+      </div>
     </section>
   </main>
 
-  <!-- 仍沿用你現有的字典解析器 -->
+  <!-- 仍沿用你現有的字典解析器（若有） -->
   <script src="https://medwell-test1.web.app/extractHealthData.js"></script>
 
   <script>
-    /* ====== 基本設定（原樣保留） ====== */
+    /* ====== 基本設定 ====== */
     const liffId = "2007877199-xXoPD8mD";
     const firebaseConfig = {
       apiKey: "AIzaSyCCUzxpn1quR9PPSBeZBGG17XVh8vPzjY",
@@ -129,27 +133,24 @@
     /* ====== DOM ====== */
     const fileInput = document.getElementById('fileInput');
     const btnUpload = document.getElementById('btnUpload');
-    const btnFillFromRaw = document.getElementById('btnFillFromRaw');
     const btnAdd = document.getElementById('btnAdd');
     const btnClear = document.getElementById('btnClear');
+    const btnPretty = document.getElementById('btnPretty');
     const btnConfirm = document.getElementById('btnConfirm');
     const fieldsEl = document.getElementById('fields');
     const statusEl = document.getElementById('status');
     const previewWrap = document.getElementById('previewWrap');
-    const previewImg = document.getElementById('previewImg');
-    const rawSection = document.getElementById('rawSection');
-    const rawTextEl = document.getElementById('rawText');
     const pageTitle = document.getElementById('pageTitle');
     const loginStatus = document.getElementById('loginStatus');
 
     /* ====== 狀態 ====== */
     let dynamicData = {};
-    let ocrRawText = "";
+    let ocrRawText = ""; // 只用於解析，不顯示
     let formattedDate = "";
     let editingId = null;
     let originalDoc = null;
 
-    // 日期（原樣）
+    // 日期顯示
     (function(){
       const d = new Date();
       const yyyy = d.getFullYear();
@@ -159,12 +160,11 @@
       document.getElementById('date').textContent = formattedDate;
     })();
 
-    /* ====== 編輯模式（原樣：?id / localStorage） ====== */
+    /* ====== 編輯模式 ====== */
     (function(){
       const id = new URL(location.href).searchParams.get('id');
       if (!id) { localStorage.removeItem('edit_data'); editingId = null; originalDoc = null; }
     })();
-
     function getQueryId(){ try { return new URL(location.href).searchParams.get('id'); } catch { return null; } }
 
     async function loadEditIfAny() {
@@ -174,10 +174,16 @@
         if (snap.exists) {
           originalDoc = snap.data() || {};
           dynamicData = { ...(originalDoc.data || {}) };
+          if (Array.isArray(originalDoc.orderKeys) && originalDoc.orderKeys.length) {
+            const ordered = {};
+            originalDoc.orderKeys.forEach(k => { if (k in dynamicData) ordered[k]=dynamicData[k]; });
+            Object.keys(dynamicData).forEach(k => { if (!(k in ordered)) ordered[k]=dynamicData[k]; });
+            dynamicData = ordered;
+          }
           if (originalDoc.date) formattedDate = originalDoc.date;
           document.getElementById('date').textContent = formattedDate;
           pageTitle.textContent = '健康數據編輯';
-          renderFields();
+          renderFields(); renderPretty();
           return;
         }
       }
@@ -190,13 +196,13 @@
           if (obj.date) formattedDate = obj.date;
           document.getElementById('date').textContent = formattedDate;
           pageTitle.textContent = '健康數據編輯';
-          renderFields();
+          renderFields(); renderPretty();
         } catch {}
       }
     }
     loadEditIfAny();
 
-    /* ====== LIFF（原樣） ====== */
+    /* ====== LIFF ====== */
     async function initLIFF() {
       const $ = (t) => loginStatus && (loginStatus.textContent = t);
       try {
@@ -213,21 +219,24 @@
     }
     document.addEventListener('DOMContentLoaded', initLIFF);
 
-    /* ====== 欄位渲染（原樣） ====== */
+    /* ====== 欄位渲染（維持兩欄編輯） ====== */
     function renderFields(){
+      const pretty = document.getElementById('prettyView');
+      const prettyIsOpen = pretty && !pretty.classList.contains('hidden');
+
       fieldsEl.innerHTML = "";
       const keys = Object.keys(dynamicData);
       if (!keys.length){
-        fieldsEl.innerHTML = '<div class="text-sm" style="color:var(--mw-gray)">尚未有資料，請先上傳圖片辨識，或點「＋ 新增欄位」。</div>';
+        fieldsEl.innerHTML = '<div class="text-sm" style="color:var(--mw-gray)">尚未有資料，請先上傳圖片／PDF 辨識，或點「＋ 新增欄位」。</div>';
+        if (prettyIsOpen) renderPretty();
         return;
       }
-      keys.forEach((k, idx)=>{
+      keys.forEach((k)=>{
         const row = document.createElement('div');
         row.className = "mw-field-row ";
 
         const keyVal = (k || "").trim();
-        const valVal = (dynamicData[k] ?? "").trim();
-
+        const valVal = String(dynamicData[k] ?? "").trim();
         const keyAttr = keyVal ? `value="${keyVal.replace(/"/g,'&quot;')}"` : "";
         const valAttr = valVal ? `value="${valVal.replace(/"/g,'&quot;')}"` : "";
 
@@ -237,14 +246,9 @@
           <button class="mw-btn-ghost" data-del>刪除</button>
         `;
 
-        row.querySelector('[data-del]').onclick = ()=>{
-          delete dynamicData[k];
-          renderFields();
-        };
-
+        row.querySelector('[data-del]').onclick = ()=>{ delete dynamicData[k]; renderFields(); };
         const keyInput = row.querySelector('[data-k="key"]');
         const valInput = row.querySelector('[data-k="val"]');
-
         keyInput.addEventListener('change', ()=>{
           const nk = keyInput.value.trim();
           const v = valInput.value.trim();
@@ -255,14 +259,373 @@
         valInput.addEventListener('change', ()=>{
           const nk = keyInput.value.trim();
           if (nk) dynamicData[nk] = valInput.value.trim();
+          // 若正在閱讀模式，同步更新
+          const prettyOpen = document.getElementById('prettyView') && !document.getElementById('prettyView').classList.contains('hidden');
+          if (prettyOpen) renderPretty();
         });
 
         fieldsEl.appendChild(row);
-        
+      });
+
+      // 若閱讀模式開啟，重繪
+      if (prettyIsOpen) renderPretty();
+    }
+
+    /* ====== 友善閱讀：合併 + 判讀 ====== */
+    const KEY_ALIAS = {
+      '身高':'身高', '身高 172 cm':'身高',
+      '體重':'體重', '體重 82 kg':'體重',
+      '血壓':'血壓',
+      '脈搏':'脈搏', '心率':'脈搏',
+      '血糖':'血糖', 'AC Sugar':'血糖', 'FPG':'血糖',
+      '總膽固醇':'總膽固醇','Cholesterol':'總膽固醇',
+      '三酸甘油脂':'三酸甘油脂','Triglyceride':'三酸甘油脂',
+      'HDL':'HDL','HDL-C':'HDL',
+      'LDL':'LDL','LDL-C':'LDL'
+    };
+    const REF = {
+      '脈搏':      {unit:'bpm',  min:60,  max:100},
+      '血糖':      {unit:'mg/dL',min:70,  max:100},
+      '總膽固醇':  {unit:'mg/dL',max:200},
+      '三酸甘油脂':{unit:'mg/dL',max:150},
+      'HDL':       {unit:'mg/dL',min:40},
+      'LDL':       {unit:'mg/dL',max:130}
+    };
+    function parseValueNum(s){
+      if (!s) return null;
+      const mm = String(s).match(/^([<>]=?)?\s*(\d+(?:\.\d+)?)(?:\s*\/\s*(\d+(?:\.\d+)?))?/);
+      if (!mm) return null;
+      return {op:mm[1]||'=', a:parseFloat(mm[2]), b:mm[3]?parseFloat(mm[3]):null};
+    }
+    function extractUnit(s){
+      const m = String(s).match(/\b(mg\/dL|mmHg|bpm|cm|kg|g\/dL|%)\b/i);
+      return m ? m[1].replace(/dl/i,'dL') : null;
+    }
+    function compressClinicalPairs(obj){
+      const out = {};
+      for (const [kRaw, vRaw] of Object.entries(obj)){
+        const key = KEY_ALIAS[kRaw] || kRaw;
+        const val = String(vRaw||'').trim();
+        const looksRange = /^(\d+(\.\d+)?)\s*[-~～]\s*(\d+(\.\d+)?)/.test(val) || /^([<>]=?)\s*\d+/.test(val);
+        const looksBp    = /^\d{2,3}\s*\/\s*\d{2,3}/.test(val);
+
+        if (!out[key]) out[key] = { key, value:null, unit:null, refText:null };
+
+        if (looksBp && key.includes('血壓')){
+          out[key].value = val;
+          out[key].unit  = 'mmHg';
+        } else if (looksRange){
+          out[key].refText = val;
+          if (!out[key].unit) out[key].unit = extractUnit(val);
+        } else {
+          out[key].value = val;
+          const u = extractUnit(val);
+          if (u) out[key].unit = u;
+        }
+      }
+      Object.values(out).forEach(row=>{
+        row.status = 'unknown';
+        const rule = REF[row.key];
+        if (row.key.includes('血壓') && row.value){
+          const mm = row.value.match(/(\d{2,3})\s*\/\s*(\d{2,3})/);
+          if (mm){
+            const sys = parseFloat(mm[1]), dia = parseFloat(mm[2]);
+            if (sys>=140 || dia>=90) row.status='high';
+            else if (sys<90 || dia<60) row.status='low';
+            else row.status='normal';
+          }
+          return;
+        }
+        if (rule && row.value){
+          const pv = parseValueNum(row.value);
+          if (!pv) return;
+          if (rule.min!=null && pv.a<rule.min) row.status='low';
+          else if (rule.max!=null && pv.a>rule.max) row.status='high';
+          else row.status='normal';
+          if (!row.unit && rule.unit) row.unit = rule.unit;
+        }
+      });
+      return Object.values(out);
+    }
+    function badge(status){
+      const map = {
+        normal: 'bg-green-100 text-green-700',
+        high:   'bg-red-100 text-red-700',
+        low:    'bg-yellow-100 text-yellow-800',
+        unknown:'bg-slate-100 text-slate-700'
+      };
+      const text = {normal:'正常', high:'偏高', low:'偏低', unknown:'—'}[status] || '—';
+      return `<span class="px-2 py-0.5 rounded text-xs ${map[status]||map.unknown}">${text}</span>`;
+    }
+    function renderPretty(){
+      const wrap = document.getElementById('prettyView');
+      const list = document.getElementById('prettyList');
+      if (!wrap || !list) return;
+      list.innerHTML = '';
+      const rows = compressClinicalPairs(dynamicData);
+      if (!rows.length){ wrap.classList.add('hidden'); return; }
+      wrap.classList.remove('hidden');
+
+      rows.forEach(r=>{
+        const unit = r.unit ? ` ${r.unit}` : '';
+        const ref  = r.refText ? `<div class="text-xs text-slate-500">參考：${r.refText}</div>` : '';
+        const html = `
+          <div class="flex items-start justify-between gap-2 border border-[var(--mw-border)] bg-white rounded-xl px-3 py-2">
+            <div>
+              <div class="text-sm font-semibold">${r.key}</div>
+              <div class="text-base mt-0.5">
+                <span class="font-bold">${r.value || '—'}</span><span class="text-slate-500">${unit}</span>
+              </div>
+              ${ref}
+            </div>
+            <div class="mt-1">${badge(r.status)}</div>
+          </div>`;
+        const item = document.createElement('div');
+        item.innerHTML = html;
+        list.appendChild(item.firstElementChild);
       });
     }
 
-    /* ====== 單位正規化 / 表格斷行合併（微調） ====== */
+    /* ====== 多檔預覽 ====== */
+    fileInput.addEventListener('change', () => {
+      const files = Array.from(fileInput.files || []);
+      const list = document.getElementById('previewList');
+      if (!list) return;
+
+      list.innerHTML = '';
+      if (!files.length) { previewWrap.classList.add('hidden'); return; }
+
+      files.forEach(f => {
+        const item = document.createElement('div');
+        item.className = 'border border-[var(--mw-border)] rounded-md bg-white p-1';
+
+        if (f.type.startsWith('image/')) {
+          const img = document.createElement('img');
+          img.src = URL.createObjectURL(f);
+          img.className = 'w-full h-auto block';
+          img.onload = () => URL.revokeObjectURL(img.src);
+          item.appendChild(img);
+        } else if (f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) {
+          const embed = document.createElement('embed');
+          embed.src = URL.createObjectURL(f);
+          embed.type = 'application/pdf';
+          embed.className = 'w-full h-80 block';
+          item.appendChild(embed);
+
+          const a = document.createElement('a');
+          a.href = embed.src; a.target = '_blank';
+          a.className = 'text-sm underline mt-1 inline-block';
+          a.textContent = '在新分頁開啟 PDF';
+          item.appendChild(a);
+        }
+
+        const cap = document.createElement('div');
+        cap.className = 'text-xs text-slate-600 mt-1 break-all';
+        cap.textContent = f.name;
+        item.appendChild(cap);
+
+        list.appendChild(item);
+      });
+
+      previewWrap.classList.remove('hidden');
+      setStatus(`已選 ${files.length} 檔`, true);
+    });
+
+    /* ====== 上傳辨識（多檔含 PDF）＋ 敏感欄位過濾（你前一版的邏輯保留） ====== */
+    btnUpload.addEventListener('click', async ()=>{
+      const files = Array.from(fileInput.files || []);
+      if (!files.length){ toast("請先選擇檔案（可多檔）"); return; }
+
+      setStatus("⏳ 上傳並辨識中…", true);
+      btnUpload.disabled = true;
+
+      try {
+        function normalizeText(s=''){
+          return String(s || '')
+            .normalize('NFKC')
+            .replace(/[()（）\[\]{}]/g,' ')
+            .replace(/[：:|｜/、,，;；\\]/g,' ')
+            .replace(/\s+/g,' ')
+            .trim()
+            .toLowerCase();
+        }
+        const SENSITIVE_HEADERS = new Set([
+          '基本資料','個人資料','患者資料','健檢報告','健康報告','健康數據',
+          '項目','數值','單位','參考範圍','參考值','檢查日期','檢查時間',
+          'report date','collection date','specimen','accession number','specimen number'
+        ].map(normalizeText));
+        const SENSITIVE_TOKENS = new Set([
+          '姓名','性別','年齡','身分證','身份證','id','idno','id number',
+          '病歷號碼','mrn','chart no','patient id','患者','住址','地址',
+          '電話','手機','phone','mobile','緊急連絡人','emergency contact',
+          '報告日期','收件日期','檢體編號'
+        ].map(normalizeText));
+        const looksLikeDate   = s => /^\d{4}[\/\-\.年]\d{1,2}([\/\-\.月]\d{1,2})?([日])?$/.test(s);
+        const looksLikeId     = s => /^[a-z]\d{9}$/i.test(s);
+        const looksLikePhone  = s => /^0\d{1,2}-?\d{6,8}$/.test(s) || /^09\d{2}-?\d{3}-?\d{3}$/.test(s);
+        const looksDivider    = s => /^[<>\-_.=＋*~─—]+$/.test(s);
+        function isSensitiveKey(k=''){
+          const nk = normalizeText(k);
+          if (!nk) return true;
+          if (SENSITIVE_HEADERS.has(nk) || SENSITIVE_TOKENS.has(nk)) return true;
+          if (looksDivider(nk)) return true;
+          if (nk.includes('基本資料')) return true;
+          const parts = nk.split(' ').filter(Boolean);
+          if (parts.some(p => SENSITIVE_HEADERS.has(p) || SENSITIVE_TOKENS.has(p))) return true;
+          return false;
+        }
+        function isSensitiveValue(v=''){
+          const nv = normalizeText(v);
+          if (!nv) return false;
+          if (SENSITIVE_HEADERS.has(nv)) return true;
+          if (looksDivider(nv)) return true;
+          if (looksLikeDate(nv) || looksLikeId(nv) || looksLikePhone(nv)) return true;
+          for (const t of SENSITIVE_TOKENS){ if (nv.includes(t)) return true; }
+          if (nv.includes('基本資料')) return true;
+          return false;
+        }
+        function mergeFields(source){
+          for (const [k,v] of Object.entries(source || {})){
+            if (isSensitiveKey(k)) continue;
+            const val = String(v ?? '').trim();
+            if (isSensitiveValue(val)) continue;
+            if (k && val && (!(k in dynamicData) || String(dynamicData[k]??'').trim()==='')){
+              dynamicData[k] = val;
+            }
+          }
+        }
+
+        dynamicData = {};
+        ocrRawText = "";
+        let handled = 0, failCount = 0;
+
+        for (const f of files){
+          const fd = new FormData();
+          fd.append('image', f, f.name);
+          try{
+            const resp = await fetch(OCR_API, { method:'POST', body:fd });
+            if (!resp.ok){ failCount++; continue; }
+            const result = await resp.json();
+            const text = result.text || "";
+            const sug  = result.fieldsSuggested || {};
+            ocrRawText += (ocrRawText ? "\n" : "") + text;
+            mergeFields(sug);
+            if (window.extractHealthData) mergeFields(window.extractHealthData(text));
+            mergeFields(parseOCRResultFlexible(text));
+            handled++;
+            setStatus(`處理中…(${handled}/${files.length})`, true);
+          }catch(e){
+            console.warn('OCR 例外（略過）:', f?.name, e);
+            failCount++;
+          }
+        }
+
+        for (const [k,v] of Object.entries({...dynamicData})){
+          if (isSensitiveKey(k) || isSensitiveValue(v)) {
+            delete dynamicData[k];
+          }
+        }
+
+        dynamicData = sortByDocOrder(dynamicData, ocrRawText);
+        renderFields();
+        setStatus(failCount ? `✅ 完成（${files.length - failCount}/${files.length} 檔）` : "✅ 完成");
+        renderPretty(); // ← 上傳完成後顯示友善閱讀
+      } catch(err){
+        console.error(err);
+        setStatus("❌ " + err.message);
+      } finally {
+        btnUpload.disabled = false;
+      }
+    });
+
+    /* ====== 新增／清除欄位 ====== */
+    btnAdd.addEventListener('click', () => {
+      const base = '';
+      let i = '';
+      let name = `${base}${i}`;
+      while (Object.prototype.hasOwnProperty.call(dynamicData, name)) { i += 1; name = `${base}${i}`; }
+      dynamicData[name] = '';
+      renderFields();
+    });
+    btnClear.addEventListener('click', ()=>{ dynamicData={}; renderFields(); renderPretty(); });
+
+    /* ====== 送出（儲存欄位順序） ====== */
+    btnConfirm.addEventListener('click', async ()=>{
+      const rows = fieldsEl.querySelectorAll('.mw-field-row');
+      rows.forEach(row=>{
+        const k = row.querySelector('[data-k="key"]')?.value?.trim();
+        const v = row.querySelector('[data-k="val"]')?.value?.trim();
+        if (k) dynamicData[k] = v ?? '';
+      });
+
+      const dataToSave = {};
+      Object.entries(dynamicData).forEach(([k,v])=>{
+        if (k && String(v ?? '').trim() !== '') dataToSave[k]=String(v).trim();
+      });
+      const orderedKeys = Object.keys(dataToSave);
+
+      try{
+        if (editingId) {
+          await db.collection('health_records').doc(editingId).update({
+            data: dataToSave,
+            orderKeys: orderedKeys,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          alert('✅ 已更新！');
+        } else {
+          await db.collection("health_records").add({
+            userId: (await ensureUserId()),
+            date: formattedDate,
+            data: dataToSave,
+            orderKeys: orderedKeys,
+            source: 'liff',
+            autoDietPushed: false,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          alert("✅ 資料成功上傳到 Firebase！");
+        }
+        localStorage.removeItem('edit_data');
+        window.location.href = new URL('/ocr_data1.html', window.location.origin).href;
+      }catch(err){
+        console.error(err);
+        alert("❌ 送出失敗，請查看 Console");
+      }
+    });
+
+    // 閱讀模式切換
+		btnPretty.addEventListener('click', ()=>{
+		  const pretty = document.getElementById('prettyView');
+		  const fields = document.getElementById('fields');
+
+		  if (pretty.classList.contains('hidden')) {
+			// 切到閱讀模式
+			renderPretty();
+			fields.classList.add('hidden');
+			pretty.classList.remove('hidden');
+			btnPretty.textContent = '編輯模式';
+		  } else {
+			// 切回編輯模式
+			fields.classList.remove('hidden');
+			pretty.classList.add('hidden');
+			btnPretty.textContent = '閱讀模式';
+		  }
+		});
+
+
+    // LIFF 取得 userId
+    let currentUserId = null;
+    async function ensureUserId(){
+      if (currentUserId) return currentUserId;
+      const $login = document.getElementById('loginStatus');
+      await liff.init({ liffId });
+      if (!liff.isLoggedIn()){ $login.textContent = "導向 LINE 登入中…"; liff.login({ redirectUri: location.href }); throw new Error("尚未登入 LIFF"); }
+      try{ const p = await liff.getProfile(); currentUserId = p.userId || null; }
+      catch(e){ const d = liff.getDecodedIDToken(); currentUserId = d?.sub ?? null; }
+      $login.textContent = currentUserId ? "已登入 ✓" : "未取得使用者身分，建議於 LINE 內開啟";
+      return currentUserId;
+    }
+
+    /* ====== OCR 輔助（你原本就有） ====== */
     function normalizeUnitFront(s = '') {
       return (s || '')
         .replace(/mg\/?dl/gi, 'mg/dL')
@@ -277,15 +640,9 @@
       const lines = (rawText || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
       const merged = [];
       const isNameLike = (t) => /^(總膽固醇|血清總膽固醇|血清膽固醇|三酸甘油|三酸甘油脂|中性脂肪|HDL|LDL|Cholesterol|Triglyceride|HDL\s*Cholesterol|LDL\s*Cholesterol|血壓|脈搏|心率|血糖|BMI|身高|體重|尿蛋白|尿糖|血小板|白血球|紅血球|HbA1c|CRP|TSH|T3|T4|Ferritin|Vitamin\s*D|鈣|鈉|鉀|氯|膽紅素|AST|ALT|GOT|GPT|ALP|GGT|eGFR|Creatinine|BUN|尿酸|MCV|MCH|MCHC|Hct|HGB)/i.test(t);
-      const isValueLike = (s) =>
-	  /^([<>]?\s*\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?|(?:\d{2,3}\s*\/\s*\d{2,3}))$/i.test(String(s || ''));
-
-		const isRefLike = (s) =>
-	  /^[<>]\s*\d+(?:\.\d+)?|\d+\s*[-~～]\s*\d+(?:\.\d+)?$/i.test(String(s || ''));
-
-		const isUnitLike = (s) =>
-	  /^(mg\/?d[l1I]|mmol\/?L|mmHg|bpm|%|°C|cm|kg|g\/?d[l1I]|10\^9\/L|10\^6\/µL)$/i.test(String(s || ''));
-
+      const isValueLike = (s) => /^([<>]?\s*\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?|(?:\d{2,3}\s*\/\s*\d{2,3}))$/i.test(String(s || ''));
+      const isRefLike   = (s) => /^[<>]\s*\d+(?:\.\d+)?|\d+\s*[-~～]\s*\d+(?:\.\d+)$/i.test(String(s || ''));
+      const isUnitLike  = (s) => /^(mg\/?d[l1I]|mmol\/?L|mmHg|bpm|%|°C|cm|kg|g\/?d[l1I]|10\^9\/L|10\^6\/µL)$/i.test(String(s || ''));
 
       for (let i = 0; i < lines.length; i++) {
         const a = lines[i];
@@ -302,438 +659,112 @@
       }
       return merged.join('\n');
     }
+    function parseOCRResultFlexible(text){
+      const result = {};
+      if (!text) return result;
 
-    /* ====== 放寬且擴充的 OCR 解析 ====== */
-function parseOCRResultFlexible(text){
-  const result = {};
-  if (!text) return result;
+      const pre   = collapseTableRowsFront(text);
+      const lines = pre.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
 
-  // 先把直欄表格「名稱/值/參考/單位」併回一行（你檔案裡已定義過）
-  const pre   = collapseTableRowsFront(text);
-  const lines = pre.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+      const isAliasParen = (s='') => /^\(?\s*[A-Za-z][A-Za-z.\-\/\s]*\s*\)?$/.test(String(s||''));
+      const stripEnglishParen = (s='') => String(s||'').replace(/[（(]\s*[A-Za-z][A-Za-z.\-\/\s]*\s*[)）]/g, '').trim();
 
-  // 小工具：只含英文/點/斜線/空白的括號，視為別名（如 "(ALT)"）
-  const isAliasParen = (s='') => /^\(?\s*[A-Za-z][A-Za-z.\-\/\s]*\s*\)?$/.test(String(s||''));
-  // 去掉鍵名中的（英文）括號別名（含全形）
-  const stripEnglishParen = (s='') =>
-    String(s||'').replace(/[（(]\s*[A-Za-z][A-Za-z.\-\/\s]*\s*[)）]/g, '').trim();
+      const keyValRegex1 = /^(.{1,60}?)[：:]\s*(.+)$/;
+      const keyValRegex2 = /^(.{1,60}?)\s{2,}(.{1,120})$/;
 
-  // 1) 可辨識鍵（大幅擴充＋含舊寫法）
-  const keyHints = new RegExp([
-    // 一般生命徵象/常見欄
-    '(?:血壓|血糖(?:\\(空腹\\)|\\(飯後\\))?|脈搏|心率|血氧|體溫|體重|身高|BMI|腰圍|體脂)',
-    // 血脂/膽固醇（含血清寫法）
-    '(?:|HDL(?:-?C)?|LDL(?:-?C)?|高密度膽固醇|低密度膽固醇|非HDL|總膽固醇|血清膽固醇|血清總膽固醇|三酸甘油脂|Triglyceride|Cholesterol)',
-    // 肝功能（含舊寫法與括號）
-    '(?:|GOT\\(AST\\)|GPT\\(ALT\\)|AST|ALT|SGOT|SGPT|S\\.G\\.O\\.T|S\\.G\\.P\\.T|r-?GTP|GGT|ALP|膽紅素|T-?Bil|D-?Bil)',
-    // 腎功能
-    '(?:|尿酸|BUN|Creatinine|Creat|eGFR|微量白蛋白|尿蛋白|尿糖|ACR|UACR)',
-    // 內分泌/發炎/維生素/電解質
-    '(?:|HbA1c|CRP|TSH|T3|T4|Ferritin|維生素D|Vitamin\\s*D|鈣|鈉|鉀|氯|鎂|磷|尿鈉|尿鉀)',
-    // 血球
-    '(?:|白血球|紅血球|血紅素|血色素|血小板|WBC|RBC|HGB|Hb|Hct|MCV|MCH|MCHC|PLT|Neutrophil|Lymphocyte|Eosinophil|Basophil|Monocyte)',
-    // 風險指標
-    '(?:|Risk|危險因子指數|AIP|非HDL\\s*膽固醇|TG\\/HDL)'
-  ].join('|'), 'i');
+      const normalizeMap = {
+        '心率':'脈搏','高密度膽固醇':'HDL','低密度膽固醇':'LDL',
+        '血紅素':'血色素(Hb)','血色素':'血色素(Hb)',
+        '白血球':'白血球(WBC)','紅血球':'紅血球(RBC)','血小板':'血小板(PLT)',
+        'HbA1c':'糖化血色素(HbA1c)','GOT':'AST','GPT':'ALT','T Bil':'T-Bil','D Bil':'D-Bil',
+        '維生素D':'Vitamin D','非HDL':'非HDL膽固醇',
+        '血清膽固醇':'總膽固醇','血清總膽固醇':'總膽固醇',
+        'AST':'天門冬胺酸轉胺酶','S.G.O.T':'天門冬胺酸轉胺酶','S.G.O.T(AST)':'天門冬胺酸轉胺酶',
+        'ALT':'丙胺酸轉胺酶','S.G.P.T':'丙胺酸轉胺酶','S.G.P.T(ALT)':'丙胺酸轉胺酶',
+        'GGT':'γ-穀胱甘肽轉移酶','r-GTP':'γ-穀胱甘肽轉移酶','r-GTP(GGT)':'γ-穀胱甘肽轉移酶'
+      };
+      const nk = k => (normalizeMap[k] || k);
 
-  // 2) 「長文字」鍵（醫囑/診斷/備註…）允許多行累積
-  const noteKeyReg =
-    /^(醫師建議|醫囑|醫師囑言|診斷|印象|影像結論|評估|處置|衛教|注意事項|備註|建議|說明|Summary|Impression|Plan|Assessment|Recommendation)s?$/i;
+      for (let i = 0; i < lines.length; i++){
+        const line = lines[i];
 
-  // 3) key: value 或 key  value
-  const keyValRegex1 = /^(.{1,30}?)[：:]\s*(.+)$/;      // 帶冒號
-  const keyValRegex2 = /^(.{1,30}?)\s{1,3}(.{1,80})$/;  // 兩欄靠空白
+        let m = line.match(keyValRegex1) || line.match(keyValRegex2);
+        if (m){
+          const rawKey = (m[1] || '').trim();
+          const key = nk(stripEnglishParen(rawKey));
+          let val = normalizeUnitFront((m[2] || '').trim());
 
-  // 4) 像數值/範圍/血壓的「值」行（可含單位）
-  const valueLine =
-    /^([<>]?\s*\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?(?:\/\d+(?:\.\d+)?)?)\s*(?:[a-zA-Z%°/]+|mmHg|mg\/?d[l1I]|g\/?d[l1I]|mmol\/?L|bpm|mL\/min\/1\.73m²|U\/L|fL|pg)?$/i;
-
-  // 5) 名稱正規化（同義詞→中文標準名）
-  const normalizeMap = {
-    // 既有
-    '心率':'脈搏','高密度膽固醇':'HDL','低密度膽固醇':'LDL',
-    '血紅素':'血色素(Hb)','血色素':'血色素(Hb)',
-    '白血球':'白血球(WBC)','紅血球':'紅血球(RBC)','血小板':'血小板(PLT)',
-    'HbA1c':'糖化血色素(HbA1c)',
-    'GOT':'AST','GPT':'ALT','T Bil':'T-Bil','D Bil':'D-Bil',
-    '維生素D':'Vitamin D','非HDL':'非HDL膽固醇',
-    '血清膽固醇':'總膽固醇','血清總膽固醇':'總膽固醇',
-
-    // 新增（英文/舊寫法 → 中文）
-    'AST':'天門冬胺酸轉胺酶',
-    'S.G.O.T':'天門冬胺酸轉胺酶',
-    'S.G.O.T(AST)':'天門冬胺酸轉胺酶',
-
-    'ALT':'丙胺酸轉胺酶',
-    'GPT':'丙胺酸轉胺酶',
-    'S.G.P.T':'丙胺酸轉胺酶',
-    'S.G.P.T(ALT)':'丙胺酸轉胺酶',
-
-    'GGT':'γ-穀胱甘肽轉移酶',
-    'r-GTP':'γ-穀胱甘肽轉移酶',
-    'r-GTP(GGT)':'γ-穀胱甘肽轉移酶'
-  };
-  const nk = k => (normalizeMap[k] || k);
-
-  // 逐行解析
-  for (let i = 0; i < lines.length; i++){
-    const line = lines[i];
-
-    // (A) 先處理 "key: value" / "key  value"
-    let m = line.match(keyValRegex1) || line.match(keyValRegex2);
-    if (m){
-      const rawKey = (m[1] || '').trim();
-
-      // 去掉鍵名內的 (ALT)/(AST)… 再做正規化成中文
-      const key = nk(stripEnglishParen(rawKey));
-
-      let val = normalizeUnitFront((m[2] || '').trim());
-
-      // 值若只是 "(ALT)" 這類英文別名 → 視為註記，不當值；向下一行抓真數值
-      if (isAliasParen(val)) {
-        if (i + 1 < lines.length && valueLine.test(lines[i + 1])) {
-          val = normalizeUnitFront(lines[++i].trim());
-          // 嘗試再多吃一行單位（選擇性）
-          if (i + 1 < lines.length &&
-              /(mmHg|mg\/?dL|g\/?dL|%|bpm|°C|cm|kg|U\/L|mL\/min\/1\.73m²|mmol\/L|fL|pg)/i.test(lines[i+1])) {
-            val = `${val} ${normalizeUnitFront(lines[++i].trim())}`;
+          if (isAliasParen(val)) {
+            if (i + 1 < lines.length) {
+              val = normalizeUnitFront(lines[++i].trim());
+            } else { continue; }
           }
-        } else {
-          // 下一行也不是數值 → 略過這筆，避免把 (ALT) 寫入
+
+          if (key) {
+            if (!(key in result) || String(result[key]??'').trim()==='') result[key] = val;
+          }
           continue;
         }
-      }
 
-      // 長文字鍵：允許自由文本多行
-      if (noteKeyReg.test(rawKey)) {
-        const buf = [val];
-        let j = i + 1;
-        while (j < lines.length) {
-          const next = lines[j].trim();
-          const looksLikeNextKey = keyValRegex1.test(next) || keyValRegex2.test(next) || keyHints.test(next);
-          if (looksLikeNextKey) break;
-          buf.push(next);
-          j++;
+        const looksLikeValueToken = (s='') =>
+          /^[<>≤≥]?\s*\d+(?:\.\d+)?(?:\s*[-~～]\s*\d+(?:\.\d+)?)?(?:\s*\/\s*\d+(?:\.\d+)?)?$/.test(String(s||''));
+
+        if (line && i + 1 < lines.length) {
+          const key = nk(stripEnglishParen(line));
+          const next = lines[i + 1].trim();
+          if (/[:：]\s*$/.test(next)) continue;
+          if (looksLikeValueToken(key)) continue;
+
+          if (key && next) {
+            result[key] = normalizeUnitFront(next);
+            i++;
+            continue;
+          }
         }
-        result[key] = buf.join('\n').trim();
-        i = j - 1;
-        continue;
       }
-
-      // 一般鍵：key 類型正確或 value 像數值/含單位就收
-      if (key && (keyHints.test(key) || valueLine.test(val) || /mmHg|mg\/dL|g\/dL|%|bpm|cm|kg|°C/i.test(val))) {
-        if (!(key in result) || String(result[key]??'').trim()==='') result[key]=val;
-      }
-      continue;
+      return result;
     }
 
-    // (B) 直欄：本行是鍵、下一行是值
-    if (keyHints.test(line) && i+1<lines.length && valueLine.test(lines[i+1])) {
-      const key = nk(stripEnglishParen(line));
-      const val = normalizeUnitFront(lines[i+1].trim());
-      if (!(key in result) || String(result[key]??'').trim()==='') result[key]=val;
-      i++;
-      continue;
-    }
-  }
-
-  return result;
-}
-
-    /* ====== 去噪/正規化（放寬，允許長文字欄位） ====== */
-    function sanitizeDynamicData(data) {
-      const out = {};
-
-      const normalizeKey = (k) => {
-        let key = String(k || '').trim();
-        key = key.replace(/[：:]\s*$/, '');
-        key = key.replace(/\s+/g, ' ');
-        key = key.replace(/^白血球$/, '白血球(WBC)')
-                 .replace(/^紅血球$/, '紅血球(RBC)')
-                 .replace(/^血色素$/, '血色素(Hb)')
-                 .replace(/^血小板$/, '血小板(PLT)');
-        return key;
+    function sortByDocOrder(data, rawText){
+      if (!rawText) return data;
+      const alias = {
+        '天門冬胺酸轉胺酶': ['天門冬胺酸轉胺酶','AST','GOT','S.G.O.T','S.G.O.T(AST)'],
+        '丙胺酸轉胺酶': ['丙胺酸轉胺酶','ALT','GPT','S.G.P.T','S.G.P.T(ALT)'],
+        'γ-穀胱胺肽轉移酶': ['γ-穀胱甘肽轉移酶','GGT','r-GTP','r-GTP(GGT)'],
+        '總膽固醇': ['總膽固醇','血清膽固醇','血清總膽固醇','Cholesterol'],
+        '三酸甘油脂': ['三酸甘油脂','Triglyceride','中性脂肪'],
+        'HDL': ['HDL','高密度膽固醇','HDL-C'],
+        'LDL': ['LDL','低密度膽固醇','LDL-C'],
+        '血壓': ['血壓','BP'],
+        '血糖': ['血糖','AC Sugar','FPG','Glucose'],
+        '脈搏': ['脈搏','心率','Pulse'],
+        'Creatinine': ['Creatinine','肌酸酐','肌酐','Cr'],
+        'BUN': ['BUN','尿素氮'],
+        '尿酸': ['尿酸','Uric Acid'],
+        'eGFR': ['eGFR','腎絲球過濾率'],
+        'T-Bil': ['T-Bil','總膽紅素','TBil','T Bil','膽紅素'],
+        'D-Bil': ['D-Bil','直接膽紅素','DBil','D Bil'],
       };
-
-      const looksLikeRange = s => /^\s*[<>]?\s*\d+(?:\.\d+)?\s*[-~～]\s*[<>]?\s*\d+(?:\.\d+)?/.test(s);
-      const hasLetters = s => /[A-Za-z\u4e00-\u9fa5]/.test(s);
-
-      // 允許長文本的欄位（醫囑/建議/備註/診斷/評估/處置/結論/衛教/注意事項…）
-      const longTextKeyReg = /(醫師建議|醫囑|醫師囑言|診斷|印象|影像結論|評估|處置|衛教|注意事項|備註|建議|說明|Summary|Impression|Plan|Assessment|Recommendation)s?$/i;
-
-      const isBadKey = (k) => {
-        const key = String(k||'').trim();
-        if (key.length < 2) return true;
-        if (!hasLetters(key)) return true;
-        if (/^\d/.test(key)) return true;
-        if (/^(cm|kg|mmhg|mg\/dl|bpm|％|%|公分|公斤|單位|I)$/i.test(key)) return true;
-		if (/^[A-Za-z\s]+$/.test(key)) return true;
-
-        return false;
-      };
-
-		// 依文件自上而下排序欄位
-		function sortByDocOrder(data, rawText){
-		  if (!rawText) return data;
-
-		  // 針對常見同義/縮寫做別名映射（可再擴充）
-		  const alias = {
-			'天門冬胺酸轉胺酶': ['天門冬胺酸轉胺酶','AST','GOT','S.G.O.T','S.G.O.T(AST)'],
-			'丙胺酸轉胺酶': ['丙胺酸轉胺酶','ALT','GPT','S.G.P.T','S.G.P.T(ALT)'],
-			'γ-穀胱甘肽轉移酶': ['γ-穀胱甘肽轉移酶','GGT','r-GTP','r-GTP(GGT)'],
-			'總膽固醇': ['總膽固醇','血清膽固醇','血清總膽固醇','Cholesterol'],
-			'三酸甘油脂': ['三酸甘油脂','Triglyceride','中性脂肪'],
-			'HDL': ['HDL','高密度膽固醇','HDL-C'],
-			'LDL': ['LDL','低密度膽固醇','LDL-C'],
-			'血壓': ['血壓','BP'],
-			'血糖': ['血糖','AC Sugar','FPG','Glucose'],
-			'脈搏': ['脈搏','心率','Pulse'],
-			'Creatinine': ['Creatinine','肌酸酐','肌酐','Cr'],
-			'BUN': ['BUN','尿素氮'],
-			'尿酸': ['尿酸','Uric Acid'],
-			'eGFR': ['eGFR','腎絲球過濾率'],
-			'T-Bil': ['T-Bil','總膽紅素','TBil','T Bil','膽紅素'],
-			'D-Bil': ['D-Bil','直接膽紅素','DBil','D Bil'],
-		  };
-
-		  const stripEnglishParen = s => String(s||'')
-			.replace(/[（(]\s*[A-Za-z][A-Za-z.\-\/\s]*\s*[)）]/g, '')
-			.trim();
-		  const norm = s => String(s||'').toLowerCase().replace(/\s+/g,'');
-
-		  // 用你現有的合併器，確保與解析相同的行序
-		  const lines = collapseTableRowsFront(rawText)
-			.split(/\r?\n/).map(s => stripEnglishParen(s.trim()));
-
-		  const seen = new Set();
-		  const order = [];
-
-		  lines.forEach(line => {
-			const L = norm(line);
-			Object.keys(data).forEach(k => {
-			  if (seen.has(k)) return;
-			  const cands = [k].concat(alias[k] || []);
-			  for (const c of cands) {
-				if (c && L.includes(norm(c))) { order.push(k); seen.add(k); break; }
-			  }
-			});
-		  });
-
-		  // 沒在文件中比對到的欄位，維持原本插入順序接在後面
-		  Object.keys(data).forEach(k => { if (!seen.has(k)) order.push(k); });
-
-		  const out = {};
-		  order.forEach(k => out[k] = data[k]);
-		  return out;
-		}
-
-
-      const isBadVal = (k, v) => {
-        const val = String(v ?? '').trim();
-        if (!val) return true;
-
-        // 長文本鍵：不做長度與標點限制
-        if (longTextKeyReg.test(k)) return false;
-
-        if (/^(cm|kg|mmhg|mg\/dl|bpm|％|%)$/i.test(val)) return true;
-        if (/^[\W_]+$/.test(val)) return true;
-
-        // 參考範圍類型：保留（避免被過濾）
-        if (/^(參考|正常|範圍|Reference|Ref)/.test(k) || /(參考|正常|上限|下限|範圍)/.test(val)) return false;
-
-        // 純中文段落太長且不像數值，避免塞滿畫面（但仍保留到 200 字）
-        if (val.length > 200 && /[\u4e00-\u9fa5]/.test(val)) return true;
-
-        // 範圍值：通常不是「單一欄位值」，過濾掉（有需要可在上面解除）
-        if (looksLikeRange(val)) return true;
-
-        return false;
-      };
-
-      const withUnitIfNeeded = (k, v) => {
-        let val = String(v || '').trim();
-        if (/身高/.test(k) && /^\d{2,3}(\.\d+)?$/.test(val)) val += ' cm';
-        if (/(體重)/.test(k) && /^\d{1,3}(\.\d+)?$/.test(val)) val += ' kg';
-        if (/血壓/.test(k) && /^\d{2,3}\s*\/\s*\d{2,3}$/.test(val)) val = val.replace(/\s*/g,'') + ' mmHg';
-        return val;
-      };
-
-      for (const [rawK, rawV] of Object.entries(data)) {
-        const k = normalizeKey(rawK);
-        if (isBadKey(k) || isBadVal(k, rawV)) continue;
-        const v = withUnitIfNeeded(k, rawV);
-        if (!v) continue;
-        out[k] = out[k] && out[k] !== v ? `${out[k]} / ${v}` : v;
-      }
+      const stripEnglishParen = s => String(s||'').replace(/[（(]\s*[A-Za-z][A-Za-z.\-\/\s]*\s*[)）]/g, '').trim();
+      const norm = s => String(s||'').toLowerCase().replace(/\s+/g,'');
+      const lines = collapseTableRowsFront(rawText).split(/\r?\n/).map(s => stripEnglishParen(s.trim()));
+      const seen = new Set(), order = [];
+      lines.forEach(line => {
+        const L = norm(line);
+        Object.keys(data).forEach(k => {
+          if (seen.has(k)) return;
+          const cands = [k].concat(alias[k] || []);
+          for (const c of cands) {
+            if (c && L.includes(norm(c))) { order.push(k); seen.add(k); break; }
+          }
+        });
+      });
+      Object.keys(data).forEach(k => { if (!seen.has(k)) order.push(k); });
+      const out = {}; order.forEach(k => out[k] = data[k]);
       return out;
     }
 
-    /* ====== 預覽 ====== */
-    fileInput.addEventListener('change', () => {
-      const f = fileInput.files?.[0];
-      if (!f) { previewWrap.classList.add('hidden'); return; }
-      previewImg.src = URL.createObjectURL(f);
-      previewWrap.classList.remove('hidden');
-    });
-
-    /* ====== 上傳辨識（流程原樣，僅插入新的解析器 & 放寬清理） ====== */
-    btnUpload.addEventListener('click', async ()=>{
-      const file = fileInput.files?.[0];
-      if (!file){ toast("請先選擇圖片檔案"); return; }
-
-      setStatus("⏳ 上傳並辨識中…", true);
-      btnUpload.disabled = true;
-
-      try{
-        const fd = new FormData();
-        fd.append('image', file);
-        const resp = await fetch(OCR_API, { method:'POST', body:fd });
-        if (!resp.ok){
-          let msg = "辨識失敗";
-          try { const e = await resp.json(); if(e?.error) msg += "："+e.error; } catch {}
-          throw new Error(msg);
-        }
-        const result = await resp.json();
-        ocrRawText = result.text || "";
-        const fieldsSuggested = result.fieldsSuggested || {};
-
-        dynamicData = {};
-        // 1) 後端建議值
-        for (const [k,v] of Object.entries(fieldsSuggested)){
-          if (k && v && (!(k in dynamicData) || String(dynamicData[k]??'').trim()==='')) dynamicData[k]=v;
-        }
-        // 2) 你原本的 extractHealthData
-        const parsed1 = window.extractHealthData(ocrRawText);
-        for (const [k,v] of Object.entries(parsed1)){
-          if (k && v && (!(k in dynamicData) || String(dynamicData[k]??'').trim()==='')) {
-            dynamicData[k] = v;
-          }
-        }
-        // 3) 新的寬鬆解析器
-        const parsed2 = parseOCRResultFlexible(ocrRawText);
-        for (const [k,v] of Object.entries(parsed2)){
-          if (k && v && (!(k in dynamicData) || String(dynamicData[k]??'').trim()==='')) {
-            dynamicData[k] = v;
-          }
-        }
-
-        // 放寬清理
-        dynamicData = sanitizeDynamicData(dynamicData);
-
-        if (!Object.keys(dynamicData).length && ocrRawText){
-          dynamicData["原始內容"]=ocrRawText;
-        }
-
-        if (ocrRawText?.trim()){
-          rawTextEl.textContent = ocrRawText;
-          rawSection.classList.remove('hidden');
-        }else{
-          rawSection.classList.add('hidden');
-        }
-
-        renderFields();
-        setStatus("✅ 完成");
-      }catch(err){
-        console.error(err);
-        setStatus("❌ "+err.message);
-      }finally{
-        btnUpload.disabled = false;
-      }
-    });
-
-    /* ====== 原文一鍵轉欄位（加入新解析器，流程不變） ====== */
-    btnFillFromRaw.addEventListener('click', ()=>{
-      if (!ocrRawText?.trim()){
-        toast("尚無原文可轉換。請先上傳圖片或此功能需後端回傳原文。");
-        return;
-      }
-      const parsed1 = window.extractHealthData(ocrRawText);
-      for (const [k,v] of Object.entries(parsed1)){
-        if (k && v && (!(k in dynamicData) || String(dynamicData[k]??'').trim()==='')) {
-          dynamicData[k] = v;
-        }
-      }
-      const parsed2 = parseOCRResultFlexible(ocrRawText);
-      for (const [k,v] of Object.entries(parsed2)){
-        if (k && v && (!(k in dynamicData) || String(dynamicData[k]??'').trim()==='')) {
-          dynamicData[k] = v;
-        }
-      }
-      dynamicData = sanitizeDynamicData(dynamicData);
-      renderFields();
-      toast("已嘗試從原文提取欄位");
-    });
-
-    /* ====== 新增／清除欄位（原樣） ====== */
-    btnAdd.addEventListener('click', () => {
-      const base = '';
-      let i = '';
-      let name = `${base}${i}`;
-      while (Object.prototype.hasOwnProperty.call(dynamicData, name)) {
-        i += 1;
-        name = `${base}${i}`;
-      }
-      dynamicData[name] = '';
-      renderFields();
-    });
-    btnClear.addEventListener('click', ()=>{ dynamicData={}; renderFields(); });
-
-    /* ====== 送出（原樣） ====== */
-    btnConfirm.addEventListener('click', async ()=>{
-      // 同步尚未 blur 的值
-      const rows = fieldsEl.querySelectorAll('.mw-field-row');
-      rows.forEach(row=>{
-        const k = row.querySelector('[data-k="key"]')?.value?.trim();
-        const v = row.querySelector('[data-k="val"]')?.value?.trim();
-        if (k) dynamicData[k] = v ?? '';
-      });
-
-      // 清空空值
-      const dataToSave = {};
-      Object.entries(dynamicData).forEach(([k,v])=>{
-        if (k && String(v ?? '').trim() !== '') dataToSave[k]=String(v).trim();
-      });
-
-      try{
-        if (editingId) {
-          await db.collection('health_records').doc(editingId).update({
-            data: dataToSave,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          alert('✅ 已更新！');
-        } else {
-          await db.collection("health_records").add({
-            userId: (await ensureUserId()),
-            date: formattedDate,
-            data: dataToSave,
-            source: 'liff',
-            autoDietPushed: false,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          alert("✅ 資料成功上傳到 Firebase！");
-        }
-        localStorage.removeItem('edit_data');
-        window.location.href = new URL('/ocr_data1.html', window.location.origin).href;
-      }catch(err){
-        console.error(err);
-        alert("❌ 送出失敗，請查看 Console");
-      }
-    });
-
-    // LIFF 取得 userId（原樣）
-    let currentUserId = null;
-    async function ensureUserId(){
-      if (currentUserId) return currentUserId;
-      const $login = document.getElementById('loginStatus');
-      await liff.init({ liffId });
-      if (!liff.isLoggedIn()){ $login.textContent = "導向 LINE 登入中…"; liff.login({ redirectUri: location.href }); throw new Error("尚未登入 LIFF"); }
-      try{ const p = await liff.getProfile(); currentUserId = p.userId || null; }
-      catch(e){ const d = liff.getDecodedIDToken(); currentUserId = d?.sub ?? null; }
-      $login.textContent = currentUserId ? "已登入 ✓" : "未取得使用者身分，建議於 LINE 內開啟";
-      return currentUserId;
-    }
-
-    /* ====== 全域提示（原樣） ====== */
+    /* ====== 全域提示 ====== */
     window.setStatus = function (text, hint = false) {
       if (!statusEl) return;
       statusEl.textContent = text || "";

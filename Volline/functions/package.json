@@ -2,11 +2,11 @@
   "name": "functions",
   "main": "index.js",
   "engines": {
-    "node": "18"
+    "node": "22"
   },
   "dependencies": {
     "@line/bot-sdk": "^7.5.1",
-    "firebase-admin": "^11.11.1",
-    "firebase-functions": "^4.7.0"
+    "firebase-admin": "^13.5.0",
+    "firebase-functions": "^6.4.0"
   }
 }
