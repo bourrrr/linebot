@@ -1,5 +1,5 @@
 // --- 共用基礎 ---
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const express = require('express');
 const crypto = require('crypto');
@@ -31,7 +31,9 @@ function makeLineClient(channelAccessToken) {
         },
         body: JSON.stringify({ replyToken, messages })
       });
-      if (!res.ok) console.error('[LINE reply] failed:', await res.text());
+      const txt = await res.text(); // ⭐ 新增：詳盡 log
+      console.log('[LINE reply]', { status: res.status, body: txt });
+      if (!res.ok) console.error('[LINE reply] failed');
     },
     async push(to, messages) {
       const res = await fetch('https://api.line.me/v2/bot/message/push', {
@@ -42,26 +44,59 @@ function makeLineClient(channelAccessToken) {
         },
         body: JSON.stringify({ to, messages })
       });
-      if (!res.ok) console.error('[LINE push] failed:', await res.text());
+      const txt = await res.text(); // ⭐ 新增：詳盡 log
+      console.log('[LINE push]', { to, status: res.status, body: txt });
+      if (!res.ok) console.error('[LINE push] failed');
     }
   };
 }
 
+/* =========================
+ *  ⭐ 新增：authUid / 任意 id 轉 副帳號 U… 的工具
+ *  - 先找 users/vol:<U>；若無再找 users/<authUid> 之中的 volLineUserId
+ * ========================= */
+async function getVolIdFromAny(anyId) {
+  if (!anyId) return null;
+  try {
+    const key = String(anyId).replace(/^line:/, '');
+    const try1 = await db.doc(`users/vol:${key}`).get();
+    if (try1.exists && try1.data()?.volLineUserId) return try1.data().volLineUserId;
+
+    const try2 = await db.doc(`users/${anyId}`).get();
+    if (try2.exists && try2.data()?.volLineUserId) return try2.data().volLineUserId;
+
+    return null;
+  } catch (e) {
+    console.error('[getVolIdFromAny] error:', e);
+    return null;
+  }
+}
+
 // ===== 共用：副系統（臨時聊天室）需要的查配對 =====
 async function findActiveMatchByUser(lineUserId) {
+  const variations = [lineUserId];
+  if (lineUserId.startsWith("line:")) {
+    variations.push(lineUserId.replace(/^line:/, "")); // 去掉 line:
+  } else {
+    variations.push(`line:${lineUserId}`); // 加上 line:
+  }
+
   const snap = await db.collection('matches')
     .where('status', '==', 'active')
-    .where('participants', 'array-contains', lineUserId)
+    .where('participants', 'array-contains-any', variations)
     .limit(1)
     .get();
+
   if (snap.empty) return null;
   const doc = snap.docs[0];
   return { id: doc.id, ...doc.data() };
 }
 
+
 /** ========================
  *  副系統（臨時聊天室）Webhook
  *  ======================== */
+// ===== 副系統（臨時聊天室）Webhook：完整替換版 =====
 const volApp = express();
 volApp.use(rawJson);
 
@@ -81,6 +116,31 @@ volApp.post('/', async (req, res) => {
     const client = makeLineClient(token);
 
     for (const evt of body.events || []) {
+      console.log('[VOL] incoming type=%s userId=%s', evt.type, evt.source?.userId);
+
+      // A) postback：Quick Reply 選人 → 設定目前對話對象
+      if (evt.type === 'postback' && evt.postback?.data?.startsWith('action=setMatch')) {
+        const matchId = new URLSearchParams(evt.postback.data).get('matchId');
+        await db.doc(`users/vol:${evt.source.userId}`).set({
+          currentMatchId: matchId,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        await client.reply(evt.replyToken, [{ type:'text', text:'已切換對話對象 ✅' }]);
+        continue;
+      }
+
+      // B) follow：把副帳號的 U 存起來（供 createMatch 映射使用）
+      if (evt.type === 'follow' && evt.source?.userId) {
+        const volId = evt.source.userId; // U 開頭（副帳號）
+        await db.doc(`users/vol:${volId}`).set({
+          volLineUserId: volId,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        await client.reply(evt.replyToken, [{ type: 'text', text: '已開啟臨時聊天室 ✅' }]);
+        continue;
+      }
+
+      // C) 僅處理文字訊息
       if (evt.type !== 'message' || !evt.source?.userId) continue;
 
       const fromUserId = evt.source.userId;
@@ -91,7 +151,79 @@ volApp.post('/', async (req, res) => {
         continue;
       }
 
-      const match = await findActiveMatchByUser(fromUserId);
+      // C-1) 志工輸入「切換對象」→ 回 Quick Reply 列表
+// C-1) 志工輸入「切換對象」→ 回 Quick Reply 列表
+if (msg.text.trim() === '切換對象') {
+  const qs = await db.collection('matches')
+    .where('status','==','active')
+    .where('participants','array-contains', fromUserId)
+    .get();
+
+  if (qs.empty) {
+    await client.reply(evt.replyToken, [{ type: 'text', text: '目前沒有活躍的配對。' }]);
+  } else {
+    const items = qs.docs.slice(0,13).map(d => {
+      const m = d.data();
+
+      // 安全組 label：任務類型 + 地點，至少要有一個值
+      let type = (m.taskTitle || m.taskType || '任務').trim();
+      let addr = (m.taskAddr || '').trim();
+      let label = type;
+      if (addr) label += '｜' + addr;
+
+      // fallback：避免空字串
+      if (!label) label = '任務';
+
+      // 限制長度 20
+      label = label.slice(0,20);
+
+      return {
+        type: 'action',
+        action: {
+          type: 'postback',
+          label,
+          data: `action=setMatch&matchId=${d.id}`
+        }
+      };
+    });
+    await client.reply(evt.replyToken, [{
+      type: 'text',
+      text: '你要跟哪位對話？',
+      quickReply: { items }
+    }]);
+  }
+  continue;
+}
+
+
+      // D) 轉送：先看是否已選過對象（currentMatchId），再 fallback
+      let match = null;
+
+      // 先讀取 currentMatchId
+      const uDoc = await db.doc(`users/vol:${fromUserId}`).get();
+      const currentMatchId = uDoc.exists ? uDoc.data()?.currentMatchId : null;
+
+      if (currentMatchId) {
+        const mDoc = await db.collection('matches').doc(currentMatchId).get();
+        if (mDoc.exists) {
+          const m = mDoc.data();
+          if (m.status === 'active' && Array.isArray(m.participants) && m.participants.includes(fromUserId)) {
+            match = { id: mDoc.id, ...m };
+          } else {
+            // 失效就清掉，避免下次繼續卡住
+            await db.doc(`users/vol:${fromUserId}`).set({
+              currentMatchId: admin.firestore.FieldValue.delete()
+            }, { merge: true });
+          }
+        }
+      }
+
+      // 沒選過或選的已失效 → 用原本查詢（容錯：支援 U / line:U）
+      if (!match) {
+        match = await findActiveMatchByUser(fromUserId);
+      }
+
+      console.log('[VOL] match found?', !!match, 'id=', match?.id, 'participants=', match?.participants);
       if (!match) {
         await client.reply(evt.replyToken, [{ type: 'text', text: '目前沒有活躍的配對，訊息無法轉送。' }]);
         continue;
@@ -99,7 +231,7 @@ volApp.post('/', async (req, res) => {
 
       const otherUserId = match.participants.find(id => id !== fromUserId);
       if (!otherUserId) {
-        await client.reply(evt.replyToken, [{ type: 'text', text: '配對異常，請聯繫客服。' }]);
+        await client.reply(evt.replyToken, [{ type: 'text', text: '配對資料異常，請稍後再試。' }]);
         continue;
       }
 
@@ -110,7 +242,7 @@ volApp.post('/', async (req, res) => {
         ts: admin.firestore.FieldValue.serverTimestamp()
       });
 
-      // 轉送
+      // 轉送給對方
       await client.push(otherUserId, [{ type: 'text', text: msg.text }]);
       await client.reply(evt.replyToken, [{ type: 'text', text: '✓ 訊息已轉送' }]);
     }
@@ -122,50 +254,77 @@ volApp.post('/', async (req, res) => {
   }
 });
 
-// Callable：建立配對（維持原有行為）
-exports.createMatch = functions.https.onCall(async (data, context) => {
+// Callable：建立配對（維持原有行為，補上副帳號 U 自動對應）
+exports.createMatch = functions.region('asia-east1').https.onCall(async (data, context) => {
   const { taskId, patientUserId, volunteerUserId, patientAuthUid, volunteerAuthUid } = data || {};
   if (!taskId || !patientUserId || !volunteerUserId) {
     throw new functions.https.HttpsError('invalid-argument', '缺少必要參數');
   }
 
-  const batch = db.batch();
-  for (const uid of [patientUserId, volunteerUserId]) {
-    const q = await db.collection('matches')
-      .where('status', '==', 'active')
-      .where('participants', 'array-contains', uid)
-      .get();
-    q.forEach(d => batch.update(d.ref, {
-      status: 'closed',
-      closedAt: admin.firestore.FieldValue.serverTimestamp()
-    }));
+  // ⭐ 新增：若帶了 authUid，嘗試把它們轉成「副帳號 U…」
+  let pId = patientUserId;
+  let vId = volunteerUserId;
+  try {
+    const pVol = await getVolIdFromAny(patientAuthUid);
+    const vVol = await getVolIdFromAny(volunteerAuthUid);
+    if (pVol && vVol) {
+      pId = pVol;
+      vId = vVol;
+      console.log('[createMatch] mapped authUid -> vol U ids', { pId, vId });
+    } else {
+      console.log('[createMatch] fallback to provided userIds (no vol U mapping found)');
+    }
+  } catch (e) {
+    console.warn('[createMatch] mapping vol ids failed, use provided ids. err=', e);
   }
 
+  const batch = db.batch();
   const ref = db.collection('matches').doc();
-  batch.set(ref, {
-    taskId,
-    patientUserId,
-    volunteerUserId,
-    participants: [patientUserId, volunteerUserId],
-    participantsAuthUids: [patientAuthUid, volunteerAuthUid].filter(Boolean),
-    status: 'active',
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    closedAt: null
-  });
+		
+	const matchData = {
+	  taskId,
+	  patientUserId: pId,
+	  volunteerUserId: vId,
+	  patientAuthUid: patientAuthUid || null,
+	  volunteerAuthUid: volunteerAuthUid || null,
+	  status: 'active',
+	  participants: [pId, vId],
+	  patientName: data.patientName || '',
+	  taskTitle: data.taskTitle || '',
+	  taskAddr: data.taskAddr || '',   // ⭐ 新增
+	  createdAt: admin.firestore.FieldValue.serverTimestamp(),
+	};
 
-  await batch.commit();
+	batch.set(ref, matchData);
+	await batch.commit();
+	await db.collection('requests').doc(taskId).set({
+  matchId: ref.id,
+  updatedAt: admin.firestore.FieldValue.serverTimestamp()
+}, { merge: true });
+
+  // 加聊天室深連結
+  const LINE_BOT_ID = process.env.VOLLINE_LINE_BOT_ID;
+  const chatLink = `https://line.me/R/oaMessage/${LINE_BOT_ID}/?text=#match:${ref.id}`;
 
   const client = makeLineClient(process.env.VOLLINE_LINE_CHANNEL_ACCESS_TOKEN);
   await Promise.all([
-    client.push(patientUserId, [{ type: 'text', text: '✅ 已為您配對志工，請開始聯繫！' }]),
-    client.push(volunteerUserId, [{ type: 'text', text: '✅ 配對成功，請與患者聯繫！' }])
+    client.push(pId, [
+      { type: 'text', text: '✅ 已為您配對志工，請開始聯繫！' },
+      { type: 'text', text: `📩 點這裡開始聊天：${chatLink}` }
+    ]),
+    client.push(vId, [
+      { type: 'text', text: '✅ 配對成功，請與患者聯繫！' },
+      { type: 'text', text: `📩 點這裡開始聊天：${chatLink}` }
+    ])
   ]);
 
   return { matchId: ref.id };
 });
 
+
+
 // Callable：關閉聊天室（維持原有行為）
-exports.closeMatch = functions.https.onCall(async (data, context) => {
+exports.closeMatch = functions.region('asia-east1').https.onCall(async (data, context) => {
   const { matchId, reason } = data || {};
   if (!matchId) throw new functions.https.HttpsError('invalid-argument', '缺少 matchId');
 
@@ -354,7 +513,8 @@ exports.autoCloseExpiredChats = functions.pubsub
     await batch.commit();
     return null;
   });
-  // 自動標準化：health_records 新增
+
+// 自動標準化：health_records 新增
 exports.healthRecordNormalize = functions
   .region('asia-east1')
   .firestore.document('health_records/{id}')
@@ -400,6 +560,7 @@ exports.healthRecordNormalizeOnUpdate = functions
     });
     return null;
   });
+
 exports.approvePendingAlias = functions
   .region('asia-east1')
   .https.onCall(async (req, ctx) => {

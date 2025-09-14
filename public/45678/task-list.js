@@ -17,7 +17,8 @@ const chipsWrap = document.getElementById("districtChips");
 const toggleAllBtn = document.getElementById("toggleAllDistricts");
 const tpl = document.getElementById("taskCardTemplate");
 
-const functions = getFunctions(app, "us-central1");
+const functions = getFunctions(app, "asia-east1");
+
 const createMatch = httpsCallable(functions, "createMatch");
 const pureLineId = (uid) => String(uid || "").replace(/^line:/, "");
 
@@ -178,14 +179,24 @@ async function render(){
 
 async function createMatchForTask(task, volunteerUid) {
   const fn = httpsCallable(functions, "createMatch");
+
+  // 撈患者資料（確保有名字）
+  const patient = await getUser(task.userId);
+
   await fn({
     taskId: task.id,
     patientUserId: pureLineId(task.userId),
     volunteerUserId: pureLineId(volunteerUid),
     patientAuthUid: task.userId,
-    volunteerAuthUid: volunteerUid
+    volunteerAuthUid: volunteerUid,
+     patientName: task.username || task.userName || task.patientName || '未命名患者',
+    taskTitle: (task.type || "任務"),
+    taskAddr: `${task.city||''}${task.district||''}${task.road||''}`,
   });
 }
+
+
+
 
 taskContainer.addEventListener("click", async (e)=>{
   const btn = e.target.closest("button");

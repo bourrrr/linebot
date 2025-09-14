@@ -72,13 +72,19 @@
   console.log("[DEBUG] login.html 腳本載入");
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { firebaseConfig } from "./firebase-config.js";
+  
+  
+	 const app  = initializeApp(firebaseConfig);
+	 const db   = getFirestore(app);
+	 const auth = getAuth(app);
+ 
 
-  const app = initializeApp(firebaseConfig);
-  const db  = getFirestore(app);
+     const LIFF_ID = "2007877199-Y5R2LenL";
 
-  const LIFF_ID = "2007877199-Y5R2LenL";
-
+	 const CUSTOM_TOKEN_URL = "https://asia-east1-medwell-test1.cloudfunctions.net/authApi/getFirebaseCustomToken";
+	
   function roleKey(s){
     const m = String(s||'').trim().toLowerCase();
     if (m === '患者' || m === 'patient') return 'patient';
@@ -160,14 +166,29 @@
     }
 
     try{
-      const profile = await liff.getProfile();
-      const idToken = liff.getIDToken();
-      const liffUid = profile.userId || "";
-      const uid = `line:${liffUid}`;
+  
+     const idToken = liff.getIDToken();
+     if (!idToken) { alert("取得 LINE idToken 失敗，請關閉分頁重開或登出再登入"); return; }
+     // 1) 換 custom token
+     const resp = await fetch(CUSTOM_TOKEN_URL, {
+       method: "POST",
+       headers: { "Content-Type": "application/json" },
+       body: JSON.stringify({ idToken })
+     });
+     if (!resp.ok) { alert("登入驗證失敗（HTTP "+resp.status+"）"); return; }
+     const { customToken } = await resp.json();
+     if (!customToken) { alert("登入驗證失敗（no customToken）"); return; }
 
-      // 檢查是否完成註冊
-      // 檢查是否完成註冊
-		const snap = await getDoc(doc(db, "users", uid));
+     // 2) 登入 Firebase 後用 auth.currentUser.uid 查
+     await signInWithCustomToken(auth, customToken);
+     const uid = auth.currentUser?.uid;
+     if (!uid) { alert("登入失敗（no auth uid）"); return; }
+     const snap = await getDoc(doc(db, "users", uid));
+      
+      
+      
+
+
 
 		// ★ 這裡加 Debug Log
 		console.log("[DEBUG] 嘗試讀取 Firestore 文件 users/" + uid);
@@ -185,10 +206,11 @@
 
 	
       // 快取可選
-      localStorage.setItem('MW_LIFF_UID', liffUid);
-      localStorage.setItem('MW_LIFF_NAME', profile.displayName || '');
-      localStorage.setItem('MW_LIFF_PIC', profile.pictureUrl || '');
-      if (idToken) localStorage.setItem('MW_LIFF_ID_TOKEN', idToken);
+	  const profile = await liff.getProfile().catch(()=>({}));
+		 localStorage.setItem('MW_LIFF_UID', uid); // 改存 Firebase uid
+		 localStorage.setItem('MW_LIFF_NAME', profile.displayName || '');
+		 localStorage.setItem('MW_LIFF_PIC', profile.pictureUrl || '');
+		 if (idToken) localStorage.setItem('MW_LIFF_ID_TOKEN', idToken);
 
       // 角色判斷：優先使用「使用者在頁面上選的角色」，但要確保該角色在 DB 的 roles 內
       const data = snap.data() || {};

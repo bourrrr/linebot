@@ -12,6 +12,9 @@ import {
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { firebaseConfig } from "./firebase-config.js";
 
+// ✅ Functions（closeMatch）
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
+
 // === 你專案的 LIFF ID（沿用你之前提供的） ===
 const LIFF_ID = "2007877199-Y5R2LenL";
 const HISTORY_URL = "task-history.html";
@@ -21,6 +24,10 @@ const app  = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const db   = getFirestore(app);
 const st   = getStorage(app);
 const auth = getAuth(app);
+
+// ✅ 初始化 closeMatch callable（asia-east1）
+const functions = getFunctions(app, "asia-east1");
+const closeMatch = httpsCallable(functions, "closeMatch");
 
 // DOM
 const container = document.getElementById("myTaskContainer");
@@ -39,6 +46,7 @@ const cancelOther  = document.getElementById('cancelOther');
 const cancelConfirmBtn = document.getElementById('cancelConfirmBtn');
 const cancelCancelBtn  = document.getElementById('cancelCancelBtn');
 let   pendingCancelTaskId = null;
+let   pendingCancelMatchId = null;   // ✅ 新增：快取 matchId
 let   currentVolunteerUid = null;
 
 // 工具
@@ -115,6 +123,7 @@ function renderTaskCard(docSnap){
   const card = document.createElement("div");
   card.className = "task-card bg-white p-4 rounded-xl shadow space-y-2";
   card.dataset.taskId = taskId;
+  card.dataset.matchId = data.matchId || "";   // ✅ 確保卡片帶有 matchId
 
   const uiStatus = computeStatus(data);
   card.dataset.status = uiStatus; // ★ 過濾依據
@@ -318,7 +327,10 @@ container.addEventListener("click", async (e) => {
 
   if (btn.classList.contains("cancel-match")) {
     pendingCancelTaskId = btn.dataset.id || btn.getAttribute("data-id");
-    const title = btn.closest('.task-card')?.querySelector('.task-title')?.textContent || `任務 ${pendingCancelTaskId}`;
+    const card = btn.closest('.task-card');
+    pendingCancelMatchId = card?.dataset.matchId || "";   // ✅ 新增：先快取 matchId
+
+    const title = card?.querySelector('.task-title')?.textContent || `任務 ${pendingCancelTaskId}`;
     cancelInfoEl.textContent = title;
     cancelModal.querySelectorAll('.cr').forEach(c => c.checked = false);
     cancelOther.value = '';
@@ -350,6 +362,15 @@ container.addEventListener("click", async (e) => {
       const file = input.files[0];
       const url  = await uploadSingle(taskId, file);
       await attachPhotoURL(taskId, url);
+
+      // ✅ 上傳完成 → 立即關閉聊天室
+      try {
+        const card = btn.closest('.task-card');
+        const matchId = card?.dataset.matchId || taskId;
+        await closeMatch({ matchId, reason: "已完成並回報照片" });
+      } catch (e) {
+        console.warn("closeMatch 呼叫失敗（上傳後）", e);
+      }
 
       input.value = "";
       btn.textContent = oldLabel;
@@ -434,11 +455,13 @@ container.addEventListener("change", (e) => {
 cancelCancelBtn?.addEventListener('click', ()=> {
   cancelModal.classList.remove('show');
   pendingCancelTaskId = null;
+  pendingCancelMatchId = null;   // ✅ 新增：清快取
 });
 cancelModal?.addEventListener('click', (e)=> {
   if (e.target === cancelModal) {
     cancelModal.classList.remove('show');
     pendingCancelTaskId = null;
+    pendingCancelMatchId = null; // ✅ 新增：清快取
   }
 });
 cancelConfirmBtn?.addEventListener('click', async ()=> {
@@ -462,6 +485,16 @@ cancelConfirmBtn?.addEventListener('click', async ()=> {
       canceledAt: Date.now(),
       updatedAt: Date.now()
     });
+
+    // ✅ 取消任務 → 立即關閉聊天室（優先 DOM，其次快取，最後退回 taskId）
+    try {
+      const cardEl  = document.querySelector(`.task-card[data-task-id="${pendingCancelTaskId}"]`);
+      const matchId = (cardEl?.dataset.matchId) || pendingCancelMatchId || pendingCancelTaskId;
+      await closeMatch({ matchId, reason: "志工/患者取消任務" });
+    } catch (e) {
+      console.warn("closeMatch 呼叫失敗（取消任務）", e);
+    }
+
     alert('已取消配對，任務已回到待接清單。');
   }catch(e){
     console.error('[cancel-match] error:', e);
@@ -469,6 +502,7 @@ cancelConfirmBtn?.addEventListener('click', async ()=> {
   }finally{
     cancelModal.classList.remove('show');
     pendingCancelTaskId = null;
+    pendingCancelMatchId = null;   // ✅ 新增：清快取
   }
 });
 

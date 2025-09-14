@@ -168,13 +168,16 @@
     }
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+	import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+	import { getAuth, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import { firebaseConfig } from './firebase-config.js';
     import { cityDistricts } from './district-data.js';
 
-    const app = initializeApp(firebaseConfig);
-    const db  = getFirestore(app);
+	const app  = initializeApp(firebaseConfig);
+	const db   = getFirestore(app);
+	const auth = getAuth(app);
     const LIFF_ID = "2007877199-Y5R2LenL";
+	const CUSTOM_TOKEN_URL = "https://asia-east1-medwell-test1.cloudfunctions.net/authApi/getFirebaseCustomToken";
 
     // ----- 小工具 -----
     const el = (id) => document.getElementById(id);
@@ -275,11 +278,22 @@
       fillCities();
 
       if (!(await ensureLIFF()) || !liff.isLoggedIn()) { location.href = 'login.html'; return; }
-      const p = await liff.getProfile();
-      const uid = `line:${p.userId}`;
-
-      userDocRef = doc(db, 'users', uid);
-      const snap = await getDoc(userDocRef);
+     
+	const idToken = liff.getIDToken();
+	if (!idToken) { location.href = 'login.html'; return; }
+	const resp = await fetch(CUSTOM_TOKEN_URL, {
+	method: 'POST', headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({ idToken })
+	});
+	if (!resp.ok) { alert('驗證失敗（HTTP '+resp.status+'）'); location.href='login.html'; return; }
+	const { customToken } = await resp.json();
+	if (!customToken) { alert('驗證失敗（no customToken）'); location.href='login.html'; return; }
+	await signInWithCustomToken(auth, customToken);
+	const uid = auth.currentUser?.uid;
+	if (!uid) { location.href='login.html'; return; }
+	userDocRef = doc(db, 'users', uid);
+	const snap = await getDoc(userDocRef);
+	 
 
       if (!snap.exists()) { location.href = 'register-profile.html'; return; }
 
