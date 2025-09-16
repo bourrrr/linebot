@@ -29,7 +29,7 @@ const reminderBubble = require('./OCR_modules/flex/reminderBubble');
 const buildWelcomeFlex = require('./OCR_modules/flex/welcomeFlex');
 const { handleCheckin } = require('./OCR_modules/services/checkinService');
 const Event = require('./Event');
-
+const { buildService555Link } = require('./OCR_modules/services/util');
 const loginFlex = require('./OCR_modules/flex/loginFlex');
 const googleVisionOCR = require('./visionOCR/visionOCR');
 const upload = multer({ dest: 'uploads/' });

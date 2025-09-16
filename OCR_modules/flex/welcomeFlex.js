@@ -1,12 +1,8 @@
 // OCR_modules/flex/welcomeFlex.js
-
-const { buildService555Link } = require('../../index'); 
-// ⚠️ 注意：如果 index.js 也要 require 這個檔，就會互相循環
-// 建議把 buildService555Link 抽到 services/util.js 再 import
-// 我先寫在這裡，等下告訴你怎麼改掉循環問題
+const { buildService555Link } = require('../services/util');
 
 const LINE_GREEN = '#06C755';
-const { buildService555Link } = require('../services/util');
+
 function buildWelcomeFlex(taskId) {
   return {
     type: 'flex',
