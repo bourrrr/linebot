@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>志工任務中心 - MakeWell</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{ --bg:#efede9; --bg-2:#dad7cd; --text:#363636; --muted:#6e746e; --primary:#588157; --primary-weak:#659963de; --surface:#ffffff; --chip:#f4f3ef; --border:#e7e5dc; }
+    body{ background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%); color:var(--text); }
+    .card{ background:var(--surface); border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,.06); }
+    .feature{ background:var(--chip); border:1px solid var(--border); transition:.15s transform,.15s filter; }
+    .feature:hover{ transform:translateY(-2px); filter:brightness(.985); }
+    .feature-badge{ width:44px; height:44px; border-radius:9999px; display:inline-flex; align-items:center; justify-content:center; background:var(--primary); color:#fff; font-size:20px; box-shadow:0 2px 10px rgba(88,129,87,.25); }
+    .btn-logout{ border:1px solid var(--border); background:#fff; padding:.7rem 1rem; border-radius:9999px; font-weight:700; transition:.15s transform,.15s filter; }
+    .btn-logout:hover{ transform:translateY(-1px); filter:brightness(.98); }
+    .h-divider{ height:1px; width:100%; background:linear-gradient(to right, transparent, var(--border), transparent); }
+  </style>
+
+  <!-- LIFF SDK -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <!-- LIFF + Firestore 守門（僅志工可進） -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { firebaseConfig } from './firebase-config.js';
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+    const LIFF_ID = "2007877199-Y5R2LenL";
+
+    function roleKey(s){
+      const m = String(s||'').trim().toLowerCase();
+      if (m === '患者' || m === 'patient') return 'patient';
+      if (m === '志工' || m === 'volunteer') return 'volunteer';
+      return '';
+    }
+    function getUserRoles(data){
+      const raw = (data && (data.roles ?? data.role)) ?? [];
+      const arr = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+      const set = new Set(arr.map(roleKey).filter(Boolean));
+      return { isPatient: set.has('patient'), isVolunteer: set.has('volunteer') };
+    }
+
+    async function guard() {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+        if (!liff.isLoggedIn()) { location.href = "login.html"; return; }
+
+        const p = await liff.getProfile();
+        const uid = `line:${p.userId}`;
+        const snap = await getDoc(doc(db, "users", uid));
+        if (!snap.exists()) { location.href = "register-profile.html"; return; }
+
+        const { isPatient, isVolunteer } = getUserRoles(snap.data());
+        if (!isVolunteer) {
+          // 沒有志工身分 → 若有患者，帶去患者首頁；否則回註冊補資料
+          if (isPatient) { location.href = "home.html"; return; }
+          location.href = "register-profile.html"; return;
+        }
+        // 有志工 → 留在本頁
+      } catch (e) {
+        console.error('[VOLUNTEER] guard error:', e);
+        location.href = "login.html";
+      }
+    }
+    guard();
+
+    // 登出（僅 LIFF）
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('logoutBtn')?.addEventListener('click', () => {
+        try { liff.logout(); } catch(e) {}
+        location.href = "login.html";
+      });
+    });
+  </script>
+
+</head>
+<body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
+  <div class="mx-auto max-w-[1120px]">
+    <div class="card rounded-3xl p-8 md:p-12 min-h-[82vh] md:min-h-[86vh] flex flex-col">
+      <!-- Header -->
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <!-- 左邊 Logo + 標題 -->
+        <div class="flex items-center gap-5">
+          <img src="MakeWell.jpg" alt="MakeWell Logo"
+              class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
+          <div>
+            <h1 class="text-3xl md:text-4xl font-extrabold leading-tight" style="color:var(--primary)">志工任務中心</h1>
+            <p class="text-base md:text-lg" style="color:var(--muted)">
+              快速查看待接任務與我的進度，完成後上傳回報。
+            </p>
+          </div>
+        </div>
+
+        <!-- 右邊按鈕（小螢幕會掉到下一行靠右） -->
+        <div class="mt-3 md:mt-0 md:ml-auto">
+          <button id="logoutBtn" class="btn-logout text-sm md:text-base">登出</button>
+        </div>
+      </div>
+
+
+      <div class="mt-8 md:mt-10 h-divider"></div>
+
+      <main class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 mt-8 md:mt-12">
+        <a href="task-list.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
+          <span class="feature-badge">📋</span>
+          <div class="min-w-0">
+            <div class="text-lg md:text-xl font-semibold">任務待接區</div>
+            <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">查看等待支援的請求，挑選協助對象</div>
+          </div>
+          <span class="ml-auto text-2xl">›</span>
+        </a>
+
+        <a href="my-tasks.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
+          <span class="feature-badge">✅</span>
+          <div class="min-w-0">
+            <div class="text-lg md:text-xl font-semibold">我的任務</div>
+            <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">追蹤已接受的任務與處理狀態</div>
+          </div>
+          <span class="ml-auto text-2xl">›</span>
+        </a>
+
+        <a href="task-history.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
+          <span class="feature-badge">📸</span>
+          <div class="min-w-0">
+            <div class="text-lg md:text-xl font-semibold">任務回報記錄</div>
+            <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">查看已上傳的完成照片與回報內容</div>
+          </div>
+          <span class="ml-auto text-2xl">›</span>
+        </a>
+
+        <a href="volunteer-profile.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
+          <span class="feature-badge">👤</span>
+          <div class="min-w-0">
+            <div class="text-lg md:text-xl font-semibold">個人資料</div>
+            <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">檢視與更新志工資訊與聯絡方式</div>
+          </div>
+          <span class="ml-auto text-2xl">›</span>
+        </a>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

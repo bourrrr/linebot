@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>發布協助請求 - MakeWell</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --bg:#efede9; --bg-2:#dad7cd;
+      --text:#363636; --muted:#6e746e;
+      --primary:#588157; --primary-weak:#659963de;
+      --surface:#ffffff; --chip:#f4f3ef; --border:#e7e5dc;
+    }
+    body{ background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%); color:var(--text); }
+    .card{ background:var(--surface); border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,.06); }
+
+    .input{ border:1px solid var(--border); background:#fff; transition:.2s; }
+    .input::placeholder{ color:#a0a6a0; }
+    .input:focus{ outline:none; border-color:var(--primary-weak); box-shadow:0 0 0 4px rgba(101,153,99,.18); }
+
+    .seg{ background:var(--chip); border:1px solid var(--border); }
+    .seg-btn{ color:var(--text); }
+    .seg-btn.active{ background:var(--primary); color:#fff; box-shadow:0 6px 14px rgba(88,129,87,.25); }
+
+    .btn-block{ width:100%; border-radius:1.25rem; padding:0.95rem 1rem; font-weight:800; letter-spacing:.02em; transition:.15s transform,.15s filter; }
+    .btn-block:hover{ transform:translateY(-1px); }
+    .btn-primary{ background:var(--primary); color:#fff; }
+    .btn-primary:hover{ background:var(--primary-weak); }
+
+    /* 舒適版尺寸（右側） */
+    .seg-lg{ padding:6px; }
+    .seg-lg .seg-btn{ padding:12px 0; font-size:1rem; }
+    .input-lg{ padding-top:14px; padding-bottom:14px; }
+    .btn-block{ padding:1.05rem 1rem; }
+
+    /* 素雅分隔線（細、兩端漸隱） */
+    .divider{ position:absolute; inset-block:28px; left:50%; transform:translateX(-50%); width:1px; background:linear-gradient(to bottom, transparent, var(--border) 8%, var(--border) 92%, transparent); }
+    .h-divider{ height:1px; width:100%; background:linear-gradient(to right, transparent, var(--border), transparent); }
+
+    /* 左側特色卡片 */
+    .feature{ background:var(--chip); border:1px solid var(--border); }
+    .feature-badge{ width:28px; height:28px; border-radius:9999px; display:inline-flex; align-items:center; justify-content:center; background:var(--primary); color:#fff; font-size:14px; box-shadow:0 2px 8px rgba(88,129,87,.25); }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+  <div class="relative w-full max-w-2xl card rounded-3xl overflow-hidden">
+    
+
+    <div class="block">
+      <!-- 右：表單 -->
+      <div class="p-6 sm:p-10">
+        <div class="w-full max-w-[460px] md:mr-auto mx-auto">
+          <h2 class="text-3xl sm:text-4xl font-extrabold mb-3 text-center tracking-tight">📝 發布協助請求</h2>
+          <p class="text-center text-base sm:text-[17px] leading-relaxed mb-6" style="color:var(--muted)">
+            請填寫以下資訊，系統將通知附近志工進行媒合
+          </p>
+
+          <form id="publishForm" class="space-y-5">
+            <!-- 請求類型 -->
+            <div>
+              <label for="type" class="block font-semibold mb-1">請求類型</label>
+              <select id="type" required class="input input-lg w-full rounded-xl px-3">
+                <option value="">請選擇請求類型</option>
+                <option value="領藥">💊領藥</option>
+                <option value="陪診">🧑‍⚕️陪診</option>
+              </select>
+            </div>
+
+            <!-- 會合地點：縣市／行政區／街道 -->
+            <div>
+              <label class="block font-semibold mb-1">會合地點</label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <select id="city" required class="input input-lg w-full rounded-xl px-3">
+                  <option value="">請選擇縣市</option>
+                  <option value="基隆市">基隆市</option>
+                  <option value="臺北市">臺北市</option>
+                  <option value="新北市">新北市</option>
+                  <option value="桃園市">桃園市</option>
+                  <option value="新竹市">新竹市</option>
+                  <option value="新竹縣">新竹縣</option>
+                  <option value="苗栗縣">苗栗縣</option>
+                  <option value="臺中市">臺中市</option>
+                  <option value="彰化縣">彰化縣</option>
+                  <option value="南投縣">南投縣</option>
+                  <option value="雲林縣">雲林縣</option>
+                  <option value="嘉義市">嘉義市</option>
+                  <option value="嘉義縣">嘉義縣</option>
+                  <option value="臺南市">臺南市</option>
+                  <option value="高雄市">高雄市</option>
+                  <option value="屏東縣">屏東縣</option>
+                  <option value="宜蘭縣">宜蘭縣</option>
+                  <option value="花蓮縣">花蓮縣</option>
+                  <option value="臺東縣">臺東縣</option>
+                  <option value="澎湖縣">澎湖縣</option>
+                  <option value="金門縣">金門縣</option>
+                  <option value="連江縣">連江縣</option>
+                </select>
+                <select id="district" required class="input input-lg w-full rounded-xl px-3" disabled>
+                  <option value="">請選擇行政區</option>
+                </select>
+              </div>
+              <input id="road" type="text" required placeholder="請輸入街道地址（如 XX 路 100 號）" class="input input-lg w-full rounded-xl px-3" />
+              <p class="text-sm mt-2" style="color:var(--muted)">🔒 建議填寫醫療院所或公共場所地址，避免揭露住家位置。</p>
+            </div>
+
+            <!-- 醫療類型（領藥時顯示） -->
+            <div id="facilityTypeField" class="hidden">
+              <label for="facilityType" class="block font-semibold mb-1">醫療類型</label>
+              <select id="facilityType" class="input input-lg w-full rounded-xl px-3">
+                <option value="hospital">醫院</option>
+                <option value="pharmacy">藥局</option>
+              </select>
+            </div>
+
+            <!-- 醫療院所清單 -->
+            <div>
+              <label for="hospital" class="block font-semibold mb-1">🏥 醫院／藥局</label>
+              <select id="hospital" required class="input input-lg w-full rounded-xl px-3">
+                <option value="">請選擇醫院／藥局</option>
+              </select>
+              <p id="hospitalCount" class="text-xs mt-1" style="color:var(--muted)"></p>
+            </div>
+
+            <!-- 會合時間 -->
+            <div>
+              <label for="time" class="block font-semibold mb-1">會合時間</label>
+              <input id="time" type="datetime-local" required class="input input-lg w-full rounded-xl px-3" />
+            </div>
+
+            <!-- 領藥專用：處方簽上傳 -->
+            <div id="prescriptionField" class="hidden">
+              <label for="prescription" class="block font-semibold mb-1">📄 上傳處方簽（選填）</label>
+              <input type="file" id="prescription" class="input input-lg w-full rounded-xl px-3" accept="image/*,application/pdf" />
+            </div>
+
+            <!-- 陪診專用：是否陪同進診間 -->
+            <div id="accompanyField" class="hidden">
+              <label for="accompany" class="block font-semibold mb-1">🙋‍♂️ 是否陪同進診間</label>
+              <select id="accompany" class="input input-lg w-full rounded-xl px-3">
+                <option value="">請選擇</option>
+                <option value="是">是</option>
+                <option value="否">否</option>
+              </select>
+            </div>
+
+            <!-- 備註 -->
+            <div>
+              <label for="note" class="block font-semibold mb-1">備註（選填）</label>
+              <textarea id="note" rows="3" placeholder="補充需求或注意事項…" class="input w-full rounded-xl px-3 py-3"></textarea>
+            </div>
+
+            <button type="submit" class="btn-block btn-primary">發布</button>
+
+            <div class="mt-6 text-center text-[15px]">
+              <a href="home.html" class="underline font-semibold" style="color:var(--primary)">← 回首頁</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- head 加上 LIFF SDK -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <!-- 原本底部的 module 整段替換 -->
+  <script type="module">
+    import { cityDistricts } from './district-data.js';
+    import clinics from './clinics_name_address.js';
+    import pharmacies from './pharmacies_name_address.js';
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, Timestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { firebaseConfig } from './firebase-config.js';
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const LIFF_ID = "2007877199-Y5R2LenL";
+
+    const publishForm = document.getElementById('publishForm');
+    const typeSelect = document.getElementById('type');
+    const facilityTypeField = document.getElementById('facilityTypeField');
+    const facilityTypeSelect = document.getElementById('facilityType');
+    const prescriptionField = document.getElementById('prescriptionField');
+    const accompanyField = document.getElementById('accompanyField');
+
+    const citySelect = document.getElementById('city');
+    const districtSelect = document.getElementById('district');
+    const hospitalSelect = document.getElementById('hospital');
+    const hospitalCount = document.getElementById('hospitalCount');
+
+    // 整理資料
+    const hospitals = clinics.filter(c => c.name.includes('醫院')).map(c => ({ ...c, type: 'hospital' }));
+    const pharmacyList = pharmacies.map(p => ({ ...p, type: 'pharmacy' }));
+
+    // 類型切換
+    typeSelect.addEventListener('change', () => {
+      const v = typeSelect.value;
+      if (v === '領藥') { facilityTypeField.classList.remove('hidden'); prescriptionField.classList.remove('hidden'); accompanyField.classList.add('hidden'); }
+      else if (v === '陪診') { facilityTypeField.classList.add('hidden'); prescriptionField.classList.add('hidden'); accompanyField.classList.remove('hidden'); }
+      else { facilityTypeField.classList.add('hidden'); prescriptionField.classList.add('hidden'); accompanyField.classList.add('hidden'); }
+      renderHospitals();
+    });
+
+    // 行政區載入
+    citySelect.addEventListener('change', () => {
+      const selected = citySelect.value;
+      districtSelect.innerHTML = '<option value="">請選擇行政區</option>';
+      if (cityDistricts[selected]) {
+        cityDistricts[selected].forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d; opt.textContent = d; districtSelect.appendChild(opt);
+        });
+        districtSelect.disabled = false;
+      } else { districtSelect.disabled = true; }
+      renderHospitals();
+    });
+    facilityTypeSelect.addEventListener('change', renderHospitals);
+
+    function renderHospitals(){
+      const city = citySelect.value.trim();
+      const requestType = typeSelect.value;
+      let list = [];
+      if (requestType === '領藥') {
+        const selectedType = facilityTypeSelect.value;
+        list = (selectedType === 'hospital' ? hospitals : pharmacyList).filter(c => city ? c.address.startsWith(city) : true);
+      } else if (requestType === '陪診') {
+        list = hospitals.filter(c => city ? c.address.startsWith(city) : true);
+      }
+      hospitalSelect.innerHTML = '<option value="">請選擇醫院／藥局</option>';
+      list.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.name; opt.textContent = `${c.name} - ${c.address}`; hospitalSelect.appendChild(opt);
+      });
+      hospitalCount.textContent = list.length ? `可選：${list.length} 間` : '';
+    }
+
+    async function ensureLIFF(){
+      try{ await liff.init({ liffId: LIFF_ID }); return true; }
+      catch(e){ console.error(e); alert('LIFF 初始化失敗'); return false; }
+    }
+
+    // 提交
+    publishForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (!(await ensureLIFF()) || !liff.isLoggedIn()) { alert('請先用 LINE 登入'); location.href='login.html'; return; }
+      const p = await liff.getProfile();
+      const uid = `line:${p.userId}`;
+
+      const type = typeSelect.value;
+      const city = citySelect.value;
+      const district = districtSelect.value;
+      const road = document.getElementById('road').value;
+      const hospital = hospitalSelect.value;
+      const time = document.getElementById('time').value;
+      const note = document.getElementById('note').value;
+      const accompany = document.getElementById('accompany')?.value || '';
+
+      try {
+        // 取使用者名稱（users/{uid}）
+        const userSnap = await getDoc(doc(db, 'users', uid));
+        const userName = userSnap.exists() ? (userSnap.data().name || '匿名') : '匿名';
+
+        const requestData = {
+          userId: uid,
+          userName,
+          type,
+          city,
+          district,
+          road,
+          hospital,
+          time,
+          note,
+          accompany,
+          status: 'pending',
+          createdAt: Timestamp.now()
+        };
+
+        await addDoc(collection(db, 'requests'), requestData);
+        await addDoc(collection(db, 'users', uid, 'records'), requestData);
+
+        alert('✅ 發布成功！');
+        location.href = 'home.html';
+      } catch (err) {
+        console.error('發布失敗：', err);
+        alert('❌ 發布失敗，請稍後再試');
+      }
+    });
+  </script>
+
+</body>
+</html>

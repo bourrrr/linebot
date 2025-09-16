@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>任務回報記錄 - MakeWell</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{ --bg:#efede9; --bg-2:#dad7cd; --text:#363636; --muted:#6e746e; --primary:#588157; --primary-weak:#659963de; --surface:#ffffff; --chip:#f4f3ef; --border:#e7e5dc; }
+    body{ background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%); color:var(--text); }
+    .card{ background:var(--surface); border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,.06); }
+    .btn-ghost{ border:1px solid var(--border); background:#fff; border-radius:9999px; padding:.6rem .9rem; font-weight:800; transition:.15s transform,.15s filter; }
+    .btn-ghost:hover{ transform:translateY(-1px); filter:brightness(.98); }
+    .h-divider{ height:1px; width:100%; background:linear-gradient(to right, transparent, var(--border), transparent); }
+    .badge{ display:inline-flex; align-items:center; gap:6px; padding:.3rem .6rem; border-radius:999px; font-weight:800; font-size:.8rem; background:rgba(88,129,87,.08); border:1px solid rgba(88,129,87,.25); color:var(--primary); }
+    .pill{
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:.5rem .9rem; border-radius:9999px; font-weight:800;
+      border:1px solid var(--border); background:#fff;
+      white-space:nowrap; line-height:1; min-height:2.5rem;
+    }
+    .pill.active{ background:var(--primary); color:#fff; border-color:transparent; box-shadow:0 4px 12px rgba(88,129,87,.25); }
+  </style>
+
+  <!-- LIFF SDK -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+
+<!-- 允許頁面正常滾動（拿掉 overflow-hidden） -->
+<body class="min-h-[100dvh]">
+  <div class="px-4 py-4 md:px-6 md:py-8 min-h-[100dvh]">
+    <div class="mx-auto max-w-[1120px] min-h-[100dvh]">
+      <!-- 卡片高度吃滿；只有 main 可滾動 -->
+      <div class="card rounded-3xl p-8 md:p-12 min-h-[100dvh] flex flex-col overflow-hidden">
+
+        <!-- Header（固定） -->
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 shrink-0">
+          <div class="flex items-center gap-5">
+            <div>
+              <h1 class="text-3xl md:text-4xl font-extrabold leading-tight">📸 任務回報記錄</h1>
+              <p class="text-base md:text-lg" style="color:var(--muted)">
+                查看你已完成的「領藥／陪診」回報與照片（可依任務時間篩選）。
+              </p>
+            </div>
+          </div>
+          <div class="mt-3 md:mt-0 md:ml-auto">
+            <a href="volunteer.html" class="text-sm md:text-base font-bold underline" style="color:var(--primary)">
+              ← 回志工中心
+            </a>
+          </div>
+        </div>
+
+        <div class="mt-8 md:mt-10 h-divider shrink-0"></div>
+
+        <!-- 日期列（固定；不包含在滾動區） -->
+        <section class="mt-8 flex items-center flex-wrap gap-3 md:gap-4 shrink-0">
+          <span class="text-sm md:text-base font-bold">日期：</span>
+          <button id="dateAll" class="pill active">全部</button>
+          <button id="date7"  class="pill">最近 7 天</button>
+          <button id="date30" class="pill">最近 30 天</button>
+        </section>
+
+        <!-- 清單（唯一滾動區） -->
+        <main
+          class="mt-6 md:mt-8 flex-1 overflow-y-auto overscroll-contain pr-1"
+          style="-webkit-overflow-scrolling:touch; touch-action:pan-y;"
+        >
+          <div id="historyContainer" class="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6"></div>
+          <p id="emptyState" class="hidden text-center text-sm md:text-base mt-8" style="color:var(--muted)">
+            沒有符合日期篩選的回報記錄。
+          </p>
+        </main>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- 原本的 script 保持不變 -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { firebaseConfig } from './firebase-config.js';
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+    const LIFF_ID = "2007877199-Y5R2LenL";
+
+    const container = document.getElementById("historyContainer");
+    const emptyEl   = document.getElementById("emptyState");
+    const pills = { all: dateAll, d7: date7, d30: date30 };
+    let currentFilter = 'all';
+    let allRows = [];
+
+    const safe = (v)=> (v==null ? "" : String(v));
+    function getTs(t){ try{ if(!t) return NaN; if(typeof t==='number') return t; if(typeof t==='string'){ const ms=Date.parse(t); return isNaN(ms)?NaN:ms; } if(t.seconds) return t.seconds*1000+Math.floor((t.nanoseconds||0)/1e6); if(t.toDate) return t.toDate().getTime(); return NaN; }catch{ return NaN; } }
+    const fmtTime = (t)=>{ const ms=getTs(t); return isNaN(ms)?'—':new Date(ms).toLocaleString(); };
+
+    function buildCard(d){
+      const wrap=document.createElement('div'); wrap.className='rounded-2xl border border-[var(--border)] bg-white p-4 sm:p-5 shadow-sm space-y-2';
+      const addr = `${safe(d.city)}${safe(d.district)}${safe(d.road)}` || '—';
+      const type = safe(d.type) || '—';
+      wrap.innerHTML = `
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="text-lg font-extrabold">📍 ${addr}</h2>
+          <span class="badge">${type}</span>
+        </div>
+        <div class="text-[15px]">🏥 醫院／藥局：${safe(d.hospital)||'未提供'}</div>
+        ${d.accompany ? `<div class="text-[15px]">🙋‍♀️ 陪同進診間：${safe(d.accompany)}</div>` : ''}
+        <div class="text-[15px]">🕒 任務時間：${fmtTime(d.time)}</div>
+        <div class="text-[15px]">📝 備註：${safe(d.note)||'無'}</div>
+        ${d.photoURL ? `<div class="mt-2"><img src="${safe(d.photoURL)}" alt="回報照片" class="w-full max-w-xs rounded-lg border border-[var(--border)] object-contain" /></div>` : `<div class="text-sm" style="color:var(--muted)">（無回報照片）</div>`}
+        <div class="text-xs mt-1" style="color:var(--muted)">完成時間：${fmtTime(d.updatedAt || d.completedAt)}</div>`;
+      return wrap;
+    }
+    function renderList(rows){ container.innerHTML=''; if(!rows.length){ emptyEl.classList.remove('hidden'); return; } emptyEl.classList.add('hidden'); rows.forEach(d=>container.appendChild(buildCard(d))); }
+    function applyDateFilter(){
+      if(currentFilter==='all'){ renderList(allRows); return; }
+      const days = currentFilter==='d7' ? 7 : 30;
+      const cutoff = Date.now() - days*24*60*60*1000;
+      renderList(allRows.filter(r => { const base=getTs(r.time); return !isNaN(base) && base>=cutoff; }));
+    }
+    function setPill(k){ currentFilter=k; dateAll.classList.toggle('active',k==='all'); date7.classList.toggle('active',k==='d7'); date30.classList.toggle('active',k==='d30'); applyDateFilter(); }
+    dateAll.onclick = ()=>setPill('all'); date7.onclick = ()=>setPill('d7'); date30.onclick = ()=>setPill('d30');
+
+    async function ensureLIFF(){ try{ await liff.init({ liffId: LIFF_ID }); return true; }catch(e){ console.error(e); alert('LIFF 初始化失敗'); return false; } }
+
+    (async () => {
+      if (!(await ensureLIFF()) || !liff.isLoggedIn()) { location.href="login.html"; return; }
+      const p = await liff.getProfile();
+      const uid = `line:${p.userId}`;
+
+      const me = await getDoc(doc(db,"users",uid));
+      if (!me.exists()) { location.href="register-profile.html"; return; }
+
+      // roles 兼容（陣列 / 字串 / 物件）
+      const data  = me.data() || {};
+      const roles = data.roles;
+
+      let isVolunteer = false;
+      if (Array.isArray(roles)) {
+        isVolunteer = roles.includes('志工') || roles.includes('volunteer');
+      } else if (typeof roles === 'string') {
+        const r = roles.trim();
+        isVolunteer = (r === '志工' || r === 'volunteer');
+      } else if (roles && typeof roles === 'object') {
+        isVolunteer = roles.志工 === true || roles.volunteer === true;
+      }
+
+      if (!isVolunteer) { location.href="home.html"; return; }
+
+      const q = query(collection(db,"requests"),
+                      where("volunteerId","==",uid),
+                      where("status","==","completed"));
+      const snap = await getDocs(q);
+      const rows = []; snap.forEach(d => rows.push(d.data()));
+      rows.sort((a,b)=> {
+        const ta = getTs(a.time), tb = getTs(b.time);
+        if (isNaN(ta) && isNaN(tb)) return 0;
+        if (isNaN(ta)) return 1;
+        if (isNaN(tb)) return -1;
+        return tb - ta;
+      });
+      allRows = rows;
+      applyDateFilter();
+    })();
+  </script>
+</body>
+</html>

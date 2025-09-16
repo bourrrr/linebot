@@ -1,6 +1,5 @@
 // register-profile.js — 使用 LINE (LIFF) + Firebase Custom Token 完成註冊（患者/志工）
-// ★ 本版：患者/志工 皆為「一步一步引導」補齊必填；志工端順序固定如下：
-//   姓名 → 手機 → 緊急聯絡人（姓名＋電話） → 身分證號 → 是否有執照 → 良民證編號 → 良民證照片 → 駕照照片 → 服務地區（縣市/行政區）→（若選「有執照」）志工證明上傳
+// ★ 本版新增：患者端「一步一步引導」補齊未填必填欄位（含高亮、捲動、進度提示條）
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -154,8 +153,7 @@ async function ensureFirebaseAuthViaLINE(){
 
 /* ========= 小工具 ========= */
 const notEmpty = (v) => String(v || "").trim().length > 0;
-const getCheckedValues = (name) =>
-  Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(i => i.value);
+const getCheckedValues = (name) => Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(i => i.value);
 
 function uiBusy(b){
   saveBtn.disabled = !!b;
@@ -188,6 +186,7 @@ function showInlineError(el, msg){
   if (!el) return;
   el.classList.add("border-red-400","ring","ring-red-300");
   el.setAttribute("aria-invalid","true");
+  // 建立/更新訊息節點
   let m = el.nextElementSibling && el.nextElementSibling.classList?.contains("mw-err-msg")
     ? el.nextElementSibling
     : null;
@@ -244,7 +243,7 @@ function removeCoachBar(){
   coachBar = null;
 }
 
-/* ========= 患者：建立缺漏步驟清單 ========= */
+/* ========= 患者：建立缺漏步驟清單（依序） ========= */
 function buildPatientMissingSteps(){
   const steps = [];
 
@@ -267,90 +266,34 @@ function buildPatientMissingSteps(){
     });
   }
 
-  // 慢性病史（至少一個；若勾「其他」也要輸入內容）
+  // 慢性病史（至少一個；若只勾「其他」也要輸入文字）
   const chronicChecks = Array.from(document.querySelectorAll(`input[name="chronic"]`));
-  const chosen = chronicChecks.filter(c=>c.checked).map(c=>c.value);
+  const chronicChosen = chronicChecks.filter(c=>c.checked).map(c=>c.value);
+  const otherBox = chronicChecks.find(c=>c.value==="其他");
   const otherTxtOk = notEmpty(chronicOtherEl.value);
 
-  if (chosen.length === 0){
+  if (chronicChosen.length === 0){
     steps.push({
       el: chronicChecks[0] || chronicOtherEl,
       msg: "請至少勾選一個慢性病史（可勾選「其他」並填寫）",
-      valid: ()=> Array.from(document.querySelectorAll(`input[name="chronic"]:checked`)).length > 0
+      valid: ()=>{
+        const chosen = Array.from(document.querySelectorAll(`input[name="chronic"]:checked`)).length > 0;
+        return chosen;
+      }
     });
-  } else if (chosen.includes("其他") && !otherTxtOk){
+  } else if (chronicChosen.includes("其他") && !otherTxtOk){
     steps.push({
       el: chronicOtherEl,
       msg: "已勾選「其他」，請輸入內容",
       valid: ()=> notEmpty(chronicOtherEl.value)
     });
   }
-  return steps;
-}
-
-/* ========= 志工：建立缺漏步驟清單（順序嚴格依你指定） ========= */
-function buildVolunteerMissingSteps(){
-  const steps = [];
-
-  // 1) 姓名
-  if (!notEmpty(nameEl.value))
-    steps.push({ el: nameEl, msg: "請輸入姓名", valid: ()=> notEmpty(nameEl.value) });
-
-  // 2) 手機
-  if (!notEmpty(phoneEl.value))
-    steps.push({ el: phoneEl, msg: "請輸入手機號碼", valid: ()=> notEmpty(phoneEl.value) });
-
-  // 3) 緊急聯絡人（姓名＋電話）——同一步一起檢查
-  if (!notEmpty(enameEl.value) || !notEmpty(ephoneEl.value)) {
-    steps.push({
-      el: enameEl,
-      msg: "請輸入緊急聯絡人姓名與電話",
-      valid: ()=> notEmpty(enameEl.value) && notEmpty(ephoneEl.value)
-    });
-  }
-
-  // 4) 身分證號
-  if (!notEmpty(idCardEl.value))
-    steps.push({ el: idCardEl, msg: "請輸入身分證號", valid: ()=> notEmpty(idCardEl.value) });
-
-  // 5) 是否有執照
-  if (!hasCertEl.value)
-    steps.push({ el: hasCertEl, msg: "請選擇是否有志工專業執照", valid: ()=> !!hasCertEl.value });
-
-  // 6) 良民證編號
-  if (!notEmpty(policeEl.value))
-    steps.push({ el: policeEl, msg: "請輸入良民證編號", valid: ()=> notEmpty(policeEl.value) });
-
-  // 7) 良民證照片
-  if (!policeFileEl.files?.length)
-    steps.push({ el: policeFileEl, msg: "請上傳良民證照片", valid: ()=> policeFileEl.files?.length > 0 });
-
-  // 8) 駕照照片
-  if (!licenseFileEl.files?.length)
-    steps.push({ el: licenseFileEl, msg: "請上傳駕照照片", valid: ()=> licenseFileEl.files?.length > 0 });
-
-  // 9) 服務地區（縣市/行政區）——同一步一起檢查
-  if (!notEmpty(volCityEl.value) || !notEmpty(volDistrictEl.value)) {
-    steps.push({
-      el: volCityEl,
-      msg: "請選擇志工服務地區（縣市與行政區）",
-      valid: ()=> notEmpty(volCityEl.value) && notEmpty(volDistrictEl.value)
-    });
-  }
-
-  // 10) （若選「有執照」）志工證明上傳
-  if (hasCertEl.value === "有" && !certFileEl.files?.length)
-    steps.push({ el: certFileEl, msg: "請上傳志工證明", valid: ()=> certFileEl.files?.length > 0 });
 
   return steps;
 }
 
-/* ========= 綁定欄位事件：即時清錯 & 患者「其他」自動勾選 ========= */
-[
-  nameEl, phoneEl, enameEl, ephoneEl,
-  disabilityEl, cityEl, districtEl, chronicOtherEl,
-  idCardEl, hasCertEl, policeEl, volCityEl, volDistrictEl
-].forEach(el=>{
+/* ========= 綁定欄位事件：即時清除錯誤 / 讓「其他」自動勾選 ========= */
+[nameEl, phoneEl, enameEl, ephoneEl, disabilityEl, cityEl, districtEl, chronicOtherEl].forEach(el=>{
   el?.addEventListener("input", ()=> clearInlineError(el));
   el?.addEventListener("change", ()=> clearInlineError(el));
 });
@@ -359,49 +302,37 @@ chronicOtherEl?.addEventListener("input", () => {
   if (notEmpty(chronicOtherEl.value) && chronicOtherBox) chronicOtherBox.checked = true;
 });
 
-/* ========= 啟動引導（泛用） ========= */
-let currentGuideCleanup = null;
-function startGuide(steps, bindExtraWatchers){
+/* ========= 啟動患者引導 ========= */
+function startPatientGuide(steps){
   if (!steps.length) return;
-
-  // 取消前一次監聽（避免重複）
-  if (typeof currentGuideCleanup === "function") currentGuideCleanup();
 
   let idx = 0;
   const total = steps.length;
-  const listeners = [];
-
-  const addL = (target, evt, h) => {
-    target?.addEventListener(evt, h, { once:false });
-    listeners.push(()=> target?.removeEventListener(evt, h));
-  };
-
-  const cleanup = () => {
-    listeners.forEach(off => off());
-    removeCoachBar();
-  };
-  currentGuideCleanup = cleanup;
 
   const go = (i) => {
     idx = i;
     const step = steps[idx];
     renderCoachBar(idx, total, step.msg);
 
+    // 先高亮 + 捲動 + 顯示訊息
     showInlineError(step.el, step.msg);
     scrollFocus(step.el);
 
     const focusBtn = coachBar.querySelector("#mwCoachFocus");
     focusBtn.onclick = () => scrollFocus(step.el);
 
+    // 根據欄位是否有效，控制下一步按鈕可用性
     const updateNextEnabled = () => enableNextBtn(step.valid());
     updateNextEnabled();
 
-    // 單一欄位即時監聽
-    addL(step.el, "input", updateNextEnabled);
-    addL(step.el, "change", updateNextEnabled);
+    // 針對 checkbox 群組：只要任一勾選/取消都重算
+    document.querySelectorAll('input[name="chronic"]').forEach(cb=>{
+      cb.addEventListener("change", updateNextEnabled, { once:false });
+    });
 
-    // 額外監聽（像 checkbox 群組、file input、聯動欄位等）
-    bindExtraWatchers?.(updateNextEnabled, addL);
+    // 單一欄位即時監聽
+    step.el.addEventListener("input", updateNextEnabled, { once:false });
+    step.el.addEventListener("change", updateNextEnabled, { once:false });
 
     const nextBtn = coachBar.querySelector("#mwCoachNext");
     nextBtn.onclick = () => {
@@ -410,38 +341,14 @@ function startGuide(steps, bindExtraWatchers){
       if (idx < total - 1) {
         go(idx + 1);
       } else {
-        cleanup();
+        removeCoachBar();
+        // 全部補齊
         alert("🎉 已完成所有必填欄位，請再次點擊「儲存並完成註冊」。");
       }
     };
   };
 
   go(0);
-}
-
-function startPatientGuide(steps){
-  startGuide(steps, (update, addL)=>{
-    // 慢性病史：任一勾選就更新
-    document.querySelectorAll('input[name="chronic"]').forEach(cb=>{
-      addL(cb, "change", update);
-    });
-  });
-}
-function startVolunteerGuide(steps){
-  startGuide(steps, (update, addL)=>{
-    // 志工：檔案/選單/成對欄位即時檢查
-    [policeFileEl, licenseFileEl, certFileEl].forEach(fi=>{
-      addL(fi, "change", update);
-    });
-    // 是否有執照 → 影響「志工證明上傳」步驟
-    addL(hasCertEl, "change", update);
-
-    // 緊急聯絡人「同一步檢查姓名＋電話」
-    addL(ephoneEl, "input", update);
-
-    // 服務地區「同一步檢查縣市＋行政區」
-    addL(volDistrictEl, "change", update);
-  });
 }
 
 /* ========= 送出註冊 ========= */
@@ -451,19 +358,26 @@ saveBtn?.addEventListener("click", async () => {
 
     const role = roleHidden.value === "志工" ? "志工" : "患者";
 
+    // ★ 若是患者：先檢查缺漏 → 啟動一步一步引導
     if (role === "患者") {
       const missing = buildPatientMissingSteps();
       if (missing.length){
         uiBusy(false);
         startPatientGuide(missing);
-        return;
+        return; // 先引導補齊，不送出
       }
     } else {
-      const missing = buildVolunteerMissingSteps();
-      if (missing.length){
-        uiBusy(false);
-        startVolunteerGuide(missing);
-        return;
+      // 志工：仍做基本必填檢查（非本需求重點，但沿用確保完整）
+      if (!notEmpty(idCardEl.value))       { uiBusy(false); showInlineError(idCardEl,"請輸入身分證號"); scrollFocus(idCardEl); return; }
+      if (!hasCertEl.value)                { uiBusy(false); showInlineError(hasCertEl,"請選擇是否有志工專業執照"); scrollFocus(hasCertEl); return; }
+      if (!notEmpty(policeEl.value))       { uiBusy(false); showInlineError(policeEl,"請輸入良民證編號"); scrollFocus(policeEl); return; }
+      if (!policeFileEl.files?.length)     { uiBusy(false); showInlineError(policeFileEl,"請上傳良民證照片"); scrollFocus(policeFileEl); return; }
+      if (!licenseFileEl.files?.length)    { uiBusy(false); showInlineError(licenseFileEl,"請上傳駕照照片"); scrollFocus(licenseFileEl); return; }
+      if (!notEmpty(volCityEl.value) || !notEmpty(volDistrictEl.value)) {
+        uiBusy(false); showInlineError(volCityEl, "請選擇志工服務地區（縣市/行政區）"); scrollFocus(volCityEl); return;
+      }
+      if (hasCertEl.value === "有" && !certFileEl.files?.length) {
+        uiBusy(false); showInlineError(certFileEl,"請上傳志工證明"); scrollFocus(certFileEl); return;
       }
     }
 
@@ -493,6 +407,7 @@ saveBtn?.addEventListener("click", async () => {
 
     let extra = {};
     if (role === "患者") {
+      // 慢性病史
       const chronic = getCheckedValues("chronic");
       const otherChecked = document.querySelector('input[name="chronic"][value="其他"]')?.checked;
       if (otherChecked && notEmpty(chronicOtherEl.value)) chronic.push(chronicOtherEl.value.trim());
@@ -504,6 +419,7 @@ saveBtn?.addEventListener("click", async () => {
         patientDistrict: districtEl.value || ""
       };
     } else {
+      // 志工附件
       saveTip.textContent = "上傳志工附件…";
       const policeCert  = await uploadIfSelected(`police_certificates/${uid}`,  policeFileEl);
       const licenseFile = await uploadIfSelected(`licenses/${uid}`,             licenseFileEl);
@@ -520,6 +436,7 @@ saveBtn?.addEventListener("click", async () => {
       };
     }
 
+    // 寫入 Firestore
     saveTip.textContent = "寫入基本資料…";
     await setDoc(userRef, { ...base, ...extra }, { merge: true });
 

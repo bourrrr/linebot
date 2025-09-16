@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>患者首頁 - MakeWell</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --bg:#efede9; --bg-2:#dad7cd;
+      --text:#363636; --muted:#6e746e;
+      --primary:#588157; --primary-weak:#659963de;
+      --surface:#ffffff; --chip:#f4f3ef; --border:#e7e5dc;
+    }
+    body{ background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%); color:var(--text); }
+    .card{ background:var(--surface); border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,.06); }
+    .feature{ background:var(--chip); border:1px solid var(--border); transition:.15s transform,.15s filter; }
+    .feature:hover{ transform:translateY(-2px); filter:brightness(.985); }
+    .feature-badge{
+      width:44px; height:44px; border-radius:9999px; display:inline-flex; align-items:center; justify-content:center;
+      background:var(--primary); color:#fff; font-size:20px; box-shadow:0 2px 10px rgba(88,129,87,.25);
+    }
+    .btn-logout{
+      border:1px solid var(--border);
+      background:#fff; padding:.7rem 1rem; border-radius:9999px; font-weight:700;
+      transition:.15s transform,.15s filter;
+    }
+    .btn-logout:hover{ transform:translateY(-1px); filter:brightness(.98); }
+    .h-divider{ height:1px; width:100%; background:linear-gradient(to right, transparent, var(--border), transparent); }
+  </style>
+
+  <!-- LIFF SDK -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <!-- 改為：LIFF + Firestore 守門 & 登出 -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { firebaseConfig } from './firebase-config.js';
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    const LIFF_ID = "2007877199-Y5R2LenL";
+
+    function roleKey(s){
+      const m = String(s||'').trim().toLowerCase();
+      if (m === '患者' || m === 'patient') return 'patient';
+      if (m === '志工' || m === 'volunteer') return 'volunteer';
+      return '';
+    }
+    function getUserRoles(data){
+      const raw = (data && (data.roles ?? data.role)) ?? [];
+      const arr = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+      const set = new Set(arr.map(roleKey).filter(Boolean));
+      return { isPatient: set.has('patient'), isVolunteer: set.has('volunteer') };
+    }
+
+    async function guard() {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+        if (!liff.isLoggedIn()) {
+          location.href = "login.html";
+          return;
+        }
+        const profile = await liff.getProfile();
+        const uid = `line:${profile.userId}`;
+
+        const snap = await getDoc(doc(db, "users", uid));
+        if (!snap.exists()) {
+          location.href = "register-profile.html";
+          return;
+        }
+
+        const { isPatient, isVolunteer } = getUserRoles(snap.data());
+        if (!isPatient) {
+          // 沒有患者身分 → 若有志工，帶去志工首頁；否則回註冊補資料
+          if (isVolunteer) { location.href = "volunteer.html"; return; }
+          location.href = "register-profile.html"; return;
+        }
+        // 有患者 → 留在本頁（若同時是志工，也可從登入頁選志工進入）
+      } catch (e) {
+        console.error('[HOME] Guard error:', e);
+        alert('登入狀態檢查失敗，將返回登入頁。' + (e?.message || ''));
+        location.href = "login.html";
+      }
+    }
+
+    guard();
+
+    // 登出（Firebase + LIFF）
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+        try { await signOut(auth); } catch(e) {}
+        try { liff.logout(); } catch(e) {}
+        location.href = "login.html";
+      });
+    });
+  </script>
+
+</head>
+<body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
+  <div class="mx-auto max-w-[1120px]">
+    <div class="card rounded-3xl p-8 md:p-12 min-h-[82vh] md:min-h-[86vh] flex flex-col">
+      <!-- 頂部 Header -->
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <!-- 左邊 Logo + 標題 -->
+        <div class="flex items-center gap-5">
+          <img src="MakeWell.jpg" alt="MakeWell Logo"
+              class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
+          <div>
+            <h1 class="text-3xl md:text-4xl font-extrabold leading-tight" style="color:var(--primary)">
+              個人健康首頁
+            </h1>
+            <p class="text-base md:text-lg" style="color:var(--muted)">
+              MakeWell 把照護變得更貼心
+            </p>
+          </div>
+        </div>
+
+        <!-- 右邊按鈕（小螢幕換行時會自動掉到下面） -->
+        <div class="mt-4 md:mt-0 md:ml-auto">
+          <button id="logoutBtn" class="btn-logout text-sm md:text-base">登出</button>
+        </div>
+      </div>
+
+
+      <div class="mt-8 md:mt-10 h-divider"></div>
+
+      <main class="flex-1 flex flex-col">
+        <section class="mt-8 md:mt-10">
+          <p class="text-lg md:text-xl leading-relaxed md:leading-8 max-w-3xl" style="color:var(--muted)">
+            歡迎回來！在這裡你可以快速發布協助請求、查看歷史紀錄、回饋服務，並維護個人資料。
+          </p>
+        </section>
+
+        <section class="mt-8 md:mt-12 grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+          <a href="publish.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
+            <span class="feature-badge">📝</span>
+            <div class="min-w-0">
+              <div class="text-lg md:text-xl font-semibold">協助請求</div>
+              <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">發布用藥或陪診等協助需求</div>
+            </div>
+            <span class="ml-auto text-2xl">›</span>
+          </a>
+
+          <a href="history.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
+            <span class="feature-badge">📜</span>
+            <div class="min-w-0">
+              <div class="text-lg md:text-xl font-semibold">歷史記錄</div>
+              <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">查看我過去的協助申請紀錄</div>
+            </div>
+            <span class="ml-auto text-2xl">›</span>
+          </a>
+
+          <a href="feedback.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
+            <span class="feature-badge">💬</span>
+            <div class="min-w-0">
+              <div class="text-lg md:text-xl font-semibold">回饋專區</div>
+              <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">查看志工服務的回饋與評價</div>
+            </div>
+            <span class="ml-auto text-2xl">›</span>
+          </a>
+
+          <a href="profile.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
+            <span class="feature-badge">🙍‍♀️</span>
+            <div class="min-w-0">
+              <div class="text-lg md:text-xl font-semibold">個人資料</div>
+              <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">檢視與更新個人基本資料</div>
+            </div>
+            <span class="ml-auto text-2xl">›</span>
+          </a>
+        </section>
+
+        <div class="mt-10 md:mt-14"></div>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
