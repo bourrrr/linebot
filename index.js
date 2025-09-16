@@ -409,6 +409,15 @@ async function handleEvent(event, client) {
       if (msg === '志工配對') {
         return client.replyMessage(event.replyToken, loginFlex());
       }
+	   if (msg === '測試歡迎' || msg.toLowerCase() === 'welcome test') {
+    const userId = event.source?.userId;
+    const serviceLink = buildService555Link(); // 不帶 taskId
+    await client.pushMessage(userId, [
+      { type: 'text', text: '👋 歡迎加入 MakeWell！' },
+      { type: 'text', text: `您可以透過「志工服務555」取得協助：\n${serviceLink}` }
+    ]);
+    return;
+  }
       if (msg === '切換到健康照護') {
         try {
           await switchRichMenu(event.source.userId, 'service');
