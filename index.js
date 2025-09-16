@@ -66,7 +66,7 @@ if (!admin.apps.length) {
 const app = express();
 app.use(express.static('public'));
 app.use(cors({ origin: true }));
-app.use(express.json()); // ✅ 提前啟用，確保後面 POST 能讀到 req.body
+
 
 // LINE Bot 設定
 const config = {
@@ -281,6 +281,22 @@ async function handleEvent(event, client) {
       if (processedTokens.has(event.replyToken)) return;
       processedTokens.add(event.replyToken);
       setTimeout(() => processedTokens.delete(event.replyToken), 60 * 1000);
+    }
+
+  if (event.type === 'follow') {
+      const userId = event.source?.userId;
+      const serviceLink = buildService555Link(); // 這裡不用帶 taskId
+      await client.pushMessage(userId, [
+        {
+          type: 'text',
+          text: '👋 歡迎加入 MakeWell！'
+        },
+        {
+          type: 'text',
+          text: `您可以透過「志工服務555」取得協助：\n${serviceLink}`
+        }
+      ]);
+      return;
     }
 
     // === Postback 統一處理 ===
@@ -540,6 +556,32 @@ app.post('/accept-task', async (req, res) => {
   }
 });
 
+	app.get('/whoami', async (_req, res) => {
+	  try {
+		const info = await client.getBotInfo();
+		// 回傳 basicId / displayName 幫你比對是不是你要的那支
+		res.json({ ok: true, info });
+	  } catch (e) {
+		console.error('getBotInfo error:', e?.response?.data || e);
+		res.status(500).json({ ok: false, error: e.message, detail: e?.response?.data });
+	  }
+	});
+
+	app.post('/debug/push', async (req, res) => {
+	  const { userId, text } = req.body || {};
+	  if (!userId) return res.status(400).json({ ok: false, error: '缺少 userId' });
+	  try {
+		const payload = { type: 'text', text: text || 'Hello from /debug/push' };
+		const r = await client.pushMessage(userId, payload);
+		res.json({ ok: true, result: r });
+	  } catch (e) {
+		console.error('pushMessage error:', e?.response?.data || e);
+		res.status(500).json({ ok: false, error: e.message, detail: e?.response?.data });
+	  }
+	});
+
+
+app.use(express.json()); // ✅ 提前啟用，確保後面 POST 能讀到 req.body
 // 測試首頁
 app.get('/', (req, res) => {
   res.send('MakeWell LINE Bot Server is running!');
