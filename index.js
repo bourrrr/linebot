@@ -26,7 +26,7 @@ const bpMapFlex = require('./OCR_modules/flex/bpMapFlex');
 const handleRecipeRecommendation = require('./OCR_modules/flex/recipeHandler');
 const generateHealthFlex = require('./OCR_modules/flex/healthDataCard');
 const reminderBubble = require('./OCR_modules/flex/reminderBubble');
-
+const buildWelcomeFlex = require('./OCR_modules/flex/welcomeFlex');
 const { handleCheckin } = require('./OCR_modules/services/checkinService');
 const Event = require('./Event');
 
@@ -283,21 +283,9 @@ async function handleEvent(event, client) {
       setTimeout(() => processedTokens.delete(event.replyToken), 60 * 1000);
     }
 
-  if (event.type === 'follow') {
-      const userId = event.source?.userId;
-      const serviceLink = buildService555Link(); // 這裡不用帶 taskId
-      await client.pushMessage(userId, [
-        {
-          type: 'text',
-          text: '👋 歡迎加入 MakeWell！'
-        },
-        {
-          type: 'text',
-          text: `您可以透過「志工服務555」取得協助：\n${serviceLink}`
-        }
-      ]);
-      return;
-    }
+	 if (event.type === 'follow') {
+	  return client.replyMessage(event.replyToken, buildWelcomeFlex());
+	}
 
     // === Postback 統一處理 ===
     if (event.type === 'postback') {
@@ -409,15 +397,12 @@ async function handleEvent(event, client) {
       if (msg === '志工配對') {
         return client.replyMessage(event.replyToken, loginFlex());
       }
-	   if (msg === '測試歡迎' || msg.toLowerCase() === 'welcome test') {
-    const userId = event.source?.userId;
-    const serviceLink = buildService555Link(); // 不帶 taskId
-    await client.pushMessage(userId, [
-      { type: 'text', text: '👋 歡迎加入 MakeWell！' },
-      { type: 'text', text: `您可以透過「志工服務555」取得協助：\n${serviceLink}` }
-    ]);
-    return;
-  }
+	  
+	  if (msg === '測試歡迎') {
+  await client.pushMessage(event.source.userId, buildWelcomeFlex());
+  return;
+}
+
       if (msg === '切換到健康照護') {
         try {
           await switchRichMenu(event.source.userId, 'service');
@@ -514,20 +499,6 @@ app.get('/update-richmenu-image', async (req, res) => {
   }
 });
 
-// ===============================
-// ✅ 新增：志工接受任務推播 + 導向「志工服務555」
-// ===============================
-
-// 你的 555 副帳號；可用 .env 的 SERVICE555_OA_ID 覆蓋
-const SERVICE555_OA_ID = process.env.SERVICE555_OA_ID || '@676npmsr';
-
-// 產生導向「志工服務555」官方帳號的聊天連結
-function buildService555Link(taskId) {
-  const svcId = SERVICE555_OA_ID;
-  const payload = taskId ? `#match:${taskId}` : '您好，我要聯絡志工服務555';
-  // LINE 官方格式：oaMessage/<basicId>，可接受含 @ 的 basic id
-  return `https://line.me/R/oaMessage/${svcId}/?text=${encodeURIComponent(payload)}`;
-}
 
 /**
  * POST /accept-task
