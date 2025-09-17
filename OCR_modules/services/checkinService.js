@@ -168,7 +168,7 @@ function buildDrawFlexFromHealthCard(url) {
     const idx = card.contents.footer.contents.findIndex(c => c && c.type === 'button');
     const uriBtn = {
       type: 'button', style: 'primary',
-      action: { type: 'uri', label: '立即抽卡', uri: url },
+      action: { type: 'uri', label: '立即抽卡', uri: "https://medwell-test1.web.app/newcard/indexcard.html" },
       color: '#659963'
     };
     if (idx >= 0) card.contents.footer.contents[idx] = uriBtn;
@@ -194,7 +194,7 @@ function buildDrawFlexFromHealthCard(url) {
           type: 'box', layout: 'vertical',
           contents: [
             { type: 'button', style: 'primary',
-              action: { type: 'uri', label: '立即抽卡', uri: url }, color: '#659963' }
+              action: { type: 'uri', label: '立即抽卡', uri: "https://medwell-test1.web.app/newcard/indexcard.html" }, color: '#659963' }
           ]
         }
       }
