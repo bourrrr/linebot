@@ -17,6 +17,12 @@ const chipsWrap = document.getElementById("districtChips");
 const toggleAllBtn = document.getElementById("toggleAllDistricts");
 const tpl = document.getElementById("taskCardTemplate");
 
+// ✅ 取得彈窗節點（新增）
+const matchModal = document.getElementById("matchModal");
+const closeModalBtn = document.getElementById("closeModal");
+//（如需動態調整連結內容可抓這個節點）
+const matchChatLink = document.getElementById("matchChatLink");
+
 const functions = getFunctions(app, "asia-east1");
 
 const createMatch = httpsCallable(functions, "createMatch");
@@ -169,7 +175,9 @@ async function render(){
     card.querySelector(".icon").textContent = getTaskIcon(t.type||"");
     card.querySelector(".task-type").textContent = t.type || "未提供";
     card.querySelector(".task-time").textContent = timeToString(t.time);
-    card.querySelector(".task-addr").textContent = `${t.city||''}${t.district||''}${t.road||''}` || "未提供地址";
+    const fullAddr = `${t.city||''}${t.district||''}${t.road||''}`;
+    const hosp = t.hospital || "未提供醫院/診所";
+    card.querySelector(".task-addr").textContent = `${hosp}｜${fullAddr || "未提供地址"}`;
     card.querySelector(".task-note").textContent = (t.note && String(t.note).trim()) ? t.note : "無";
     card.querySelector(".accept").dataset.id = t.id;
     card.querySelector(".reject").dataset.id = t.id;
@@ -189,14 +197,25 @@ async function createMatchForTask(task, volunteerUid) {
     volunteerUserId: pureLineId(volunteerUid),
     patientAuthUid: task.userId,
     volunteerAuthUid: volunteerUid,
-     patientName: task.username || task.userName || task.patientName || '未命名患者',
+    patientName: task.username || task.userName || task.patientName || '未命名患者',
     taskTitle: (task.type || "任務"),
-    taskAddr: `${task.city||''}${task.district||''}${task.road||''}`,
+    hospital: task.hospital || "",
   });
 }
 
-
-
+// ✅ 統一關閉彈窗（新增）
+function hideMatchModal(){
+  if (matchModal) matchModal.classList.add("hidden");
+}
+if (closeModalBtn){
+  closeModalBtn.addEventListener("click", hideMatchModal);
+}
+if (matchModal){
+  // 點背景也可關閉
+  matchModal.addEventListener("click", (e)=>{
+    if (e.target === matchModal) hideMatchModal();
+  });
+}
 
 taskContainer.addEventListener("click", async (e)=>{
   const btn = e.target.closest("button");
@@ -215,7 +234,12 @@ taskContainer.addEventListener("click", async (e)=>{
 
   if (status === "accepted" && t) {
     await createMatchForTask(t, currentUid);
-    alert("已接受任務並建立聊天室，請到 LINE 開始對話！");
+
+    // ✅ 顯示彈窗（取代 alert）
+    if (matchModal) {
+      // 若未來要帶入動態文字，可在此調整 matchChatLink.href 或文字
+      matchModal.classList.remove("hidden");
+    }
   } else {
     alert("任務已拒絕");
   }

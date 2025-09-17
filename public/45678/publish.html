@@ -160,9 +160,27 @@
       </div>
     </div>
   </div>
-
+  
   <!-- head 加上 LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <!-- ⭐ 新增：成功彈窗（不影響既有結構） -->
+  <div id="successModal" class="fixed inset-0 bg-black bg-opacity-40 hidden z-50 items-center justify-center">
+    <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-lg text-center">
+      <h3 class="text-xl font-bold mb-3" style="color:#276749">✅ 發布成功！</h3>
+      <p class="mb-4">請點擊以下網址加入配對聊天室即可聯絡你的志工：</p>
+      <a href="https://line.me/R/oaMessage/@676npmsr/?text=%E6%82%A8%E5%A5%BD%EF%BC%8C%E6%88%91%E8%A6%81%E8%81%AF%E7%B5%A1%E5%BF%97%E5%B7%A5%E6%9C%8D%E5%8B%99555"
+         target="_blank"
+         class="inline-block px-4 py-2 rounded-lg font-semibold text-white"
+         style="background:#588157">
+        👉 加入配對聊天室
+      </a>
+      <div class="mt-4 flex gap-3 justify-center">
+        <button id="closeModal" class="text-sm underline text-gray-600">稍後再說</button>
+        <button id="goHomeNow" class="text-sm underline text-gray-600">回首頁</button>
+      </div>
+    </div>
+  </div>
 
   <!-- 原本底部的 module 整段替換 -->
   <script type="module">
@@ -241,6 +259,24 @@
       catch(e){ console.error(e); alert('LIFF 初始化失敗'); return false; }
     }
 
+    // ⭐ 新增：控制彈窗的輔助函式（不影響既有流程）
+    function showSuccessModal(){
+      const m = document.getElementById('successModal');
+      if(!m) return;
+      m.classList.remove('hidden');
+      m.classList.add('flex');
+    }
+    function hideSuccessModal(){
+      const m = document.getElementById('successModal');
+      if(!m) return;
+      m.classList.add('hidden');
+      m.classList.remove('flex');
+    }
+    document.getElementById('closeModal')?.addEventListener('click', hideSuccessModal);
+    document.getElementById('goHomeNow')?.addEventListener('click', () => {
+      location.href = 'home.html';
+    });
+
     // 提交
     publishForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -281,6 +317,11 @@
         await addDoc(collection(db, 'requests'), requestData);
         await addDoc(collection(db, 'users', uid, 'records'), requestData);
 
+        // ⭐ 新增：顯示彈窗，並「不中斷」原始程式碼（保留在下方）
+        showSuccessModal();
+        return; // ⭐ 新增：到此結束，不觸發原本的 alert + 跳轉（但原碼仍保留未刪）
+
+        // 原本程式碼（保留）
         alert('✅ 發布成功！');
         location.href = 'home.html';
       } catch (err) {

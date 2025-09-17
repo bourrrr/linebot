@@ -32,7 +32,7 @@
   <!-- LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
-  <!-- 改為：LIFF + Firestore 守門 & 登出 -->
+  <!-- LIFF + Firestore 守門 & 登出 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -79,7 +79,7 @@
           if (isVolunteer) { location.href = "volunteer.html"; return; }
           location.href = "register-profile.html"; return;
         }
-        // 有患者 → 留在本頁（若同時是志工，也可從登入頁選志工進入）
+        // 有患者 → 留在本頁
       } catch (e) {
         console.error('[HOME] Guard error:', e);
         alert('登入狀態檢查失敗，將返回登入頁。' + (e?.message || ''));
@@ -119,21 +119,11 @@
           </div>
         </div>
 
-        <!-- 右邊按鈕（小螢幕換行時會自動掉到下面） -->
+        <!-- 右邊按鈕 -->
         <div class="mt-4 md:mt-0 md:ml-auto">
           <button id="logoutBtn" class="btn-logout text-sm md:text-base">登出</button>
         </div>
       </div>
-
-
-      <div class="mt-8 md:mt-10 h-divider"></div>
-
-      <main class="flex-1 flex flex-col">
-        <section class="mt-8 md:mt-10">
-          <p class="text-lg md:text-xl leading-relaxed md:leading-8 max-w-3xl" style="color:var(--muted)">
-            歡迎回來！在這裡你可以快速發布協助請求、查看歷史紀錄、回饋服務，並維護個人資料。
-          </p>
-        </section>
 
         <section class="mt-8 md:mt-12 grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
           <a href="publish.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
@@ -177,5 +167,45 @@
       </main>
     </div>
   </div>
+
+  <!-- 登入提示彈窗 -->
+  <div id="modalBackdrop" class="hidden fixed inset-0 z-50 bg-black/50"></div>
+  <div id="loginHintModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+      <!-- 關閉（右上角 ×） -->
+      <button id="modalClose" aria-label="關閉" class="absolute top-3 right-3 rounded-full w-8 h-8 flex items-center justify-center border border-[var(--border)] hover:bg-gray-50">
+        ✕
+      </button>
+      <h3 class="text-xl font-extrabold mb-3" style="color:var(--primary)">📋 協助請求流程</h3>
+      <ul class="list-disc pl-5 space-y-2 text-[15px]" style="color:var(--muted)">
+        <li>選擇請求類型（陪診/領藥）🗂️</li>
+        <li>填寫時間與地點，提交請求📍</li>
+        <li>志工接受後，系統會建立臨時聊天室🤝</li>
+        <li>任務結束後，志工端上傳回報照片，聊天室會自動關閉✅</li>
+      </ul>
+      <p class="mt-4 text-sm text-gray-500">
+        💡 小提醒：身心障礙者，系統會自動配對有證照的志工。
+      </p>
+    </div>
+  </div>
+
+  <!-- 控制彈窗：載入即顯示；✕/背景/Esc 關閉 -->
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const modal = document.getElementById('loginHintModal');
+      const closeBtn = document.getElementById('modalClose');
+      const backdrop = document.getElementById('modalBackdrop');
+
+      function openModal(){ modal.classList.remove('hidden'); backdrop.classList.remove('hidden'); }
+      function closeModal(){ modal.classList.add('hidden'); backdrop.classList.add('hidden'); }
+
+      closeBtn?.addEventListener('click', closeModal);
+      backdrop?.addEventListener('click', e => { if (e.target === backdrop) closeModal(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+      // 🚀 頁面載入後自動開啟
+      openModal();
+    });
+  </script>
 </body>
 </html>

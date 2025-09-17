@@ -106,13 +106,11 @@
             <option value="">請選擇行政區</option>
           </select>
         </div>
-       
       </div>
     </div>
 
     <!-- 志工欄位 -->
     <div id="volunteerFields" class="mt-4 space-y-3 hidden">
-      <input id="idCard" class="input w-full rounded-xl px-3 py-3" placeholder="身分證號"/>
       <div>
         <div class="text-sm font-semibold mb-1">是否有志工專業執照</div>
         <select id="hasCert" class="input w-full rounded-xl px-3 py-3">
@@ -125,21 +123,10 @@
         <div class="text-sm font-semibold mb-1">上傳志工證明（有執照時）</div>
         <input id="certFile" type="file" accept="image/*" class="input w-full rounded-xl px-3 py-2"/>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <div class="text-sm font-semibold mb-1">良民證編號</div>
-          <input id="police" class="input w-full rounded-xl px-3 py-3" placeholder="良民證編號" required/>
-        </div>
-        <div>
-          <div class="text-sm font-semibold mb-1">上傳良民證照片（必填）</div>
-          <input id="policeFile" type="file" accept="image/*" class="input w-full rounded-xl px-3 py-2" required/>
-        </div>
-      </div>
       <div>
-        <div class="text-sm font-semibold mb-1">上傳駕照照片（必填）</div>
-        <input id="licenseFile" type="file" accept="image/*" class="input w-full rounded-xl px-3 py-2" required/>
+        <div class="text-sm font-semibold mb-1">上傳良民證照片（必填）</div>
+        <input id="policeFile" type="file" accept="image/*" class="input w-full rounded-xl px-3 py-2" required/>
       </div>
-
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <select id="volCity" class="input rounded-xl px-3 py-3">
           <option value="">志工服務縣市</option>
@@ -171,7 +158,7 @@
     <div class="tip rounded-2xl p-4 mt-6 text-sm">
       <div class="font-semibold mb-1">小提醒</div>
       <ul class="list-disc pl-5 space-y-1" style="color:var(--muted)">
-        <li>志工需上傳：良民證、駕照。</li>
+        <li>志工需上傳：良民證。</li>
         <li>資料送出後可於「個人資料」頁再修改。</li>
         <li>您的個人資料僅供本系統認證使用，不會外流，請安心填寫。</li>
         <li>手機號碼、身分證號等敏感資訊僅用於驗證身份，系統將妥善保護，不會提供給第三方。</li>

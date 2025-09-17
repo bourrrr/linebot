@@ -55,11 +55,10 @@
 
         const { isPatient, isVolunteer } = getUserRoles(snap.data());
         if (!isVolunteer) {
-          // 沒有志工身分 → 若有患者，帶去患者首頁；否則回註冊補資料
           if (isPatient) { location.href = "home.html"; return; }
           location.href = "register-profile.html"; return;
         }
-        // 有志工 → 留在本頁
+        // 有志工 → 留在本頁（稍後顯示彈窗）
       } catch (e) {
         console.error('[VOLUNTEER] guard error:', e);
         location.href = "login.html";
@@ -67,12 +66,35 @@
     }
     guard();
 
-    // 登出（僅 LIFF）
+    // 登出 + 顯示彈窗
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('logoutBtn')?.addEventListener('click', () => {
         try { liff.logout(); } catch(e) {}
         location.href = "login.html";
       });
+
+      // 顯示登入提示彈窗
+      const modal = document.getElementById('loginHintModal');
+      const closeBtn = document.getElementById('modalClose');
+      const backdrop = document.getElementById('modalBackdrop');
+
+      // ★ 同時顯示/隱藏 backdrop 與 modal
+      function openModal(){ 
+        backdrop.classList.remove('hidden'); 
+        modal.classList.remove('hidden'); 
+      }
+      function closeModal(){ 
+        modal.classList.add('hidden'); 
+        backdrop.classList.add('hidden'); 
+      }
+
+      closeBtn?.addEventListener('click', closeModal);
+      backdrop?.addEventListener('click', e => { if (e.target === backdrop) closeModal(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+      // 載入後打開
+      openModal();
+
     });
   </script>
 
@@ -88,20 +110,15 @@
               class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
           <div>
             <h1 class="text-3xl md:text-4xl font-extrabold leading-tight" style="color:var(--primary)">志工任務中心</h1>
-            <p class="text-base md:text-lg" style="color:var(--muted)">
-              快速查看待接任務與我的進度，完成後上傳回報。
-            </p>
+            <!-- 原本的提示句已刪除 -->
           </div>
         </div>
 
-        <!-- 右邊按鈕（小螢幕會掉到下一行靠右） -->
+        <!-- 右邊按鈕 -->
         <div class="mt-3 md:mt-0 md:ml-auto">
           <button id="logoutBtn" class="btn-logout text-sm md:text-base">登出</button>
         </div>
       </div>
-
-
-      <div class="mt-8 md:mt-10 h-divider"></div>
 
       <main class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 mt-8 md:mt-12">
         <a href="task-list.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
@@ -140,6 +157,28 @@
           <span class="ml-auto text-2xl">›</span>
         </a>
       </main>
+    </div>
+  </div>
+
+  <!-- 登入提示彈窗 -->
+  <div id="modalBackdrop" class="hidden fixed inset-0 z-50 bg-black/50">
+    <div id="loginHintModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+        <!-- 關閉（右上角 ×） -->
+        <button id="modalClose" aria-label="關閉" class="absolute top-3 right-3 rounded-full w-8 h-8 flex items-center justify-center border border-[var(--border)] hover:bg-gray-50">
+          ✕
+        </button>
+        <h3 class="text-xl font-extrabold mb-3" style="color:var(--primary)">歡迎來到志工任務中心</h3>
+        <ul class="list-disc pl-5 space-y-2 text-[15px]" style="color:var(--muted)">
+          <li>查看患者的需求清單📋</li>
+          <li>接受請求後會建立臨時聊天室💬</li>
+          <li>前往指定地點協助（支援地圖導航）🗺️</li>
+          <li>完成後上傳照片回報，任務即完成✅</li>
+        </ul>
+        <p class="mt-4 text-sm text-gray-500">
+          💡 小提醒：如果臨時不方便，可隨時取消時間還沒到的任務。
+        </p>
+      </div>
     </div>
   </div>
 </body>
