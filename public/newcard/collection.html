@@ -73,7 +73,7 @@
     <section id="gallery" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"></section>
 
     <div class="flex items-center gap-2 mt-6">
-      <a href="index.html" class="btn btn-ghost">← 返回首頁</a>
+      <a href="indexcard.html" class="btn btn-ghost">← 返回首頁</a>
       <a href="knowledge-draw.html" class="btn btn-primary">前往抽卡</a>
     </div>
 
@@ -250,25 +250,32 @@
   </script>
 
   <!-- ✅ 保險絲補丁：若頁面上仍有 "002.png" 這種相對路徑圖片，強制換成 Storage URL -->
-  <script type="module">
-    import { getStorage, ref as storageRef, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-    const storage = getStorage();
-    const looksShort = s => /^\d{3}\.(png|jpg|jpeg|webp)$/i.test(s || "");
-    (async () => {
-      const imgs = Array.from(document.images);
-      await Promise.all(imgs.map(async img => {
-        try {
-          const src = img.getAttribute('src') || "";
-          if (looksShort(src)) {
-            const path = `images/knowledge/${src}`;   // 你的實際 Storage 路徑
-            const url  = await getDownloadURL(storageRef(storage, path));
-            img.setAttribute('src', url);
-          }
-        } catch (e) {
-          console.warn('[patch] 轉 Storage 失敗：', e);
+  <!-- ✅ 保險絲補丁：轉 Storage URL（安全取得已存在的 app） -->
+<script type="module">
+  import { getApp, getApps, initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getStorage, ref as storageRef, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+  import { firebaseConfig } from "./firebase-config.js"; // 已上傳的設定檔
+
+  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  const storage = getStorage(app);
+
+  const looksShort = s => /^\d{3}\.(png|jpg|jpeg|webp)$/i.test(s || "");
+  (async () => {
+    const imgs = Array.from(document.images);
+    await Promise.all(imgs.map(async img => {
+      try {
+        const src = img.getAttribute('src') || "";
+        if (looksShort(src)) {
+          const path = `images/knowledge/${src}`;
+          const url  = await getDownloadURL(storageRef(storage, path));
+          img.setAttribute('src', url);
         }
-      }));
-    })();
-  </script>
+      } catch (e) {
+        console.warn('[patch] 轉 Storage 失敗：', e);
+      }
+    }));
+  })();
+</script>
+
 </body>
 </html>

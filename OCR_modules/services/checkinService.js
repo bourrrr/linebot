@@ -16,7 +16,7 @@ dayjs.extend(utc);
 dayjs.extend(timezone);;
 
 // 抽卡頁連結（改成你的實際頁面）
-const DRAW_URL = 'https://medwell-test1.web.app/newcard/index.html';
+const DRAW_URL = 'https://medwell-test1.web.app/newcard/indexcard.html';
 
 function parseQuery(q) {
   return Object.fromEntries(new URLSearchParams(q || ''));

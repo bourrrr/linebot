@@ -34,38 +34,36 @@
   <!-- 守門（僅志工可進）→ 只初始化一次 Firebase -->
   <script type="module">
     import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-     import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-	import { getAuth, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getAuth, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import { firebaseConfig } from './firebase-config.js';
 
-	 const app  = getApps().length ? getApp() : initializeApp(firebaseConfig);
-	 const db   = getFirestore(app);
-	 const auth = getAuth(app);
+    const app  = getApps().length ? getApp() : initializeApp(firebaseConfig);
+    const db   = getFirestore(app);
+    const auth = getAuth(app);
 
     const LIFF_ID = "2007877199-Y5R2LenL";
-
-	const CUSTOM_TOKEN_URL = "https://asia-east1-medwell-test1.cloudfunctions.net/authApi/getFirebaseCustomToken";
+    const CUSTOM_TOKEN_URL = "https://asia-east1-medwell-test1.cloudfunctions.net/authApi/getFirebaseCustomToken";
 
     (async () => {
       try{
         await liff.init({ liffId: LIFF_ID });
         if (!liff.isLoggedIn()) { location.href = "login.html"; return; }
 
-		 const idToken = liff.getIDToken();
-		 if (!idToken) { location.href = "login.html"; return; }
-		 const resp = await fetch(CUSTOM_TOKEN_URL, {
-		   method: "POST",
-		   headers: { "Content-Type": "application/json" },
-		   body: JSON.stringify({ idToken })
-		 });
-		 if (!resp.ok) { alert("驗證失敗（HTTP "+resp.status+"）"); location.href="login.html"; return; }
-		 const { customToken } = await resp.json();
-		 if (!customToken) { alert("驗證失敗（no customToken）"); location.href="login.html"; return; }
-		 await signInWithCustomToken(auth, customToken);
-		 const uid = auth.currentUser?.uid;
-		 if (!uid) { location.href="login.html"; return; }
-		 const snap = await getDoc(doc(db, "users", uid));
-		
+        const idToken = liff.getIDToken();
+        if (!idToken) { location.href = "login.html"; return; }
+        const resp = await fetch(CUSTOM_TOKEN_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idToken })
+        });
+        if (!resp.ok) { alert("驗證失敗（HTTP "+resp.status+"）"); location.href="login.html"; return; }
+        const { customToken } = await resp.json();
+        if (!customToken) { alert("驗證失敗（no customToken）"); location.href="login.html"; return; }
+        await signInWithCustomToken(auth, customToken);
+        const uid = auth.currentUser?.uid;
+        if (!uid) { location.href="login.html"; return; }
+        const snap = await getDoc(doc(db, "users", uid));
         if (!snap.exists()) { location.href = "register-profile.html"; return; }
 
         const raw = snap.data()?.roles;
@@ -82,36 +80,29 @@
 </head>
 
 <body class="min-h-screen p-4 flex items-center justify-center">
-  <!-- 比照 history：置中卡片，整張卡片固定高度，只有 main 捲動 -->
+  <!-- 置中卡片，整張卡片固定高度，只有 main 捲動；底部工具列固定可見 -->
   <div class="w-full max-w-[1120px] card rounded-3xl overflow-hidden h-[90vh] md:h-[94vh] flex flex-col">
-    <!-- Header（固定） -->
+
+    <!-- Header（固定區，簡化：移除「回首頁」「任務歷史」） -->
     <div class="p-6 md:p-8 border-b border-[var(--border)] flex-shrink-0">
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div class="flex items-start justify-between">
         <div>
           <h1 class="text-3xl md:text-4xl font-extrabold leading-tight">✅ 我的任務</h1>
           <p class="text-base md:text-lg mt-1" style="color:var(--muted)">
             追蹤已接受的「領藥／陪診」任務進度，完成後上傳回報。
           </p>
         </div>
-        <div class="mt-3 md:mt-0 md:ml-auto">
-          <a href="volunteer.html" class="text-sm md:text-base font-bold underline" style="color:var(--primary)">
-            ← 回首頁
-          </a>
-        </div>
       </div>
 
       <!-- 狀態列（固定區內） -->
       <section class="mt-4">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-            <span class="text-sm md:text-base font-bold">狀態：</span>
-            <div class="flex flex-wrap gap-2 md:gap-3" role="group" aria-label="狀態篩選">
-              <button id="filterAll" class="pill active text-sm md:text-base" type="button">全部</button>
-              <button id="filterActive" class="pill text-sm md:text-base" type="button">進行中</button>
-              <button id="filterDone" class="pill text-sm md:text-base" type="button">已完成</button>
-            </div>
+        <div class="flex flex-wrap items-center gap-2 md:gap-3">
+          <span class="text-sm md:text-base font-bold">狀態：</span>
+          <div class="flex flex-wrap gap-2 md:gap-3" role="group" aria-label="狀態篩選">
+            <button id="filterAll" class="pill active text-sm md:text-base" type="button">全部</button>
+            <button id="filterActive" class="pill text-sm md:text-base" type="button">進行中</button>
+            <button id="filterDone" class="pill text-sm md:text-base" type="button">已完成</button>
           </div>
-          <a href="task-history.html" class="btn-ghost">📜 任務歷史</a>
         </div>
       </section>
     </div>
@@ -128,9 +119,24 @@
         </p>
       </div>
     </main>
+
+    <!-- 底部工具列（固定可見） -->
+    <footer class="p-4 md:p-6 border-t border-[var(--border)] flex-shrink-0">
+      <div class="flex flex-col-reverse md:flex-row items-stretch md:items-center gap-3 md:gap-4 md:justify-between">
+        <a href="volunteer.html"
+           class="btn-ghost text-center">
+          ← 回首頁
+        </a>
+        <a href="task-history.html"
+           class="px-5 py-2 rounded-full font-extrabold text-center"
+           style="background:var(--primary);color:#fff;border:1px solid var(--primary);">
+          📜 任務歷史
+        </a>
+      </div>
+    </footer>
   </div>
 
-  <!-- 取消配對 Modal（覆蓋在最外層） -->
+  <!-- 取消配對 Modal -->
   <div id="cancelModal" class="modal" aria-hidden="true">
     <div class="card rounded-2xl p-6 w-[92vw] max-w-xl" role="dialog" aria-modal="true" aria-labelledby="cancelTitle">
       <h3 id="cancelTitle" class="text-xl font-extrabold">取消配對</h3>
@@ -155,6 +161,5 @@
 
   <!-- 列表/上傳/導航邏輯 -->
   <script type="module" src="my-tasks.js"></script>
-  <!-- ⚠️ 不要再另行 <script> 直載 firebase-config.js，避免重複初始化 -->
 </body>
 </html>

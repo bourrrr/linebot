@@ -27,6 +27,14 @@
     }
     .btn-logout:hover{ transform:translateY(-1px); filter:brightness(.98); }
     .h-divider{ height:1px; width:100%; background:linear-gradient(to right, transparent, var(--border), transparent); }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeIn {
+      animation: fadeIn .35s ease-out;
+    }
   </style>
 
   <!-- LIFF SDK -->
@@ -75,11 +83,9 @@
 
         const { isPatient, isVolunteer } = getUserRoles(snap.data());
         if (!isPatient) {
-          // 沒有患者身分 → 若有志工，帶去志工首頁；否則回註冊補資料
           if (isVolunteer) { location.href = "volunteer.html"; return; }
           location.href = "register-profile.html"; return;
         }
-        // 有患者 → 留在本頁
       } catch (e) {
         console.error('[HOME] Guard error:', e);
         alert('登入狀態檢查失敗，將返回登入頁。' + (e?.message || ''));
@@ -89,7 +95,6 @@
 
     guard();
 
-    // 登出（Firebase + LIFF）
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('logoutBtn')?.addEventListener('click', async () => {
         try { await signOut(auth); } catch(e) {}
@@ -105,7 +110,6 @@
     <div class="card rounded-3xl p-8 md:p-12 min-h-[82vh] md:min-h-[86vh] flex flex-col">
       <!-- 頂部 Header -->
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <!-- 左邊 Logo + 標題 -->
         <div class="flex items-center gap-5">
           <img src="MakeWell.jpg" alt="MakeWell Logo"
               class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
@@ -118,78 +122,96 @@
             </p>
           </div>
         </div>
-
-        <!-- 右邊按鈕 -->
         <div class="mt-4 md:mt-0 md:ml-auto">
           <button id="logoutBtn" class="btn-logout text-sm md:text-base">登出</button>
         </div>
       </div>
 
-        <section class="mt-8 md:mt-12 grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-          <a href="publish.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
-            <span class="feature-badge">📝</span>
-            <div class="min-w-0">
-              <div class="text-lg md:text-xl font-semibold">協助請求</div>
-              <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">發布用藥或陪診等協助需求</div>
-            </div>
-            <span class="ml-auto text-2xl">›</span>
-          </a>
+      <!-- 功能區 -->
+      <section class="mt-8 md:mt-12 grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+        <a href="publish.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
+          <span class="feature-badge">📝</span>
+          <div class="min-w-0">
+            <div class="text-lg md:text-xl font-semibold">協助請求</div>
+            <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">發布用藥或陪診等協助需求</div>
+          </div>
+          <span class="ml-auto text-2xl">›</span>
+        </a>
 
-          <a href="history.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
-            <span class="feature-badge">📜</span>
-            <div class="min-w-0">
-              <div class="text-lg md:text-xl font-semibold">歷史記錄</div>
-              <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">查看我過去的協助申請紀錄</div>
-            </div>
-            <span class="ml-auto text-2xl">›</span>
-          </a>
+        <a href="history.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
+          <span class="feature-badge">📜</span>
+          <div class="min-w-0">
+            <div class="text-lg md:text-xl font-semibold">歷史記錄</div>
+            <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">查看我過去的協助申請紀錄</div>
+          </div>
+          <span class="ml-auto text-2xl">›</span>
+        </a>
 
-          <a href="feedback.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
-            <span class="feature-badge">💬</span>
-            <div class="min-w-0">
-              <div class="text-lg md:text-xl font-semibold">回饋專區</div>
-              <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">查看志工服務的回饋與評價</div>
-            </div>
-            <span class="ml-auto text-2xl">›</span>
-          </a>
+        <a href="feedback.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
+          <span class="feature-badge">💬</span>
+          <div class="min-w-0">
+            <div class="text-lg md:text-xl font-semibold">回饋專區</div>
+            <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">查看志工服務的回饋與評價</div>
+          </div>
+          <span class="ml-auto text-2xl">›</span>
+        </a>
 
-          <a href="profile.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
-            <span class="feature-badge">🙍‍♀️</span>
-            <div class="min-w-0">
-              <div class="text-lg md:text-xl font-semibold">個人資料</div>
-              <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">檢視與更新個人基本資料</div>
-            </div>
-            <span class="ml-auto text-2xl">›</span>
-          </a>
-        </section>
-
-        <div class="mt-10 md:mt-14"></div>
-      </main>
+        <a href="profile.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
+          <span class="feature-badge">🙍‍♀️</span>
+          <div class="min-w-0">
+            <div class="text-lg md:text-xl font-semibold">個人資料</div>
+            <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">檢視與更新個人基本資料</div>
+          </div>
+          <span class="ml-auto text-2xl">›</span>
+        </a>
+      </section>
     </div>
   </div>
 
-  <!-- 登入提示彈窗 -->
-  <div id="modalBackdrop" class="hidden fixed inset-0 z-50 bg-black/50"></div>
+  <!-- 彈跳窗 -->
+  <div id="modalBackdrop" class="hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"></div>
   <div id="loginHintModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-      <!-- 關閉（右上角 ×） -->
-      <button id="modalClose" aria-label="關閉" class="absolute top-3 right-3 rounded-full w-8 h-8 flex items-center justify-center border border-[var(--border)] hover:bg-gray-50">
-        ✕
-      </button>
-      <h3 class="text-xl font-extrabold mb-3" style="color:var(--primary)">📋 協助請求流程</h3>
-      <ul class="list-disc pl-5 space-y-2 text-[15px]" style="color:var(--muted)">
-        <li>選擇請求類型（陪診/領藥）🗂️</li>
-        <li>填寫時間與地點，提交請求📍</li>
-        <li>志工接受後，系統會建立臨時聊天室🤝</li>
-        <li>任務結束後，志工端上傳回報照片，聊天室會自動關閉✅</li>
-      </ul>
-      <p class="mt-4 text-sm text-gray-500">
+    <div class="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden animate-fadeIn">
+      
+      <!-- 標題列 -->
+      <div class="bg-[var(--primary)] text-white px-6 py-6 flex items-center justify-between">
+        <h3 class="text-lg md:text-xl font-extrabold flex items-center gap-2">
+          📋 協助請求流程
+        </h3>
+        <!-- 關閉按鈕：改大 -->
+        <button id="modalClose" class="min-h-[60px] min-w-[60px] flex items-center justify-center rounded-2xl bg-white/20 hover:bg-white/30 text-lg font-bold">
+          ✕
+        </button>
+      </div>
+
+      <!-- 內容 -->
+      <div class="p-6 space-y-4">
+        <div class="flex items-start gap-3 bg-[var(--chip)] p-4 rounded-2xl border border-[var(--border)]">
+          <span class="text-xl">🗂️</span>
+          <p class="text-[15px] text-[var(--text)]">選擇請求類型（陪診/領藥）</p>
+        </div>
+        <div class="flex items-start gap-3 bg-[var(--chip)] p-4 rounded-2xl border border-[var(--border)]">
+          <span class="text-xl">📍</span>
+          <p class="text-[15px] text-[var(--text)]">填寫時間與地點，提交請求</p>
+        </div>
+        <div class="flex items-start gap-3 bg-[var(--chip)] p-4 rounded-2xl border border-[var(--border)]">
+          <span class="text-xl">🤝</span>
+          <p class="text-[15px] text-[var(--text)]">志工接受後，系統會建立臨時聊天室</p>
+        </div>
+        <div class="flex items-start gap-3 bg-[var(--chip)] p-4 rounded-2xl border border-[var(--border)]">
+          <span class="text-xl">✅</span>
+          <p class="text-[15px] text-[var(--text)]">任務結束後，志工端上傳回報照片，聊天室會自動關閉</p>
+        </div>
+      </div>
+
+      <!-- 小提醒 -->
+      <div class="bg-[var(--bg-2)] text-[var(--muted)] text-sm px-6 py-4 border-t border-[var(--border)]">
         💡 小提醒：身心障礙者，系統會自動配對有證照的志工。
-      </p>
+      </div>
     </div>
   </div>
 
-  <!-- 控制彈窗：載入即顯示；✕/背景/Esc 關閉 -->
+  <!-- 控制彈窗 -->
   <script>
     window.addEventListener('DOMContentLoaded', () => {
       const modal = document.getElementById('loginHintModal');
