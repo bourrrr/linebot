@@ -4,6 +4,7 @@ const admin = require('firebase-admin');
 const express = require('express');
 const crypto = require('crypto');
 const { normalizeData, normKey } = require('./normalizer');
+const { makeMatchCard } = require('./flex-cards');
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -167,9 +168,9 @@ if (msg.text.trim() === '切換對象') {
 
       // 安全組 label：任務類型 + 地點，至少要有一個值
       let type = (m.taskTitle || m.taskType || '任務').trim();
-      let addr = (m.taskAddr || '').trim();
+      const hosp = (m.hospital || '').trim();
       let label = type;
-      if (addr) label += '｜' + addr;
+      if (hosp) label += '｜' + hosp;
 
       // fallback：避免空字串
       if (!label) label = '任務';
@@ -255,7 +256,7 @@ if (msg.text.trim() === '切換對象') {
 });
 
 // Callable：建立配對（維持原有行為，補上副帳號 U 自動對應）
-exports.createMatch = functions.region('asia-east1').https.onCall(async (data, context) => {
+exports.createMatch = functions.region('asia-east1') .runWith({ secrets: ['VOLLINE_LINE_CHANNEL_ACCESS_TOKEN', 'VOLLINE_LINE_BOT_ID'] }).https.onCall(async (data, context) => {
   const { taskId, patientUserId, volunteerUserId, patientAuthUid, volunteerAuthUid } = data || {};
   if (!taskId || !patientUserId || !volunteerUserId) {
     throw new functions.https.HttpsError('invalid-argument', '缺少必要參數');
@@ -291,7 +292,7 @@ exports.createMatch = functions.region('asia-east1').https.onCall(async (data, c
 	  participants: [pId, vId],
 	  patientName: data.patientName || '',
 	  taskTitle: data.taskTitle || '',
-	  taskAddr: data.taskAddr || '',   // ⭐ 新增
+	  hospital: data.hospital || '',   // ⭐ 新增
 	  createdAt: admin.firestore.FieldValue.serverTimestamp(),
 	};
 
@@ -307,16 +308,10 @@ exports.createMatch = functions.region('asia-east1').https.onCall(async (data, c
   const chatLink = `https://line.me/R/oaMessage/${LINE_BOT_ID}/?text=#match:${ref.id}`;
 
   const client = makeLineClient(process.env.VOLLINE_LINE_CHANNEL_ACCESS_TOKEN);
-  await Promise.all([
-    client.push(pId, [
-      { type: 'text', text: '✅ 已為您配對志工，請開始聯繫！' },
-      { type: 'text', text: `📩 點這裡開始聊天：${chatLink}` }
-    ]),
-    client.push(vId, [
-      { type: 'text', text: '✅ 配對成功，請與患者聯繫！' },
-      { type: 'text', text: `📩 點這裡開始聊天：${chatLink}` }
-    ])
-  ]);
+	await Promise.all([
+	  client.push(pId, [makeMatchCard("patient", data.taskTitle, data.hospital, chatLink)]),
+	  client.push(vId, [makeMatchCard("volunteer", data.taskTitle, data.hospital, chatLink)])
+	]);
 
   return { matchId: ref.id };
 });
