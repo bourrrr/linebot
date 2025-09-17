@@ -98,7 +98,7 @@ async function resolveImageUrl(imageField) {
   let path = (imageField || "").trim();
   if (!path.includes("/")) path = `knowledge/${path}`;        // "001.png" → "knowledge/001.png"
   if (!path.startsWith("images/")) path = `images/${path}`;   // → "images/knowledge/001.png"
-
+ console.log("[resolveImageUrl(js)] path =", path);
   const ref = storageRef(storage, path);
   return await getDownloadURL(ref);
 }

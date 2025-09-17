@@ -90,7 +90,7 @@
     import { getStorage, ref as storageRef, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
     // === 開關 ===
-    const SKIP_LIFF_LOGIN = true;      // 正式請改為 false
+    const SKIP_LIFF_LOGIN = false;      // 正式請改為 false
     const SHOW_DEBUG = true;
 
     // === DOM ===
@@ -135,7 +135,7 @@
       let path = (imageField||"").trim();
       if (!path.includes("/")) path = `knowledge/${path}`;        // "003.png" → "knowledge/003.png"
       if (!path.startsWith("images/")) path = `images/${path}`;   // "knowledge/003.png" → "images/knowledge/003.png"
-
+  console.log("[resolveImageUrl(html)] path =", path); // ✅
       const ref = storageRef(storage, path);
       const url = await getDownloadURL(ref);
       log("[Storage] getDownloadURL:", path, "→", url);
