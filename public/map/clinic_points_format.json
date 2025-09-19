@@ -7889,7 +7889,7 @@
         "service_yn": "YYYYYYYYYYYYYYYYYYYYY",
         "dispense_method": [
           "特約藥局領藥",
-         
+          "到府送藥",
           "自動取藥櫃"
         ],
         "registration_url": "http://reg.jiannren.org.tw/JRNetReg/KReg/DivList.aspx",

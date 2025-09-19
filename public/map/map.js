@@ -1,5 +1,5 @@
 const customIcon = new L.Icon({
-  iconUrl: 'my-marker.svg', 
+  iconUrl: 'my-marker.svg',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
@@ -7,11 +7,11 @@ const customIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
-const map = L.map('map', { maxZoom:17 , minZoom:7}).setView([23.5, 121], 7.2);
+const map = L.map('map', { maxZoom: 17, minZoom: 7 }).setView([23.5, 121], 7.2);
 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
   attribution: 'Tiles © Esri',
   maxZoom: 17
-  
+
 }).addTo(map);
 
 let allMarkers = [];
@@ -29,37 +29,37 @@ const dataSources = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-   preloadData(); 
+  preloadData();
   if (window.innerWidth > 700) {
     locateUser();  // 只有寬度超過 700px 的才定位（桌面）
   }
-    // ✅ 自動收起 bottom-sheet 機制
+  // ✅ 自動收起 bottom-sheet 機制
   let lastZoom = map.getZoom();
 
-map.on('zoomend', () => {
-  if (suppressZoomCollapseCount > 0) {
-    suppressZoomCollapseCount--;
-    return;
-  }
+  map.on('zoomend', () => {
+    if (suppressZoomCollapseCount > 0) {
+      suppressZoomCollapseCount--;
+      return;
+    }
 
-  const newZoom = map.getZoom();
-  if (newZoom > lastZoom) {
-    document.getElementById('bottom-sheet').classList.add('collapsed');
-  }
-  lastZoom = newZoom;
-});
-
-function preloadData() {
-  Object.entries(dataSources).forEach(([mode, url]) => {
-    fetch(url)
-      .then(res => res.json())
-      .then(json => {
-        preloadedData[mode] = json.features;
-        console.log(`✅ ${mode} 資料已預載 (${json.features.length} 筆)`);
-      })
-      .catch(err => console.error(`❌ ${mode} 載入失敗`, err));
+    const newZoom = map.getZoom();
+    if (newZoom > lastZoom) {
+      document.getElementById('bottom-sheet').classList.add('collapsed');
+    }
+    lastZoom = newZoom;
   });
-}
+
+  function preloadData() {
+    Object.entries(dataSources).forEach(([mode, url]) => {
+      fetch(url)
+        .then(res => res.json())
+        .then(json => {
+          preloadedData[mode] = json.features;
+          console.log(`✅ ${mode} 資料已預載 (${json.features.length} 筆)`);
+        })
+        .catch(err => console.error(`❌ ${mode} 載入失敗`, err));
+    });
+  }
 
 
   map.on('click', (e) => {
@@ -75,171 +75,171 @@ function preloadData() {
 
 
   document.getElementById('btn-clinic').addEventListener('click', () => {
-  // 🔹 清空所有條件
-  showDistance = false;
+    // 🔹 清空所有條件
+    showDistance = false;
 
-  const citySelect = document.getElementById('citySelect');
-  const districtSelect = document.getElementById('districtSelect');
-  citySelect.value = '';
-  districtSelect.value = '';
-  districtSelect.disabled = true;
-  document.getElementById('keywordInput').value = '';
+    const citySelect = document.getElementById('citySelect');
+    const districtSelect = document.getElementById('districtSelect');
+    citySelect.value = '';
+    districtSelect.value = '';
+    districtSelect.disabled = true;
+    document.getElementById('keywordInput').value = '';
 
-  document.getElementById('results-list').innerHTML = '<div class="no-result">請先搜尋</div>';
-  document.getElementById('bottom-sheet').classList.add('collapsed');
+    document.getElementById('results-list').innerHTML = '<div class="no-result">請先搜尋</div>';
+    document.getElementById('bottom-sheet').classList.add('collapsed');
 
-  allMarkers.forEach(m => {
-    map.removeLayer(m);
-    m.meta.distance = undefined;
-  });
+    allMarkers.forEach(m => {
+      map.removeLayer(m);
+      m.meta.distance = undefined;
+    });
 
-  allMarkers = [];
-  rawData = [];
-  activeMarker = null;
-  activePopup = null;
-  map.closePopup();
-  map.setView([23.5, 121], 7.2);
+    allMarkers = [];
+    rawData = [];
+    activeMarker = null;
+    activePopup = null;
+    map.closePopup();
+    map.setView([23.5, 121], 7.2);
 
-  if (userMarker) {
-    map.removeLayer(userMarker);
-    userMarker = null;
-  }
-  userLocation = null;
-
-  // 🔹 切換模式
-  currentMode = 'clinic';
-  updateModeButtonStyle();
-  loadData();
-});
-
-document.getElementById('btn-pharmacy').addEventListener('click', () => {
-  // 🔹 清空所有條件
-  showDistance = false;
-
-  const citySelect = document.getElementById('citySelect');
-  const districtSelect = document.getElementById('districtSelect');
-  citySelect.value = '';
-  districtSelect.value = '';
-  districtSelect.disabled = true;
-  document.getElementById('keywordInput').value = '';
-
-  document.getElementById('results-list').innerHTML = '<div class="no-result">請先搜尋</div>';
-  document.getElementById('bottom-sheet').classList.add('collapsed');
-
-  allMarkers.forEach(m => {
-    map.removeLayer(m);
-    m.meta.distance = undefined;
-  });
-
-  allMarkers = [];
-  rawData = [];
-  activeMarker = null;
-  activePopup = null;
-  map.closePopup();
-  map.setView([23.5, 121], 7.2);
-
-  if (userMarker) {
-    map.removeLayer(userMarker);
-    userMarker = null;
-  }
-  userLocation = null;
-
-  // 🔹 切換模式
-  currentMode = 'pharmacy';
-  updateModeButtonStyle();
-  loadData();
-});
-
-
-
-document.getElementById('locateBtn').addEventListener('click', async () => {
-  if (!currentMode) {
-    alert('⚠️ 請先選擇「就醫掛號」或「就近領藥」');
-    return;
-  }
-
-  const inLiff = (typeof liff !== 'undefined');
-  try {
-    if (inLiff) {
-      await liff.init({ liffId: '2007877199-bPxeDZLD' });
+    if (userMarker) {
+      map.removeLayer(userMarker);
+      userMarker = null;
     }
-  } catch (err) {
-    console.warn('⚠️ LIFF 初始化失敗，改用一般定位', err);
-  }
+    userLocation = null;
 
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-      userLocation = { lat, lng };
-      showDistance = true;
+    // 🔹 切換模式
+    currentMode = 'clinic';
+    updateModeButtonStyle();
+    loadData();
+  });
 
-      // ✅ 畫使用者位置藍點
-      if (userMarker) map.removeLayer(userMarker);
-      userMarker = L.circleMarker([lat, lng], {
-        radius: 7,
-        color: '#c1c1c1ff',
-        fillColor: '#2a93ee',
-        fillOpacity: 0.9
-      }).addTo(map).bindPopup("📍 您的位置").openPopup();
+  document.getElementById('btn-pharmacy').addEventListener('click', () => {
+    // 🔹 清空所有條件
+    showDistance = false;
 
-      // ✅ 找最近診所/藥局
-      const nearest = allMarkers
-        .map(m => {
-          const dist = getDistanceInKm(lat, lng, m.meta.lat, m.meta.lng);
-          return { marker: m, dist };
-        })
-        .sort((a, b) => a.dist - b.dist)[0];
+    const citySelect = document.getElementById('citySelect');
+    const districtSelect = document.getElementById('districtSelect');
+    citySelect.value = '';
+    districtSelect.value = '';
+    districtSelect.disabled = true;
+    document.getElementById('keywordInput').value = '';
 
-      if (nearest && nearest.marker.meta.city) {
-        const city = nearest.marker.meta.city;
-        document.getElementById('citySelect').value = city;
-        document.getElementById('districtSelect').disabled = true;
+    document.getElementById('results-list').innerHTML = '<div class="no-result">請先搜尋</div>';
+    document.getElementById('bottom-sheet').classList.add('collapsed');
+
+    allMarkers.forEach(m => {
+      map.removeLayer(m);
+      m.meta.distance = undefined;
+    });
+
+    allMarkers = [];
+    rawData = [];
+    activeMarker = null;
+    activePopup = null;
+    map.closePopup();
+    map.setView([23.5, 121], 7.2);
+
+    if (userMarker) {
+      map.removeLayer(userMarker);
+      userMarker = null;
+    }
+    userLocation = null;
+
+    // 🔹 切換模式
+    currentMode = 'pharmacy';
+    updateModeButtonStyle();
+    loadData();
+  });
+
+
+
+  document.getElementById('locateBtn').addEventListener('click', async () => {
+    if (!currentMode) {
+      alert('⚠️ 請先選擇「就醫掛號」或「就近領藥」');
+      return;
+    }
+
+    const inLiff = (typeof liff !== 'undefined');
+    try {
+      if (inLiff) {
+        await liff.init({ liffId: '2007877199-bPxeDZLD' });
       }
+    } catch (err) {
+      console.warn('⚠️ LIFF 初始化失敗，改用一般定位', err);
+    }
 
-      applyFilter();
-      document.getElementById('bottom-sheet').classList.remove('collapsed');
-      document.getElementById('results-list').scrollTo({ top: 0, behavior: 'smooth' });
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        userLocation = { lat, lng };
+        showDistance = true;
 
-      // ✅ 同時顯示使用者 + 最近診所/藥局
-      if (nearest) {
-        const bounds = L.latLngBounds([
-          [lat, lng],
-          [nearest.marker.meta.lat, nearest.marker.meta.lng]
-        ]);
-        suppressNextZoomCollapse = true;
-        suppressZoomCollapseCount = 2;
-        map.fitBounds(bounds.pad(0.2)); // 包含兩個點
-        suppressNextZoomCollapse = true;
-        suppressZoomCollapseCount = 2;
+        // ✅ 畫使用者位置藍點
+        if (userMarker) map.removeLayer(userMarker);
+        userMarker = L.circleMarker([lat, lng], {
+          radius: 7,
+          color: '#c1c1c1ff',
+          fillColor: '#2a93ee',
+          fillOpacity: 0.9
+        }).addTo(map).bindPopup("📍 您的位置").openPopup();
 
-        map.setZoom(14); // 強制 zoom 到 14 級
-        nearest.marker.openPopup();
-      } else {
-        map.setView([lat, lng], 14); // 沒找到時只顯示自己
-      }
+        // ✅ 找最近診所/藥局
+        const nearest = allMarkers
+          .map(m => {
+            const dist = getDistanceInKm(lat, lng, m.meta.lat, m.meta.lng);
+            return { marker: m, dist };
+          })
+          .sort((a, b) => a.dist - b.dist)[0];
 
-      alert("已定位並顯示離您最近的醫院/藥局");
-    },
-    err => {
-      let tip = "⚠️ 定位失敗：" + err.message;
-
-      if (err.code === err.PERMISSION_DENIED) {
-        tip = "❌ 您拒絕了定位權限";
-        const ua = navigator.userAgent;
-        if (ua.includes("Chrome")) {
-          tip += "\n請至設定 > 隱私與安全性 > 網站設定 > 位置 > 本網站 > 點選「允許」";
-        } else if (ua.includes("Safari")) {
-          tip += "\n請至 設定 > App > Line > 位置 > 點選「永遠」";
-        } else if (ua.includes("Firefox")) {
-        tip += "\n請至 設定 > App > Line > 位置 > 點選「一律允許」";
+        if (nearest && nearest.marker.meta.city) {
+          const city = nearest.marker.meta.city;
+          document.getElementById('citySelect').value = city;
+          document.getElementById('districtSelect').disabled = true;
         }
-      }
-      alert(tip);
-    },
-    { enableHighAccuracy: true, timeout: 10000 }
-  );
-});
+
+        applyFilter();
+        document.getElementById('bottom-sheet').classList.remove('collapsed');
+        document.getElementById('results-list').scrollTo({ top: 0, behavior: 'smooth' });
+
+        // ✅ 同時顯示使用者 + 最近診所/藥局
+        if (nearest) {
+          const bounds = L.latLngBounds([
+            [lat, lng],
+            [nearest.marker.meta.lat, nearest.marker.meta.lng]
+          ]);
+          suppressNextZoomCollapse = true;
+          suppressZoomCollapseCount = 2;
+          map.fitBounds(bounds.pad(0.2)); // 包含兩個點
+          suppressNextZoomCollapse = true;
+          suppressZoomCollapseCount = 2;
+
+          map.setZoom(14); // 強制 zoom 到 14 級
+          nearest.marker.openPopup();
+        } else {
+          map.setView([lat, lng], 14); // 沒找到時只顯示自己
+        }
+
+        alert("已定位並顯示離您最近的醫院/藥局");
+      },
+      err => {
+        let tip = "⚠️ 定位失敗：" + err.message;
+
+        if (err.code === err.PERMISSION_DENIED) {
+          tip = "❌ 您拒絕了定位權限";
+          const ua = navigator.userAgent;
+          if (ua.includes("Chrome")) {
+            tip += "\n請至設定 > 隱私與安全性 > 網站設定 > 位置 > 本網站 > 點選「允許」";
+          } else if (ua.includes("Safari")) {
+            tip += "\n請至 設定 > App > Line > 位置 > 點選「永遠」";
+          } else if (ua.includes("Firefox")) {
+            tip += "\n請至 設定 > App > Line > 位置 > 點選「一律允許」";
+          }
+        }
+        alert(tip);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  });
 
 
 
@@ -279,7 +279,7 @@ function getDistanceInKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = 
+  const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
     Math.sin(dLng / 2) * Math.sin(dLng / 2);
@@ -353,37 +353,37 @@ function initFilterOptions() {
     applyFilter();
   });
 
- document.getElementById('clearButton').addEventListener('click', () => {
-  showDistance = false;
+  document.getElementById('clearButton').addEventListener('click', () => {
+    showDistance = false;
 
-  citySelect.value = '';
-  districtSelect.value = '';
-  districtSelect.disabled = true;
-  document.getElementById('keywordInput').value = '';
-  document.getElementById('results-list').innerHTML = '<div class="no-result">請先搜尋</div>';
-  document.getElementById('bottom-sheet').classList.add('collapsed');
+    citySelect.value = '';
+    districtSelect.value = '';
+    districtSelect.disabled = true;
+    document.getElementById('keywordInput').value = '';
+    document.getElementById('results-list').innerHTML = '<div class="no-result">請先搜尋</div>';
+    document.getElementById('bottom-sheet').classList.add('collapsed');
 
-  allMarkers.forEach(m => {
-    map.removeLayer(m);
-    m.meta.distance = undefined;
+    allMarkers.forEach(m => {
+      map.removeLayer(m);
+      m.meta.distance = undefined;
+    });
+
+    allMarkers = [];
+    rawData = [];
+    currentMode = null;
+    updateModeButtonStyle();
+    activeMarker = null;
+    activePopup = null;
+    map.closePopup();
+    map.setView([23.5, 121], 7.2);
+
+    // ✅✅✅ 加在這裡：清除使用者藍點
+    if (userMarker) {
+      map.removeLayer(userMarker);
+      userMarker = null;
+    }
+    userLocation = null;
   });
-
-  allMarkers = [];
-  rawData = [];
-  currentMode = null;
-  updateModeButtonStyle();
-  activeMarker = null;
-  activePopup = null;
-  map.closePopup();
-  map.setView([23.5, 121], 7.2);
-
-  // ✅✅✅ 加在這裡：清除使用者藍點
-  if (userMarker) {
-    map.removeLayer(userMarker);
-    userMarker = null;
-  }
-  userLocation = null;
-});
 
 }
 
@@ -410,10 +410,10 @@ function applyFilter() {
   const matched = allMarkers.filter(marker => {
     const { address, name, city: mCity, district: mDistrict } = marker.meta;
     return (!city || mCity === city) &&
-           (!district || mDistrict === district) &&
-           (!keyword || address.includes(keyword) || name.includes(keyword));
+      (!district || mDistrict === district) &&
+      (!keyword || address.includes(keyword) || name.includes(keyword));
   });
- if (showDistance && userLocation) {
+  if (showDistance && userLocation) {
     matched.forEach(m => {
       const dist = getDistanceInKm(userLocation.lat, userLocation.lng, m.meta.lat, m.meta.lng);
       m.meta.distance = dist;
@@ -423,37 +423,37 @@ function applyFilter() {
     matched.forEach(m => m.meta.distance = undefined);
   }
 
-if (matched.length > 0) {
-  matched.forEach(m => m.addTo(map));
-  const group = new L.featureGroup(matched);
+  if (matched.length > 0) {
+    matched.forEach(m => m.addTo(map));
+    const group = new L.featureGroup(matched);
 
-  suppressNextZoomCollapse = true; // ✅ 通知 zoomend 跳過一次
-  map.fitBounds(group.getBounds().pad(0.2));
+    suppressNextZoomCollapse = true; // ✅ 通知 zoomend 跳過一次
+    map.fitBounds(group.getBounds().pad(0.2));
 
     document.getElementById('bottom-sheet').classList.remove('collapsed');
     currentMode === 'clinic' ? renderClinicResults(matched) : renderPharmacyResults(matched);
-     // 🔸 每次篩選後：捲回結果最上方
-  const list = document.getElementById('results-list');
-  list.scrollTo({ top: 0, behavior: 'auto' });
+    // 🔸 每次篩選後：捲回結果最上方
+    const list = document.getElementById('results-list');
+    list.scrollTo({ top: 0, behavior: 'auto' });
 
-  // 🔸 把第一筆設為 active 並聚焦地圖 + 開 popup
-  const first = matched[0];
-  // 先清掉之前的 active
-  document.querySelectorAll('.result-card').forEach(c => c.classList.remove('active'));
+    // 🔸 把第一筆設為 active 並聚焦地圖 + 開 popup
+    const first = matched[0];
+    // 先清掉之前的 active
+    document.querySelectorAll('.result-card').forEach(c => c.classList.remove('active'));
 
-  // 等 DOM 的卡片插進去後再設 active（0ms 即可）
-  setTimeout(() => {
-    if (first._cardElement) {
-      first._cardElement.classList.add('active');
-    }
-    // 更新全域的 activeMarker / activePopup，也避免舊 popup 影響
-    activeMarker = null;
-    activePopup = null;
-    map.closePopup();
+    // 等 DOM 的卡片插進去後再設 active（0ms 即可）
+    setTimeout(() => {
+      if (first._cardElement) {
+        first._cardElement.classList.add('active');
+      }
+      // 更新全域的 activeMarker / activePopup，也避免舊 popup 影響
+      activeMarker = null;
+      activePopup = null;
+      map.closePopup();
 
-    // 聚焦第一個點（你原本的 focusMarker 會 pan + popup）
-    focusMarker(first);
-  }, 0);
+      // 聚焦第一個點（你原本的 focusMarker 會 pan + popup）
+      focusMarker(first);
+    }, 0);
 
   } else {
     alert(`找不到符合的${currentMode === 'pharmacy' ? '藥局' : '就醫地點'}`);
@@ -477,8 +477,8 @@ function renderClinicResults(markers) {
     // 距離顯示處理
     const distanceText = distance !== undefined
       ? (distance < 1
-          ? `(${Math.round(distance * 1000)} 公尺)`
-          : `(${distance.toFixed(2)} 公里)`)
+        ? `(${Math.round(distance * 1000)} 公尺)`
+        : `(${distance.toFixed(2)} 公里)`)
       : '';
 
     const card = document.createElement('div');
@@ -522,8 +522,8 @@ function renderPharmacyResults(markers) {
     // 距離顯示處理
     const distanceText = distance !== undefined
       ? (distance < 1
-          ? `(${Math.round(distance * 1000)} 公尺)`
-          : `(${distance.toFixed(2)} 公里)`)
+        ? `(${Math.round(distance * 1000)} 公尺)`
+        : `(${distance.toFixed(2)} 公里)`)
       : '';
 
     const card = document.createElement('div');
@@ -578,7 +578,7 @@ function focusMarker(marker) {
   activePopup = marker.getPopup();
 
   // Step 1：先移動到該點（zoom 不變）
-  map.panTo(latlng,13, { animate: true });
+  map.panTo(latlng, 13, { animate: true });
 
   // Step 2：延遲後打開 popup
   setTimeout(() => {
@@ -615,7 +615,7 @@ function handleCardClick(marker, card) {
   document.querySelectorAll('.result-card').forEach(c => c.classList.remove('active'));
   card.classList.add('active');
 }
- 
+
 
 function loadData() {
   if (!currentMode || !preloadedData[currentMode]) {
@@ -641,7 +641,7 @@ function loadData() {
     `);
 
     const { city, district } = parseAddress(props.address || '');
-    marker.meta = { 
+    marker.meta = {
       name: props.name || '未提供',
       address: props.address || '未提供',
       phone: props.phone || '無',
@@ -720,47 +720,46 @@ function showDetailModal(meta) {
   const phone = meta.phone || '';
   const dispense = Array.isArray(meta.dispense_method) ? meta.dispense_method.join('、') : (meta.dispense_method || '');
 
-let regArr = Array.isArray(meta.description) ? meta.description : (meta.description ? [meta.description] : []);
-let regText = '';
-let hasWebReg = false;
+  let regArr = Array.isArray(meta.description) ? meta.description : (meta.description ? [meta.description] : []);
+  let regText = '';
+  let hasWebReg = false;
 
-let mappedArr = regArr.map(item => {
-  if (item.indexOf('現場') !== -1) return '現場';
-  if (item.indexOf('電話') !== -1) return '電話';
-  if (item.indexOf('網路') !== -1) {
-    if (meta.registration_url) hasWebReg = true;
-    return '網路';
+  let mappedArr = regArr.map(item => {
+    if (item.indexOf('現場') !== -1) return '現場';
+    if (item.indexOf('電話') !== -1) return '電話';
+    if (item.indexOf('網路') !== -1) {
+      if (meta.registration_url) hasWebReg = true;
+      return '網路';
+    }
+    return item; // 其它保留原文字
+  });
+  regText = mappedArr.join('、');
+  if (hasWebReg && meta.registration_url) {
+    regText += `<a href="${meta.registration_url}" target="_blank" style="color:#659963de;font-size:14.5px;text-decoration:underline;margin-left:8px;">(點我網路掛號)</a>`;
   }
-  return item; // 其它保留原文字
-});
-regText = mappedArr.join('、');
-if (hasWebReg && meta.registration_url) {
-  regText += `<a href="${meta.registration_url}" target="_blank" style="color:#659963de;font-size:14px;text-decoration:underline;margin-left:8px;">(點我網路掛號)</a>`;
-}
 
-  let detailHtml = `
-    <div style="font-size:22px;font-weight:700;color:#588157;margin-bottom:5px;">
-      🚩 ${meta.name} ${statusTag}
-    </div>
-    <div style="font-size:16px;line-height:1.8;">
-      ☎️ ${phone}
-      <a href="tel:${phone}" style="color:#659963de;font-size:14px;text-decoration:underline;margin-left:8px;">
-        (點我撥打)
-      </a><br>
-      🏠 ${address}
-      <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking"
-        target="_blank" style="color:#659963de;font-size:14px;text-decoration:underline;margin-left:8px;">
-        (點我導航)
-      </a><br>
+let detailHtml = `
+  <div style="font-size:22px;font-weight:700;color:#588157;margin-bottom:8px;">
+    🚩 ${meta.name} ${statusTag}
+  </div>
+  <div style="font-size:16.5px;line-height:1.8; padding-left:10px;">
+    ☎️ ${phone}
+    <a href="tel:${phone}" style="color:#659963de;font-size:14.5px;text-decoration:underline;margin-left:8px;">
+      (點我撥打)
+    </a><br>
+    🏠 ${address}
+    <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking"
+      target="_blank" style="color:#659963de;font-size:14.5px;text-decoration:underline;margin-left:8px;">
+      (點我導航)
+    </a><br>
+`;
+
+if (currentMode === 'clinic') {
+  detailHtml += `
+    🚗 領藥方式：${dispense || '－'}<br>
+    🪪 掛號方式：${regText || '－'}<br>
   `;
-
-  if (currentMode === 'clinic') {
-    detailHtml += `
-
-      🚗 領藥方式：${dispense || '－'}<br>
-      🪪 掛號方式：${regText || '－'}<br>
-    `;
-  }
+}
 
   detailHtml += `</div>
     <div style="margin:12px 0 0 0;">
@@ -786,7 +785,7 @@ function hideDetailModal() {
 function generatePeriodTable(periodString) {
   const days = ['一', '二', '三', '四', '五', '六', '日'];
   const slots = [
-    
+
     '上午<br><small>08:00–12:00</small>',
     '下午<br><small>15:00–18:00</small>',
     '晚上<br><small>18:45–20:45</small>'

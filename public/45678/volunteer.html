@@ -15,12 +15,6 @@
     .btn-logout{ border:1px solid var(--border); background:#fff; padding:.7rem 1rem; border-radius:9999px; font-weight:700; transition:.15s transform,.15s filter; }
     .btn-logout:hover{ transform:translateY(-1px); filter:brightness(.98); }
     .h-divider{ height:1px; width:100%; background:linear-gradient(to right, transparent, var(--border), transparent); }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .animate-fadeIn { animation: fadeIn .35s ease-out; }
   </style>
 
   <!-- LIFF SDK -->
@@ -49,13 +43,40 @@
       return { isPatient: set.has('patient'), isVolunteer: set.has('volunteer') };
     }
 
+    // ====== 彈窗顯示/關閉（含「不再顯示」記憶） ======
+    const modal     = document.getElementById('loginHintModal');
+    const backdrop  = document.getElementById('modalBackdrop');
+    const closeBtn  = document.getElementById('modalClose');
+    const ackBtn    = document.getElementById('ackBtn');
+    const dontShow  = document.getElementById('dontShowChk');
+
+    function openModal(){ backdrop.classList.remove('hidden'); modal.classList.remove('hidden'); }
+    function closeModal(){ modal.classList.add('hidden'); backdrop.classList.add('hidden'); }
+
+    function wireModalHandlers(uid){
+      const key = `mw_hide_volunteer_hint:${uid}`;
+      const shouldHide = localStorage.getItem(key) === '1';
+      if (!shouldHide) openModal();
+
+      function handleClose(){
+        if (dontShow?.checked) localStorage.setItem(key, '1');
+        closeModal();
+      }
+      ackBtn?.addEventListener('click', handleClose);
+      closeBtn?.addEventListener('click', handleClose);
+      backdrop?.addEventListener('click', e => { if (e.target === backdrop) handleClose(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') handleClose(); });
+    }
+
+    // ====== 身分守門 ======
     async function guard() {
       try {
         await liff.init({ liffId: LIFF_ID });
         if (!liff.isLoggedIn()) { location.href = "login.html"; return; }
 
-        const p = await liff.getProfile();
+        const p   = await liff.getProfile();
         const uid = `line:${p.userId}`;
+
         const snap = await getDoc(doc(db, "users", uid));
         if (!snap.exists()) { location.href = "register-profile.html"; return; }
 
@@ -64,6 +85,9 @@
           if (isPatient) { location.href = "home.html"; return; }
           location.href = "register-profile.html"; return;
         }
+
+        // ✅ 已確認志工 → 視使用者設定決定是否顯示彈窗
+        wireModalHandlers(uid);
       } catch (e) {
         console.error('[VOLUNTEER] guard error:', e);
         location.href = "login.html";
@@ -71,45 +95,39 @@
     }
     guard();
 
-    // 登出 + 顯示彈窗
+    // 登出（僅 LIFF）
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('logoutBtn')?.addEventListener('click', () => {
         try { liff.logout(); } catch(e) {}
         location.href = "login.html";
       });
-
-      const modal = document.getElementById('loginHintModal');
-      const closeBtn = document.getElementById('modalClose');
-      const backdrop = document.getElementById('modalBackdrop');
-
-      function openModal(){ modal.classList.remove('hidden'); backdrop.classList.remove('hidden'); }
-      function closeModal(){ modal.classList.add('hidden'); backdrop.classList.add('hidden'); }
-
-      closeBtn?.addEventListener('click', closeModal);
-      backdrop?.addEventListener('click', e => { if (e.target === backdrop) closeModal(); });
-      document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-
-      openModal();
     });
   </script>
 </head>
+
 <body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
   <div class="mx-auto max-w-[1120px]">
     <div class="card rounded-3xl p-8 md:p-12 min-h-[82vh] md:min-h-[86vh] flex flex-col">
       <!-- Header -->
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <!-- 左：Logo + 標題 -->
         <div class="flex items-center gap-5">
           <img src="MakeWell.jpg" alt="MakeWell Logo"
-              class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
+               class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
           <div>
             <h1 class="text-3xl md:text-4xl font-extrabold leading-tight" style="color:var(--primary)">志工任務中心</h1>
+            <!-- 原本的提示句已刪除 -->
           </div>
         </div>
+        <!-- 右：登出 -->
         <div class="mt-3 md:mt-0 md:ml-auto">
           <button id="logoutBtn" class="btn-logout text-sm md:text-base">登出</button>
         </div>
       </div>
 
+      <div class="mt-8 md:mt-10 h-divider"></div>
+
+      <!-- 功能入口 -->
       <main class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 mt-8 md:mt-12">
         <a href="task-list.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
           <span class="feature-badge">📋</span>
@@ -150,44 +168,34 @@
     </div>
   </div>
 
-  <!-- 彈跳窗 -->
-  <div id="modalBackdrop" class="hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"></div>
-  <div id="loginHintModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden animate-fadeIn">
-      
-      <!-- 標題列 -->
-      <div class="bg-[var(--primary)] text-white px-6 py-6 flex items-center justify-between">
-        <h3 class="text-lg md:text-xl font-extrabold flex items-center gap-2">
-          🙌 歡迎來到志工任務中心
-        </h3>
-        <button id="modalClose" class="min-h-[60px] min-w-[60px] flex items-center justify-center rounded-2xl bg-white/20 hover:bg-white/30 text-lg font-bold">
+  <!-- 登入提示彈窗（含不再顯示 + 我已了解） -->
+  <div id="modalBackdrop" class="hidden fixed inset-0 z-50 bg-black/50">
+    <div id="loginHintModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+        <!-- 關閉（右上角 ×） -->
+        <button id="modalClose" aria-label="關閉"
+                class="absolute top-3 right-3 rounded-full w-8 h-8 flex items-center justify-center border border-[var(--border)] hover:bg-gray-50">
           ✕
         </button>
-      </div>
 
-      <!-- 內容 -->
-      <div class="p-6 space-y-4">
-        <div class="flex items-start gap-3 bg-[var(--chip)] p-4 rounded-2xl border border-[var(--border)]">
-          <span class="text-xl">📋</span>
-          <p class="text-[15px] text-[var(--text)]">查看患者的需求清單</p>
-        </div>
-        <div class="flex items-start gap-3 bg-[var(--chip)] p-4 rounded-2xl border border-[var(--border)]">
-          <span class="text-xl">💬</span>
-          <p class="text-[15px] text-[var(--text)]">接受請求後會建立臨時聊天室</p>
-        </div>
-        <div class="flex items-start gap-3 bg-[var(--chip)] p-4 rounded-2xl border border-[var(--border)]">
-          <span class="text-xl">🗺️</span>
-          <p class="text-[15px] text-[var(--text)]">前往指定地點協助（支援地圖導航）</p>
-        </div>
-        <div class="flex items-start gap-3 bg-[var(--chip)] p-4 rounded-2xl border border-[var(--border)]">
-          <span class="text-xl">✅</span>
-          <p class="text-[15px] text-[var(--text)]">完成後上傳照片回報，任務即完成</p>
-        </div>
-      </div>
+        <h3 class="text-xl font-extrabold mb-3" style="color:var(--primary)">歡迎來到志工任務中心</h3>
+        <ul class="list-disc pl-5 space-y-2 text-[15px]" style="color:var(--muted)">
+          <li>查看患者的需求清單📋</li>
+          <li>接受請求後會建立臨時聊天室💬</li>
+          <li>前往指定地點協助（支援地圖導航）🗺️</li>
+          <li>完成後上傳照片回報，任務即完成✅</li>
+        </ul>
 
-      <!-- 小提醒 -->
-      <div class="bg-[var(--bg-2)] text-[var(--muted)] text-sm px-6 py-4 border-t border-[var(--border)]">
-        💡 小提醒：如果臨時不方便，可隨時取消時間還沒到的任務。
+        <div class="mt-5">
+          <label class="inline-flex items-center gap-2 text-sm text-gray-600 select-none">
+            <input id="dontShowChk" type="checkbox" class="w-4 h-4">
+            不再顯示此則訊息
+          </label>
+
+          <div class="mt-4 flex items-center justify-end gap-2">
+            <button id="ackBtn" class="px-4 py-2 rounded-full font-bold text-white" style="background:var(--primary)">我已了解</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

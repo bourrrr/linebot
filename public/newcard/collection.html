@@ -88,7 +88,8 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { getStorage, ref as storageRef, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-
+	
+	
     // === 開關 ===
     const SKIP_LIFF_LOGIN = false;      // 正式請改為 false
     const SHOW_DEBUG = true;
@@ -172,7 +173,38 @@
         }
       });
       return Array.from(map.values());
-    }
+		}
+		
+	// 讀 users/{uid}/daily_draws 下所有日期，整併 history 陣列
+	async function fetchFromUserDailyDraws(db, userId){
+	  const dailyCol = collection(db, `users/${userId}/daily_draws`);
+	  const snap = await getDocs(dailyCol);
+
+	  const map = new Map(); // key: id/image/name → {id,name,image,count}
+	  snap.forEach(doc => {
+		const x = doc.data() || {};
+		const arr = Array.isArray(x.history) ? x.history : [];   // ★ 用 history
+		for (const it of arr){
+		  // 可能的欄位：cardId / name / image（例如 "knowledge/001.png"）
+		  const key = it.cardId || it.id || it.image || it.name;
+		  if (!map.has(key)){
+			map.set(key, {
+			  id: key,
+			  name: it.name || "未命名",
+			  // 先存原始 image，resolveImageUrl 會補上 images/knowledge/
+			  image: it.image, 
+			  count: 0
+			});
+		  }
+		  map.get(key).count += 1;
+		}
+	  });
+
+	  return Array.from(map.values());
+	}
+
+
+
 
     // === 並行解析 URL + 渲染圖鑑 ===
     async function renderGallery(items, storage){
@@ -236,10 +268,12 @@
 
         // 讀取資料：先 collection，再退 draw_history
         let items = await fetchFromCardCollection(db, userId);
-        if(!items.length){
-          items = await fetchFromDrawHistory(db, userId);
-        }
-
+		if(!items.length){
+		  items = await fetchFromDrawHistory(db, userId);
+		}
+		if(!items.length){
+		  items = await fetchFromUserDailyDraws(db, userId);  // ★ 新增
+		}
         await renderGallery(items, storage);
         log({ source: items.length ? "collection/draw_history(auto)" : "none", count: items.length });
       }catch(e){

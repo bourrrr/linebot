@@ -305,7 +305,7 @@ exports.createMatch = functions.region('asia-east1') .runWith({ secrets: ['VOLLI
 
   // 加聊天室深連結
   const LINE_BOT_ID = process.env.VOLLINE_LINE_BOT_ID;
-  const chatLink = `https://line.me/R/oaMessage/${LINE_BOT_ID}/?text=#match:${ref.id}`;
+  const chatLink = `https://line.me/R/oaMessage/${LINE_BOT_ID}/`;
 
   const client = makeLineClient(process.env.VOLLINE_LINE_CHANNEL_ACCESS_TOKEN);
 	await Promise.all([
