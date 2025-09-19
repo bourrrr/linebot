@@ -10,7 +10,7 @@ const COLORS = {
   gray: "#8e8e8cf2",
   light: "#efede9",      // 小奶黃
   neutral: "#dad7cd",    // 奶灰
-  black: "#363636"
+  black: "#ffffff"
 };
 
 // ✅ 直接吃環境變數，沒填就留空（會走 fallback postback）
