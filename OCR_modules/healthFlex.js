@@ -50,7 +50,8 @@ const healthCard = {
             uri: 'https://medwell-test1.web.app/ocr_data1.html?ts=20250710'
           }
         }
-      ]
+      ],
+	  paddingAll: '18px'
     }
   }
 };
