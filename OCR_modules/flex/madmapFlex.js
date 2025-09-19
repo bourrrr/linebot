@@ -47,7 +47,7 @@ const madmapflex = {
               label: '查看地圖',
               uri: 'https://medwell-test1.web.app/map/madmap.html' // ← 同上，確認網址無誤
             },
-            style: 'secondary',
+            style: 'primary',
 			color: '#659963'
           }
         ]

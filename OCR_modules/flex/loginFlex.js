@@ -44,7 +44,7 @@ function loginFlex() {
           {
             type: "button",
             flex: 1,
-            style: "secondary",
+            style: "primary",
 			color: "#588157",
             action: {
               type: "uri",
@@ -55,7 +55,7 @@ function loginFlex() {
           {
             type: "button",
             flex: 1,
-            style: "secondary",
+            style: "primary",
 			color: "#dad7cd",
             action: {
               type: "uri",
