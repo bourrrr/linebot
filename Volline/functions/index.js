@@ -5,6 +5,7 @@ const express = require('express');
 const crypto = require('crypto');
 const { normalizeData, normKey } = require('./normalizer');
 const { makeMatchCard } = require('./flex-cards');
+const { renderSwitchList } = require('./quick-replies'); // ★ 新增：改由共用檔產生（多頁）Quick Reply
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -32,7 +33,7 @@ function makeLineClient(channelAccessToken) {
         },
         body: JSON.stringify({ replyToken, messages })
       });
-      const txt = await res.text(); // ⭐ 新增：詳盡 log
+      const txt = await res.text(); // ⭐ 詳盡 log
       console.log('[LINE reply]', { status: res.status, body: txt });
       if (!res.ok) console.error('[LINE reply] failed');
     },
@@ -45,7 +46,7 @@ function makeLineClient(channelAccessToken) {
         },
         body: JSON.stringify({ to, messages })
       });
-      const txt = await res.text(); // ⭐ 新增：詳盡 log
+      const txt = await res.text(); // ⭐ 詳盡 log
       console.log('[LINE push]', { to, status: res.status, body: txt });
       if (!res.ok) console.error('[LINE push] failed');
     }
@@ -97,7 +98,6 @@ async function findActiveMatchByUser(lineUserId) {
 /** ========================
  *  副系統（臨時聊天室）Webhook
  *  ======================== */
-// ===== 副系統（臨時聊天室）Webhook：完整替換版 =====
 const volApp = express();
 volApp.use(rawJson);
 
@@ -129,6 +129,14 @@ volApp.post('/', async (req, res) => {
         await client.reply(evt.replyToken, [{ type:'text', text:'已切換對話對象 ✅' }]);
         continue;
       }
+	  
+			  // A-2) postback：卡片分頁（上一頁/下一頁）
+		if (evt.type === 'postback' && evt.postback?.data?.startsWith('action=cardList')) {
+		  const params = new URLSearchParams(evt.postback.data);
+		  const page = parseInt(params.get('page') || '1', 10) || 1;
+		  await renderSwitchCarousel(client, evt.replyToken, evt.source.userId, page);
+		  continue;
+		}
 
       // B) follow：把副帳號的 U 存起來（供 createMatch 映射使用）
       if (evt.type === 'follow' && evt.source?.userId) {
@@ -152,50 +160,10 @@ volApp.post('/', async (req, res) => {
         continue;
       }
 
-      // C-1) 志工輸入「切換對象」→ 回 Quick Reply 列表
-// C-1) 志工輸入「切換對象」→ 回 Quick Reply 列表
-if (msg.text.trim() === '切換對象') {
-  const qs = await db.collection('matches')
-    .where('status','==','active')
-    .where('participants','array-contains', fromUserId)
-    .get();
-
-  if (qs.empty) {
-    await client.reply(evt.replyToken, [{ type: 'text', text: '目前沒有活躍的配對。' }]);
-  } else {
-    const items = qs.docs.slice(0,13).map(d => {
-      const m = d.data();
-
-      // 安全組 label：任務類型 + 地點，至少要有一個值
-      let type = (m.taskTitle || m.taskType || '任務').trim();
-      const hosp = (m.hospital || '').trim();
-      let label = type;
-      if (hosp) label += '｜' + hosp;
-
-      // fallback：避免空字串
-      if (!label) label = '任務';
-
-      // 限制長度 20
-      label = label.slice(0,20);
-
-      return {
-        type: 'action',
-        action: {
-          type: 'postback',
-          label,
-          data: `action=setMatch&matchId=${d.id}`
-        }
-      };
-    });
-    await client.reply(evt.replyToken, [{
-      type: 'text',
-      text: '你要跟哪位對話？',
-      quickReply: { items }
-    }]);
-  }
-  continue;
-}
-
+	if (msg.type === 'text' && msg.text.trim() === '切換對象') {
+	  await renderSwitchCarousel(client, evt.replyToken, fromUserId, 1);
+	  continue;
+	}
 
       // D) 轉送：先看是否已選過對象（currentMatchId），再 fallback
       let match = null;
@@ -394,6 +362,7 @@ exports.lineWebhookMain = functions
     secrets: ['MAIN_LINE_CHANNEL_SECRET', 'MAIN_LINE_CHANNEL_ACCESS_TOKEN']
   })
   .https.onRequest(mainApp);
+
 const loginApp = express();
 const cors = require('cors');
 loginApp.use(cors({ origin: true }));
@@ -462,7 +431,6 @@ exports.authApi = functions
   .region('asia-east1')
   .runWith({ secrets: ['MAIN_LINE_LOGIN_CHANNEL_ID'] })
   .https.onRequest(loginApp);
-  // 匯出：主系統登入驗證 API
 
 // === Auto close expired chats (time + 1.5h) ===
 exports.autoCloseExpiredChats = functions.pubsub
