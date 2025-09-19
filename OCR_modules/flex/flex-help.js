@@ -10,7 +10,8 @@ const COLORS = {
   gray: "#8e8e8cf2",
   light: "#efede9",      // 小奶黃
   neutral: "#dad7cd",    // 奶灰
-  black: "#ffffff"
+  black: "#363636",
+  White:"#fffff"
 };
 
 // ✅ 直接吃環境變數，沒填就留空（會走 fallback postback）
@@ -132,7 +133,7 @@ function buildFeatureShopStyleCarousel(items) {
               action: { type: "postback", label: "使用說明", data: `help=open&key=${it.key}` }
             },
             it.uri
-              ? { type: "button", style: "secondary", color: COLORS.primary, action: { type: "uri", label: "開啟功能", uri: it.uri } }
+              ? { type: "button", style: "primary", color: COLORS.primary, action: { type: "uri", label: "開啟功能", uri: it.uri } }
               : { type: "button", style: "primary", color: COLORS.primary, action: { type: "postback", label: "開啟功能", data: `help=launch&key=${it.key}` } }
           ]
         }
