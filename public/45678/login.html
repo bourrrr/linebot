@@ -28,28 +28,22 @@
   </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
-  <!-- 單欄卡片 -->
   <div class="w-full max-w-xl card rounded-3xl overflow-hidden p-7 sm:p-10">
-    <!-- Logo -->
     <div class="w-48 sm:w-56 mx-auto">
       <img src="MakeWell.jpg" alt="MakeWell Logo" class="block w-full h-auto object-contain">
     </div>
 
-    <!-- 標題 -->
     <div class="mt-5 text-center">
       <h1 class="text-3xl sm:text-4xl font-extrabold leading-snug" style="color:var(--primary)">MakeWell 把照護變得更貼心</h1>
       <p class="mt-2 text-[15px]" style="color:var(--muted)">患者與志工安心管理行程與任務。輕鬆登入，繼續你重要的一天。</p>
     </div>
 
-
-    <!-- 角色切換 -->
     <div class="mt-6 pill rounded-full p-1 flex">
       <button id="patientBtn" class="seg-btn active flex-1 rounded-full text-base font-semibold py-2">患者</button>
       <button id="volunteerBtn" class="seg-btn flex-1 rounded-full text-base font-semibold py-2">志工</button>
     </div>
     <input id="role" type="hidden" value="患者"/>
 
-    <!-- LINE 登入 -->
     <button id="lineLoginBtn" class="mt-4 btn btn-line flex items-center justify-center gap-2">
       <span>使用 LINE 帳號登入</span>
     </button>
@@ -70,21 +64,21 @@
 
   <script type="module">
   console.log("[DEBUG] login.html 腳本載入");
+
+  // Firebase SDK imports
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
   import { firebaseConfig } from "./firebase-config.js";
-  
-  
-	 const app  = initializeApp(firebaseConfig);
-	 const db   = getFirestore(app);
-	 const auth = getAuth(app);
- 
 
-     const LIFF_ID = "2007877199-Y5R2LenL";
+  const app  = initializeApp(firebaseConfig);
+  const db   = getFirestore(app);
+  const auth = getAuth(app);
 
-	 const CUSTOM_TOKEN_URL = "https://asia-east1-medwell-test1.cloudfunctions.net/authApi/getFirebaseCustomToken";
-	
+  const LIFF_ID = "2007877199-Y5R2LenL";
+
+  // ===== 角色工具 =====
   function roleKey(s){
     const m = String(s||'').trim().toLowerCase();
     if (m === '患者' || m === 'patient') return 'patient';
@@ -97,7 +91,6 @@
     const set = new Set(arr.map(roleKey).filter(Boolean));
     return { isPatient: set.has('patient'), isVolunteer: set.has('volunteer') };
   }
-
   function setActiveRole(roleCN){
     const patientBtn   = document.getElementById('patientBtn');
     const volunteerBtn = document.getElementById('volunteerBtn');
@@ -111,10 +104,10 @@
       volunteerBtn.classList.remove('active');
       roleInput.value = '患者';
     }
-    // 記住使用者上次選擇
     sessionStorage.setItem('MW_LAST_ROLE', roleCN);
   }
 
+  // ===== LIFF 初始化 =====
   async function ensureLIFF(){
     try{
       if(!window.liff) throw new Error("LIFF SDK 未載入");
@@ -129,7 +122,6 @@
       return false;
     }
   }
-
   async function updateLineStatusUI(){
     const el = document.getElementById('lineStatus');
     if(!window.liff || !window.MW_LIFF_READY){ el.classList.add('hidden'); return; }
@@ -141,12 +133,42 @@
     }catch{ el.classList.add('hidden'); }
   }
 
-  // 初始化 UI
+  // ===== 新增：idToken 過期自動刷新 + 取得 custom token（可重試） =====
+  async function ensureFreshIdToken() {
+    const decoded = liff.getDecodedIDToken?.();
+    const expMs = decoded?.exp ? decoded.exp * 1000 : 0;
+    const now = Date.now();
+
+    if (!liff.isLoggedIn()) {
+      liff.login({ redirectUri: location.href });
+      return null; // 會跳轉
+    }
+    if (!liff.getIDToken() || (expMs && expMs <= now)) {
+      liff.login({ redirectUri: location.href }); // 重新授權刷新 id_token
+      return null; // 會跳轉
+    }
+    return liff.getIDToken();
+  }
+
+  async function getCustomTokenWithRetry(functions) {
+    const callable = httpsCallable(functions, "firebaseCustomToken");
+    let idToken = await ensureFreshIdToken();
+    if (!idToken) return null; // 已跳轉
+
+    try {
+      const { data } = await callable({ idToken });
+      return data?.customToken || null;
+    } catch (e) {
+      console.warn("[auth] callable failed once, retry with fresh login:", e);
+      liff.login({ redirectUri: location.href }); // 強制刷新再來
+      return null;
+    }
+  }
+
+  // ===== 初始化 UI =====
   window.addEventListener('DOMContentLoaded', async () => {
-    // 套用上次選擇的角色（預設患者）
     const last = sessionStorage.getItem('MW_LAST_ROLE') || '患者';
     setActiveRole(last);
-
     document.getElementById('patientBtn').addEventListener('click', ()=> setActiveRole('患者'));
     document.getElementById('volunteerBtn').addEventListener('click', ()=> setActiveRole('志工'));
 
@@ -156,7 +178,7 @@
     }
   });
 
-  // 登入按鈕
+  // ===== 登入流程（httpsCallable + 自動刷新）=====
   document.getElementById('lineLoginBtn').addEventListener('click', async () => {
     if (!(await ensureLIFF())) return;
 
@@ -166,83 +188,56 @@
     }
 
     try{
-  
-     const idToken = liff.getIDToken();
-     if (!idToken) { alert("取得 LINE idToken 失敗，請關閉分頁重開或登出再登入"); return; }
-     // 1) 換 custom token
-     const resp = await fetch(CUSTOM_TOKEN_URL, {
-       method: "POST",
-       headers: { "Content-Type": "application/json" },
-       body: JSON.stringify({ idToken })
-     });
-     if (!resp.ok) { alert("登入驗證失敗（HTTP "+resp.status+"）"); return; }
-     const { customToken } = await resp.json();
-     if (!customToken) { alert("登入驗證失敗（no customToken）"); return; }
+      // 1) 取得 custom token（含過期處理/必要時自動跳轉刷新）
+      const functions = getFunctions(app, "asia-east1");
+      const customToken = await getCustomTokenWithRetry(functions);
+      if (!customToken) return; // 已跳轉或失敗
 
-     // 2) 登入 Firebase 後用 auth.currentUser.uid 查
-     await signInWithCustomToken(auth, customToken);
-     const uid = auth.currentUser?.uid;
-     if (!uid) { alert("登入失敗（no auth uid）"); return; }
-     const snap = await getDoc(doc(db, "users", uid));
-      
-      
-      
+      // 2) 登入 Firebase 後用 auth.currentUser.uid 查
+      await signInWithCustomToken(auth, customToken);
+      const uid = auth.currentUser?.uid;
+      if (!uid) { alert("登入失敗（no auth uid）"); return; }
+      const snap = await getDoc(doc(db, "users", uid));
 
+      console.log("[DEBUG] 嘗試讀取 Firestore 文件 users/" + uid);
+      console.log("[DEBUG] snap.exists =", snap.exists());
+      if (snap.exists()) console.log("[DEBUG] 文件內容 =", snap.data());
 
+      if (!snap.exists()) {
+        alert("尚未註冊，請先完成基本資料。");
+        document.getElementById('guardMsg').classList.remove('hidden');
+        window.location.href = "register-profile.html";
+        return;
+      }
 
-		// ★ 這裡加 Debug Log
-		console.log("[DEBUG] 嘗試讀取 Firestore 文件 users/" + uid);
-		console.log("[DEBUG] snap.exists =", snap.exists());
-		if (snap.exists()) {
-		  console.log("[DEBUG] 文件內容 =", snap.data());
-		}
+      const profile = await liff.getProfile().catch(()=>({}));
+      localStorage.setItem('MW_LIFF_UID', uid);
+      localStorage.setItem('MW_LIFF_NAME', profile.displayName || '');
+      localStorage.setItem('MW_LIFF_PIC', profile.pictureUrl || '');
 
-		if (!snap.exists()) {
-		  alert("尚未註冊，請先完成基本資料。");
-		  document.getElementById('guardMsg').classList.remove('hidden');
-		  window.location.href = "register-profile.html";
-		  return;
-		}
-
-	
-      // 快取可選
-	  const profile = await liff.getProfile().catch(()=>({}));
-		 localStorage.setItem('MW_LIFF_UID', uid); // 改存 Firebase uid
-		 localStorage.setItem('MW_LIFF_NAME', profile.displayName || '');
-		 localStorage.setItem('MW_LIFF_PIC', profile.pictureUrl || '');
-		 if (idToken) localStorage.setItem('MW_LIFF_ID_TOKEN', idToken);
-
-      // 角色判斷：優先使用「使用者在頁面上選的角色」，但要確保該角色在 DB 的 roles 內
-      const data = snap.data() || {};
-	  console.log("[DEBUG] roles 欄位 =", data.roles);
-	  const { isPatient, isVolunteer } = getUserRoles(data);
-	  console.log("[DEBUG] 判斷結果 =", { isPatient, isVolunteer });
-      const chosen = document.getElementById('role').value; // '患者' 或 '志工'
+      // 角色導向
+      const dataRole = snap.data() || {};
+      const { isPatient, isVolunteer } = getUserRoles(dataRole);
+      const chosen = document.getElementById('role').value; // '患者' or '志工'
       const chosenKey = roleKey(chosen);
 
-		if (chosenKey === 'volunteer' && isVolunteer) {
-		  console.log("[DEBUG] 導向 volunteer.html（選志工且有志工）");
-		  location.href = "volunteer.html";
-		} else if (chosenKey === 'patient' && isPatient) {
-		  console.log("[DEBUG] 導向 home.html（選患者且有患者）");
-		  location.href = "home.html";
-		} else if (isVolunteer) {
-		  console.log("[DEBUG] 導向 volunteer.html（未選或無權限，但有志工）");
-		  location.href = "volunteer.html";
-		} else if (isPatient) {
-		  console.log("[DEBUG] 導向 home.html（未選或無權限，但有患者）");
-		  location.href = "home.html";
-		} else {
-		  console.log("[DEBUG] 沒有任何角色 → 導註冊");
-		  alert("尚未完成身分設定，請先完成基本資料。");
-		  location.href = "register-profile.html";
-		}
+      if (chosenKey === 'volunteer' && isVolunteer) {
+        location.href = "volunteer.html";
+      } else if (chosenKey === 'patient' && isPatient) {
+        location.href = "home.html";
+      } else if (isVolunteer) {
+        location.href = "volunteer.html";
+      } else if (isPatient) {
+        location.href = "home.html";
+      } else {
+        alert("尚未完成身分設定，請先完成基本資料。");
+        location.href = "register-profile.html";
+      }
     }catch(e){
       console.error(e);
       alert('登入流程發生錯誤，請再試一次。');
     }
   });
-</script>
-
+  </script>
 </body>
 </html>

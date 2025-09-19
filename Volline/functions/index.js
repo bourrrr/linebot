@@ -5,7 +5,7 @@ const express = require('express');
 const crypto = require('crypto');
 const { normalizeData, normKey } = require('./normalizer');
 const { makeMatchCard } = require('./flex-cards');
-const { renderSwitchList } = require('./quick-replies'); // ★ 新增：改由共用檔產生（多頁）Quick Reply
+const { renderSwitchCarousel } = require('./quick-replies'); // ★ 新增：改由共用檔產生（多頁）Quick Reply
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -129,14 +129,14 @@ volApp.post('/', async (req, res) => {
         await client.reply(evt.replyToken, [{ type:'text', text:'已切換對話對象 ✅' }]);
         continue;
       }
-	  
-			  // A-2) postback：卡片分頁（上一頁/下一頁）
-		if (evt.type === 'postback' && evt.postback?.data?.startsWith('action=cardList')) {
-		  const params = new URLSearchParams(evt.postback.data);
-		  const page = parseInt(params.get('page') || '1', 10) || 1;
-		  await renderSwitchCarousel(client, evt.replyToken, evt.source.userId, page);
-		  continue;
-		}
+
+      // A-2) postback：卡片分頁（上一頁/下一頁）
+      if (evt.type === 'postback' && evt.postback?.data?.startsWith('action=cardList')) {
+        const params = new URLSearchParams(evt.postback.data);
+        const page = parseInt(params.get('page') || '1', 10) || 1;
+        await renderSwitchCarousel(client, evt.replyToken, evt.source.userId, page);
+        continue;
+      }
 
       // B) follow：把副帳號的 U 存起來（供 createMatch 映射使用）
       if (evt.type === 'follow' && evt.source?.userId) {
@@ -160,10 +160,11 @@ volApp.post('/', async (req, res) => {
         continue;
       }
 
-	if (msg.type === 'text' && msg.text.trim() === '切換對象') {
-	  await renderSwitchCarousel(client, evt.replyToken, fromUserId, 1);
-	  continue;
-	}
+      // 支援「切換對象」指令：顯示多頁 Quick Reply 卡片清單
+      if (/^切換(對象|對話對象)?$/.test(msg.text.trim())) {
+        await renderSwitchCarousel(client, evt.replyToken, fromUserId, 1);
+        continue;
+      }
 
       // D) 轉送：先看是否已選過對象（currentMatchId），再 fallback
       let match = null;
@@ -204,6 +205,25 @@ volApp.post('/', async (req, res) => {
         continue;
       }
 
+      // === 新增：帶來源標記的轉送文字 ===
+	function buildRelayText(match, fromUserId, text) {
+	  const isFromPatient = fromUserId === match.patientUserId;
+	  const who = isFromPatient
+		? `👤'患者' ${(match.patientName && String(match.patientName).trim()) || '患者'}`
+		: `🧑‍⚕️'志工' ${(match.volunteerName && String(match.volunteerName).trim()) || '志工'}`;
+
+	  const task = (match.taskTitle && String(match.taskTitle).trim())
+		? `｜${String(match.taskTitle).trim()}`
+		: '';
+
+	  const hospital = (match.hospital && String(match.hospital).trim())
+		? `＠${String(match.hospital).trim()}`
+		: '';
+
+	  return `${who}${task}${hospital}\n${text}`;
+	}
+
+
       // 紀錄訊息
       await db.collection('matches').doc(match.id).collection('messages').add({
         from: fromUserId,
@@ -211,8 +231,11 @@ volApp.post('/', async (req, res) => {
         ts: admin.firestore.FieldValue.serverTimestamp()
       });
 
-      // 轉送給對方
-      await client.push(otherUserId, [{ type: 'text', text: msg.text }]);
+      // 轉送給對方（自動加上來源標註）
+      const relayText = buildRelayText(match, fromUserId, msg.text);
+      await client.push(otherUserId, [{ type: 'text', text: relayText }]);
+
+      // 回覆發訊者已轉送（維持原本的提示）
       await client.reply(evt.replyToken, [{ type: 'text', text: '✓ 訊息已轉送' }]);
     }
 
@@ -222,6 +245,7 @@ volApp.post('/', async (req, res) => {
     res.status(500).send('Internal Server Error');
   }
 });
+
 
 // Callable：建立配對（維持原有行為，補上副帳號 U 自動對應）
 exports.createMatch = functions.region('asia-east1') .runWith({ secrets: ['VOLLINE_LINE_CHANNEL_ACCESS_TOKEN', 'VOLLINE_LINE_BOT_ID'] }).https.onCall(async (data, context) => {
@@ -259,6 +283,7 @@ exports.createMatch = functions.region('asia-east1') .runWith({ secrets: ['VOLLI
 	  status: 'active',
 	  participants: [pId, vId],
 	  patientName: data.patientName || '',
+	  volunteerName: data.volunteerName || '', 
 	  taskTitle: data.taskTitle || '',
 	  hospital: data.hospital || '',   // ⭐ 新增
 	  createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -276,10 +301,15 @@ exports.createMatch = functions.region('asia-east1') .runWith({ secrets: ['VOLLI
   const chatLink = `https://line.me/R/oaMessage/${LINE_BOT_ID}/`;
 
   const client = makeLineClient(process.env.VOLLINE_LINE_CHANNEL_ACCESS_TOKEN);
-	await Promise.all([
-	  client.push(pId, [makeMatchCard("patient", data.taskTitle, data.hospital, chatLink)]),
-	  client.push(vId, [makeMatchCard("volunteer", data.taskTitle, data.hospital, chatLink)])
-	]);
+		await Promise.all([
+		  client.push(pId, [
+			makeMatchCard("patient", data.taskTitle, data.hospital, chatLink, data.volunteerName)
+		  ]),
+		  client.push(vId, [
+			makeMatchCard("volunteer", data.taskTitle, data.hospital, chatLink, data.patientName)
+		  ])
+		]);
+
 
   return { matchId: ref.id };
 });
@@ -425,6 +455,70 @@ loginApp.post('/getFirebaseCustomToken', async (req, res) => {
     return res.status(401).json({ error: err.message || 'verify failed' });
   }
 });
+
+// === 新增：onCall 版本，取代 fetch 的用法 ===
+exports.firebaseCustomToken = functions
+  .region('asia-east1')
+  .runWith({ secrets: ['MAIN_LINE_LOGIN_CHANNEL_ID'] })
+  .https.onCall(async (data, context) => {
+    const { idToken } = data || {};
+    if (!idToken) {
+      throw new functions.https.HttpsError('invalid-argument', 'missing idToken');
+    }
+
+    try {
+      // 驗證 id_token（使用 LINE Login Channel ID）
+      const verifyResp = await fetch('https://api.line.me/oauth2/v2.1/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          id_token: idToken,
+          client_id: process.env.MAIN_LINE_LOGIN_CHANNEL_ID,
+        }),
+      });
+      const verifyJson = await verifyResp.json();
+      if (!verifyResp.ok || verifyJson.error) {
+        throw new Error(verifyJson.error_description || 'LINE id_token verify failed');
+      }
+
+      // 解析 LINE Login 回傳的使用者資訊
+      const lineSub = verifyJson.sub;
+      const displayName = verifyJson.name || '';
+      const picture = verifyJson.picture || '';
+      const uid = `line:${lineSub}`;
+
+      // 確保 Firebase 有這個使用者
+      try {
+        await admin.auth().getUser(uid);
+        await admin.auth().updateUser(uid, {
+          displayName: displayName || undefined,
+          photoURL: picture || undefined,
+        });
+      } catch (e) {
+        await admin.auth().createUser({
+          uid,
+          displayName: displayName || undefined,
+          photoURL: picture || undefined,
+        });
+      }
+
+      // Firestore 同步一份
+      await db.collection('users').doc(uid).set({
+        provider: 'line',
+        displayName,
+        picture,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+
+      // 建立 Firebase Custom Token 回傳
+      const customToken = await admin.auth().createCustomToken(uid, { provider: 'line' });
+      return { customToken, uid };
+    } catch (err) {
+      console.error('[firebaseCustomToken] error:', err);
+      throw new functions.https.HttpsError('unauthenticated', err.message || 'verify failed');
+    }
+  });
+
 
 // 匯出：主系統登入驗證 API
 exports.authApi = functions

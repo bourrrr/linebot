@@ -1,70 +1,94 @@
-const healthCard = {
-  type: 'flex',
-  altText: '健康數據紀錄',
-  contents: {
-    type: 'bubble',
-    hero: {
-      type: 'image',
-      url: 'https://medwell-test1.web.app/photo/data.png',
-      size: 'full',
-      aspectRatio: '20:13',
-      aspectMode: 'cover',
-      action: {
-        type: 'uri',
-        uri: 'https://medwell-test1.web.app/ocr_data1.html?ts=20250710'
-      }
-    },
-    body: {
-      type: 'box',
-      layout: 'vertical',
-      contents: [
-        {
-          type: 'text',
-          text: '健康數據紀錄',
-          weight: 'bold',
-          size: 'xl'
-        },
-        {
-          type: 'text',
-          text: '查看你的血壓、血糖與脈搏趨勢',
-          size: 'sm',
-          color: '#666666',
-          wrap: true
-        }
-      ]
-    },
-    footer: {
-      type: 'box',
-      layout: 'vertical',
-      backgroundColor: '#dad7cd', // 奶灰背景
-      paddingAll: '18px',
-      contents: [
-        {
-          type: 'box',
-          layout: 'vertical',
-          backgroundColor: '#ffffff',
-          cornerRadius: 'md',
-          borderColor: '#588157',
-          borderWidth: '2px',
-          paddingAll: '12px',   // ← 按鈕內的留白
-          contents: [
-            {
-              type: 'text',
-              text: '查看紀錄',
-              align: 'center',
-              color: '#588157',  // 深綠字
-              weight: 'bold',
-              action: {
-                type: 'uri',
-                label: '查看紀錄',
-                uri: 'https://medwell-test1.web.app/ocr_data1.html?ts=20250710'
-              }
-            }
-          ]
-        }
-      ]
-    }
-  }
-};
 
-module.exports = healthCard;
+// generateRecipeFlex.js
+
+function generateRecipeFlex(recipe) {
+  return {
+    type: 'flex',
+    altText: `推薦食譜：${recipe.name}`,
+    contents: {
+      type: 'bubble',
+      size: 'mega',
+      hero: {
+        type: 'image',
+        url: 'https://medwell-test1.web.app/photo/food.png',
+        size: 'full',
+        aspectRatio: '20:13',
+        aspectMode: 'cover'
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'md',
+        contents: [
+          {
+            type: 'text',
+            text: recipe.name,
+            weight: 'bold',
+            size: 'xl',
+            wrap: true
+          },
+          {
+            type: 'text',
+            text: `💡 ${recipe.hint}`,
+            size: 'sm',
+            color: '#666666',
+            wrap: true
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            spacing: 'sm',
+            contents: [
+              {
+                type: 'text',
+                text: '🍽️ 材料',
+                weight: 'bold',
+                size: 'md'
+              },
+              ...recipe.ingredients.slice(0, 3).map(item => ({
+                type: 'text',
+                text: `・${item}`,
+                size: 'sm',
+                wrap: true
+              }))
+            ]
+          }
+        ]
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: '#efede9', // 小奶黃底
+            cornerRadius: 'md',
+            borderWidth: '1px',
+
+            action: {
+              type: 'message',
+              label: '查看步驟',
+              text: `步驟 ${recipe.name}`
+            },
+            contents: [
+              {
+                type: 'text',
+                text: '查看步驟',
+                align: 'center',
+                gravity: 'center',
+                weight: 'bold',
+                color: '#588157', // 深綠字
+                size: 'md'
+              }
+            ],
+            paddingAll: '18px'
+          }
+        ]
+      }
+    }
+  };
+}
+
+module.exports = generateRecipeFlex;

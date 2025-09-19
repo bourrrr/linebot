@@ -190,6 +190,7 @@ async function createMatchForTask(task, volunteerUid) {
 
   // 撈患者資料（確保有名字）
   const patient = await getUser(task.userId);
+  const volunteer = await getUser(volunteerUid);
 
   await fn({
     taskId: task.id,
@@ -198,6 +199,7 @@ async function createMatchForTask(task, volunteerUid) {
     patientAuthUid: task.userId,
     volunteerAuthUid: volunteerUid,
     patientName: task.username || task.userName || task.patientName || '未命名患者',
+	volunteerName: volunteer?.username || volunteer?.userName || volunteer?.displayName || '志工', 
     taskTitle: (task.type || "任務"),
     hospital: task.hospital || "",
   });
