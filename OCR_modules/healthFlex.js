@@ -43,6 +43,7 @@ const healthCard = {
           text: '查看紀錄',
           align: 'center',
           color: '#588157',       // ← 深綠字
+		  cornerRadius: 'md',
           weight: 'bold',
           action: {
             type: 'uri',
