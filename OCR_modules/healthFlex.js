@@ -36,17 +36,18 @@ const healthCard = {
     footer: {
       type: 'box',
       layout: 'vertical',
+      backgroundColor: '#dad7cd', // ← 奶灰背景
       contents: [
         {
-          style: 'primary',
-          type: 'button',
-		  style: "secondary",
-		  color: "#dad7cd",
+          type: 'text',
+          text: '查看紀錄',
+          align: 'center',
+          color: '#588157',       // ← 深綠字
+          weight: 'bold',
           action: {
             type: 'uri',
-            label: '查看紀錄', 
-			uri: 'https://medwell-test1.web.app/ocr_data1.html?ts=20250710'
-
+            label: '查看紀錄',
+            uri: 'https://medwell-test1.web.app/ocr_data1.html?ts=20250710'
           }
         }
       ]
