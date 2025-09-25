@@ -59,7 +59,7 @@ function startReminderCron(db, client) {
               actions: [
                 {
                   type: 'postback',
-                  label: '✅ 確認',
+                  label: '✅ 確認用藥',
                   data: `action=checkin&type=single&id=${doc.id}`
                 }
               ]
@@ -133,7 +133,7 @@ function startReminderCron(db, client) {
           actions: [
             {
               type: 'postback',
-              label: '✅ 簽到',
+              label: '✅ 確認用藥',
               data: `action=checkin&type=repeat&id=${doc.id}`
             }
           ]

@@ -209,8 +209,8 @@ volApp.post('/', async (req, res) => {
 	function buildRelayText(match, fromUserId, text) {
 	  const isFromPatient = fromUserId === match.patientUserId;
 	  const who = isFromPatient
-		? `👤'患者' ${(match.patientName && String(match.patientName).trim()) || '患者'}`
-		: `🧑‍⚕️'志工' ${(match.volunteerName && String(match.volunteerName).trim()) || '志工'}`;
+		? `👤'患者' ${(match.patientName && String(match.patientName).trim()) || '患者'}\n\n`
+		: `🧑‍⚕️'志工' ${(match.volunteerName && String(match.volunteerName).trim()) || '志工'}\n\n`;
 
 	  const task = (match.taskTitle && String(match.taskTitle).trim())
 		? `｜${String(match.taskTitle).trim()}`
