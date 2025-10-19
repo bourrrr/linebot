@@ -7,7 +7,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction, serverTimestamp,
-  collection, query, where, getDocs, increment
+  collection, query, where, getDocs, increment,
+  onSnapshot // ← 新增：即時監聽
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getStorage, ref as storageRef, getDownloadURL
@@ -60,6 +61,56 @@ function logDebug(obj, title = "DEBUG") {
 }
 function showError(msg) { if ($error) $error.textContent = msg || ""; }
 
+// ======== 🧮 抽數合併規則（不降低，只提升或維持） ========
+const QUOTA_CAP = 3; // 與你的 computeQuota 上限一致
+
+/**
+ * 合併「基礎抽數 baseQuota」與既有文件（可能含測驗加抽）：
+ * - bonus = max(0, existing.quota - (existing.base_quota ?? baseQuota))
+ * - newQuota = clamp(baseQuota + bonus, 1, QUOTA_CAP)
+ * - 永不降低：nextQuota = max(existing.quota, newQuota)
+ */
+async function mergeBaseQuota(uid, dateKey, baseQuota, meta) {
+  const ref = drawDocRef(uid, dateKey);
+  return await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+
+    // 初次建立
+    if (!snap.exists()) {
+      const init = {
+        base_quota: clamp(baseQuota, 1, QUOTA_CAP),
+        quota:      clamp(baseQuota, 1, QUOTA_CAP),
+        used: 0,
+        history: [],
+        computed_from: meta,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      tx.set(ref, init, { merge: true });
+      return init;
+    }
+
+    const data = snap.data() || {};
+    const existedQuota = Number.isFinite(data.quota) ? data.quota : 1;
+    const existedBase  = Number.isFinite(data.base_quota) ? data.base_quota : baseQuota;
+
+    const bonus     = Math.max(0, existedQuota - existedBase);
+    const newBase   = clamp(baseQuota, 1, QUOTA_CAP);
+    const recompute = clamp(newBase + bonus, 1, QUOTA_CAP);
+    const nextQuota = Math.max(existedQuota, recompute); // 永不降低
+
+    if (nextQuota !== existedQuota || newBase !== existedBase) {
+      tx.set(ref, {
+        base_quota: newBase,
+        quota: nextQuota,
+        computed_from: meta,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    }
+    return { ...data, base_quota: newBase, quota: nextQuota };
+  });
+}
+
 // ========== 抽卡邏輯 ==========
 async function fetchCards() {
   const resp = await fetch(CARDS_JSON_URL, { cache: "no-store" });
@@ -82,7 +133,7 @@ function computeQuota({ totalPlans, completedCount }) {
   let q = base;
   if (rate >= 0.8) q += 1;
   if (totalPlans >= 3 && completedCount === totalPlans) q += 1;
-  return clamp(q, 1, 3);
+  return clamp(q, 1, QUOTA_CAP);
 }
 
 // ========== 解析卡圖路徑 → Storage 下載網址 ==========
@@ -98,7 +149,7 @@ async function resolveImageUrl(imageField) {
   let path = (imageField || "").trim();
   if (!path.includes("/")) path = `knowledge/${path}`;        // "001.png" → "knowledge/001.png"
   if (!path.startsWith("images/")) path = `images/${path}`;   // → "images/knowledge/001.png"
- console.log("[resolveImageUrl(js)] path =", path);
+  console.log("[resolveImageUrl(js)] path =", path);
   const ref = storageRef(storage, path);
   return await getDownloadURL(ref);
 }
@@ -192,29 +243,17 @@ async function main() {
     const dateKey = todayKey();
     logDebug({ uid, dateKey }, "LIFF OK");
 
-    // 1) 抓當日完成度 → 算 quota
+    // 1) 抓當日完成度 → 算 quota（基礎抽數）
     let status = await getTodayStatusFromCheckins(uid, dateKey);
     if (!status) status = await getTodayStatusFromReminders(uid, dateKey);
     const totalPlans = status ? status.totalPlans : 0;
     const completed  = status ? status.completedCount : 0;
     const quota = computeQuota({ totalPlans, completedCount: completed });
 
-    // 2) 初始化/讀取今日抽卡檔
-    const existing = await readDailyDraw(uid, dateKey);
-    if (!existing) {
-      await initDailyDrawIfNeeded(uid, dateKey, quota, {
-        totalPlans, completedCount: completed, source: status?.source || "none",
-      });
-    } else {
-      const shouldSync = typeof existing.quota !== "number" || existing.quota !== quota;
-      if (shouldSync) {
-        await updateDoc(drawDocRef(uid, dateKey), {
-          quota,
-          computed_from: { totalPlans, completedCount: completed, source: status?.source || "none" },
-          updatedAt: serverTimestamp(),
-        });
-      }
-    }
+    // 2) 初始化/合併（保留測驗加抽，不回壓）
+    await mergeBaseQuota(uid, dateKey, quota, {
+      totalPlans, completedCount: completed, source: status?.source || "none",
+    });
 
     // 3) 顯示 UI
     const nowDoc = await readDailyDraw(uid, dateKey);
@@ -222,6 +261,18 @@ async function main() {
     $quota.textContent = String(nowDoc?.quota ?? quota);
     $used.textContent  = String(used);
     $drawBtn.disabled  = used >= (nowDoc?.quota ?? quota);
+
+    // === 新增：即時監聽此文件，避免「測驗頁稍後才寫入 +1 抽」時不同步 ===
+    onSnapshot(drawDocRef(uid, dateKey), (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data() || {};
+      const q = Number(data.quota ?? 1);
+      const u = Number(data.used ?? 0);
+      $quota.textContent = String(q);
+      $used.textContent  = String(u);
+      $drawBtn.disabled  = u >= q;
+      logDebug({ q, u }, "onSnapshot 更新");
+    });
 
     // 4) 綁定抽卡
     const cards = await fetchCards();

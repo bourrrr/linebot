@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>知識圖片抽卡</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --green-dark:#588157;   /* 重綠 */
+      --green-light:#659963de;/* 淺綠 */
+      --gray-soft:#dad7cd;    /* 奶灰 */
+      --gray-deep:#8e8e8cf2;  /* 灰色 */
+      --yellow-soft:#efede9;  /* 小奶黃 */
+      --black-soft:#363636;   /* 黑(不死黑) */
+    }
+    body{ background:var(--yellow-soft); color:var(--black-soft); font-family:system-ui,sans-serif; }
+    h1,h2{ color:var(--green-dark); }
+
+    /* 按鈕樣式（品牌色） */
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      gap:.4rem; padding:.65rem 1rem; border-radius:.75rem; font-weight:600;
+      transition:transform .06s ease, opacity .2s ease, background .2s ease;
+      text-decoration:none;
+    }
+    .btn:active{ transform:translateY(1px); }
+    .btn-primary{ background:var(--green-dark); color:#fff; }
+    .btn-primary:hover{ opacity:.9; }
+    .btn-ghost{
+      color:var(--green-dark); background:transparent; border:1px solid var(--green-dark);
+    }
+    .btn-ghost:hover{ background:var(--gray-soft); }
+
+    #drawBtn{
+      background:var(--green-dark); color:#fff; border:none; border-radius:.75rem;
+      padding:12px 20px; font-weight:600; cursor:pointer; transition:opacity .2s ease;
+    }
+    #drawBtn:hover{ opacity:.9; }
+    #drawBtn:disabled{ background:var(--gray-deep); cursor:not-allowed; }
+
+    .info-box{
+      background:var(--gray-soft); color:var(--black-soft);
+      padding:6px 12px; border-radius:.5rem; border:1px solid var(--green-light); font-weight:500;
+    }
+    #result{
+      background:#fff; border:1px solid var(--gray-soft); border-radius:1rem;
+      box-shadow:0 4px 6px rgba(0,0,0,.08); padding:1rem;
+    }
+    #errorMsg{ color:red; font-weight:bold; }
+    #debug{ background:var(--gray-soft); border:1px dashed var(--green-light); color:var(--black-soft); }
+  </style>
+</head>
+<body>
+  <section class="max-w-md mx-auto p-5">
+    <h1 class="text-2xl font-bold mb-2">知識圖片抽卡</h1>
+    <p class="text-sm mb-4" style="color:var(--gray-deep)">
+      今日可抽 = 保底 1 次 + 完成度≥80% +（若當日計畫≥3 且完成率=100% 再+1）｜每日上限 3 次
+    </p>
+
+    <!-- ▲ 新增：導覽按鈕 -->
+    <div class="flex items-center gap-2 mb-4">
+      <a href="indexcard.html" class="btn btn-ghost">← 返回首頁</a>
+      <a href="collection.html" class="btn btn-primary">前往圖鑑</a>
+    </div>
+
+    <div class="flex items-center gap-3 mb-4">
+      <span class="info-box">今日可抽：<b id="quota">-</b> 次</span>
+      <span class="info-box">已抽：<b id="used">-</b> 次</span>
+    </div>
+
+    <button id="drawBtn">🎴 抽一張</button>
+
+    <p id="errorMsg" class="mt-3 text-sm"></p>
+
+    <div id="result" class="mt-6 hidden">
+      <p class="text-sm" style="color:var(--gray-deep)">你抽到了：</p>
+      <h2 id="cardName" class="text-lg font-semibold mb-3"></h2>
+      <img id="cardImg" alt="知識圖片" class="w-full rounded-xl border" />
+    </div>
+
+    <!--（可選）頁面底部再放一次導覽按鈕，方便返回 / 前往圖鑑 -->
+
+    <!--<pre id="debug" class="mt-6 text-xs rounded p-3 whitespace-pre-wrap"></pre>-->
+  </section>
+
+  <!-- 先載 LIFF（非 module） -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <!-- 再載你的 module 檔 -->
+  <script type="module" src="./js/knowledge-draw.js"></script>
+  
+</body>
+</html>

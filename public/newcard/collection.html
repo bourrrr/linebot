@@ -7,12 +7,12 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root{
-      --green-dark:#588157;   /* 重綠 */
-      --green-light:#659963de;/* 淺綠 */
-      --gray-soft:#dad7cd;    /* 奶灰 */
-      --gray-deep:#8e8e8cf2;  /* 灰色 */
-      --yellow-soft:#efede9;  /* 小奶黃 */
-      --black-soft:#363636;   /* 黑(不死黑) */
+      --green-dark:#588157;
+      --green-light:#659963de;
+      --gray-soft:#dad7cd;
+      --gray-deep:#8e8e8cf2;
+      --yellow-soft:#efede9;
+      --black-soft:#363636;
     }
     body{ background:var(--yellow-soft); color:var(--black-soft); font-family:system-ui,sans-serif; }
     h1,h2{ color:var(--green-dark); }
@@ -47,8 +47,6 @@
       background:var(--gray-soft); color:var(--black-soft);
       padding:6px 12px; border-radius:.5rem; border:1px solid var(--green-light); font-weight:500;
     }
-
-    #debug{ background:#fff; border:1px dashed var(--green-light); color:var(--black-soft); }
   </style>
 </head>
 <body>
@@ -61,9 +59,7 @@
       </nav>
     </header>
 
-    <p class="text-sm mb-4" style="color:var(--gray-deep)">
-      查看你收集到的知識圖片與獲得次數。
-    </p>
+    <p class="text-sm mb-4" style="color:var(--gray-deep)">查看你收集到的知識圖片與獲得次數。</p>
 
     <section class="flex flex-wrap items-center gap-2 mb-4">
       <span class="info-box">已收集：<b id="statUnique">-</b> 張</span>
@@ -76,240 +72,30 @@
       <a href="indexcard.html" class="btn btn-ghost">← 返回首頁</a>
       <a href="knowledge-draw.html" class="btn btn-primary">前往抽卡</a>
     </div>
-
-    <pre id="debug" class="mt-6 text-xs rounded p-3 whitespace-pre-wrap"></pre>
   </main>
 
-  <!-- LIFF（非 module） -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
-  <!-- 主腳本（module） -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { getStorage, ref as storageRef, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-	
-	
-    // === 開關 ===
-    const SKIP_LIFF_LOGIN = false;      // 正式請改為 false
-    const SHOW_DEBUG = true;
 
-    // === DOM ===
+    const log = (...a)=>console.log(...a);
     const $ = (id)=>document.getElementById(id);
     const gallery = $('gallery');
     const statUnique = $('statUnique');
     const statTotal  = $('statTotal');
-    const debugEl    = $('debug');
-    const log = (...a)=>{ if(SHOW_DEBUG){ debugEl.textContent += a.map(x=>typeof x==='string'?x:JSON.stringify(x,null,2)).join(' ') + "\n"; } console.log(...a); };
 
-    // === Utils ===
-    function mockUid(){
-      const k="dev_mock_uid"; let id=localStorage.getItem(k);
-      if(!id){ id="DEV_"+Math.random().toString(36).slice(2,10); localStorage.setItem(k,id); }
-      return id;
-    }
-    async function loadFirebaseConfig(){
-      try{
-        const mod = await import("./firebase-config.js"); // 若檔案在上層，改成 "../firebase-config.js"
-        const cfg = mod.firebaseConfig || mod.default;
-        if(cfg) return cfg;
-      }catch(e){}
-      return {
-        apiKey:"AIzaSyCCUzkxpn1quR9PPSBeZBGGl7XVh8vPzjY",
-        authDomain:"medwell-test1.firebaseapp.com",
-        projectId:"medwell-test1",
-        storageBucket:"medwell-test1.appspot.com",         // ★ Storage bucket 必填
-        messagingSenderId:"860851688843",
-        appId:"1:860851688843:web:622eb8feccad45ce640b8e"
-      };
-    }
+    function mockUid(){ const k="dev_mock_uid"; let id=localStorage.getItem(k); if(!id){ id="DEV_"+Math.random().toString(36).slice(2,10); localStorage.setItem(k,id); } return id; }
+    async function loadFirebaseConfig(){ try{ const mod = await import("./firebase-config.js"); const cfg = mod.firebaseConfig || mod.default; if(cfg) return cfg; }catch(e){} return { apiKey:"AIzaSyCCUzkxpn1quR9PPSBeZBGGl7XVh8vPzjY", authDomain:"medwell-test1.firebaseapp.com", projectId:"medwell-test1", storageBucket:"medwell-test1.appspot.com", messagingSenderId:"860851688843", appId:"1:860851688843:web:622eb8feccad45ce640b8e" }; }
 
-    // === 解析圖片到 Firebase Storage 下載網址 ===
-    async function resolveImageUrl(storage, imageField){
-      if (!imageField) return "";
-      const looksHttp = s => /^https?:\/\//i.test(s||"");
-      const looksAbs  = s => /^\//.test(s||"");
-      // 已是完整網址或網站絕對路徑，直接用
-      if (looksHttp(imageField) || looksAbs(imageField)) return imageField;
+    async function resolveImageUrl(storage, imageField){ if (!imageField) return ""; const looksHttp = s => /^https?:\/\//i.test(s||""); const looksAbs  = s => /^\//.test(s||""); if (looksHttp(imageField) || looksAbs(imageField)) return imageField; let path = (imageField||"").trim(); if (!path.includes("/")) path = `knowledge/${path}`; if (!path.startsWith("images/")) path = `images/${path}`; const ref = storageRef(storage, path); return await getDownloadURL(ref); }
 
-      // 支援 "003.png" / "knowledge/003.png" / "images/knowledge/003.png"
-      let path = (imageField||"").trim();
-      if (!path.includes("/")) path = `knowledge/${path}`;        // "003.png" → "knowledge/003.png"
-      if (!path.startsWith("images/")) path = `images/${path}`;   // "knowledge/003.png" → "images/knowledge/003.png"
-  console.log("[resolveImageUrl(html)] path =", path); // ✅
-      const ref = storageRef(storage, path);
-      const url = await getDownloadURL(ref);
-      log("[Storage] getDownloadURL:", path, "→", url);
-      return url;
-    }
+    async function fetchFromUserDailyDraws(db, userId){ const dailyCol = collection(db, `users/${userId}/daily_draws`); const snap = await getDocs(dailyCol); const map = new Map(); snap.forEach(doc => { const x = doc.data() || {}; const arr = Array.isArray(x.history) ? x.history : []; for (const it of arr){ const key = it.cardId || it.id || it.image || it.name; if (!map.has(key)){ map.set(key, { id: key, name: it.name || "未命名", image: it.image, count: 0 }); } map.get(key).count += 1; } }); return Array.from(map.values()); }
 
-    // === 優先 card_collection，否則回退 draw_history ===
-    async function fetchFromCardCollection(db, userId){
-      const snap = await getDocs(query(collection(db,"card_collection"), where("userId","==",userId)));
-      const items = [];
-      snap.forEach(d=>{
-        const x=d.data();
-        items.push({
-          id: x.cardName || x.id || x.image || crypto.randomUUID?.() || Math.random().toString(36).slice(2),
-          name: x.cardName || x.name || "未命名",
-          image: x.image,
-          count: Number(x.count || 1)
-        });
-      });
-      return items;
-    }
-    async function fetchFromDrawHistory(db, userId){
-      const snap = await getDocs(query(collection(db,"draw_history"), where("userId","==",userId)));
-      const map = new Map();
-      snap.forEach(d=>{
-        const x=d.data();
-        const arr = Array.isArray(x.items) ? x.items : [];
-        for(const it of arr){
-          const key = it.id || it.image || it.name;
-          if(!map.has(key)){
-            map.set(key, { id:key, name: it.name || "未命名", image: it.image, count: 0 });
-          }
-          map.get(key).count += 1;
-        }
-      });
-      return Array.from(map.values());
-		}
-		
-	// 讀 users/{uid}/daily_draws 下所有日期，整併 history 陣列
-	async function fetchFromUserDailyDraws(db, userId){
-	  const dailyCol = collection(db, `users/${userId}/daily_draws`);
-	  const snap = await getDocs(dailyCol);
+    async function renderGallery(items, storage){ gallery.innerHTML = ""; if(!items.length){ gallery.innerHTML = '<div class="col-span-full text-center text-sm" style="color:var(--gray-deep)">尚未蒐集到任何圖片，去「前往抽卡」試試吧！</div>'; statUnique.textContent = "0"; statTotal.textContent = "0"; return; } const urls = await Promise.all(items.map(async it => { try { return await resolveImageUrl(storage, it.image); } catch (e){ return ""; } })); let total = 0; items.forEach((it, i) => { total += Number(it.count||0); const url = urls[i] || "./images/placeholder.svg"; const card = document.createElement('div'); card.className = "card"; card.innerHTML = `<img src="${url}" alt="${it.name}" referrerpolicy="no-referrer" onerror="this.src='./images/placeholder.svg'"/><div class="flex items-center justify-between mt-2"><h3 class="truncate pr-2">${it.name}</h3><span class="badge">× ${it.count || 1}</span></div>`; gallery.appendChild(card); }); statUnique.textContent = String(items.length); statTotal.textContent  = String(total); }
 
-	  const map = new Map(); // key: id/image/name → {id,name,image,count}
-	  snap.forEach(doc => {
-		const x = doc.data() || {};
-		const arr = Array.isArray(x.history) ? x.history : [];   // ★ 用 history
-		for (const it of arr){
-		  // 可能的欄位：cardId / name / image（例如 "knowledge/001.png"）
-		  const key = it.cardId || it.id || it.image || it.name;
-		  if (!map.has(key)){
-			map.set(key, {
-			  id: key,
-			  name: it.name || "未命名",
-			  // 先存原始 image，resolveImageUrl 會補上 images/knowledge/
-			  image: it.image, 
-			  count: 0
-			});
-		  }
-		  map.get(key).count += 1;
-		}
-	  });
-
-	  return Array.from(map.values());
-	}
-
-
-
-
-    // === 並行解析 URL + 渲染圖鑑 ===
-    async function renderGallery(items, storage){
-      gallery.innerHTML = "";
-      if(!items.length){
-        gallery.innerHTML = '<div class="col-span-full text-center text-sm" style="color:var(--gray-deep)">尚未蒐集到任何圖片，去「前往抽卡」試試吧！</div>';
-        statUnique.textContent = "0"; 
-        statTotal.textContent = "0";
-        return;
-      }
-
-      // 並行把全部圖片的 URL 解析好（快很多）
-      const urls = await Promise.all(items.map(async it => {
-        try { return await resolveImageUrl(storage, it.image); }
-        catch (e){ log("getDownloadURL 失敗：", it.image, e?.message||e); return ""; }
-      }));
-
-      let total = 0;
-      items.forEach((it, i) => {
-        total += Number(it.count||0);
-        const url = urls[i] || "./images/placeholder.svg"; // 沒拿到就用占位
-        const card = document.createElement('div');
-        card.className = "card";
-        card.innerHTML = `
-          <img src="${url}" alt="${it.name}" referrerpolicy="no-referrer" onerror="this.src='./images/placeholder.svg'"/>
-          <div class="flex items-center justify-between mt-2">
-            <h3 class="truncate pr-2">${it.name}</h3>
-            <span class="badge">× ${it.count || 1}</span>
-          </div>
-        `;
-        gallery.appendChild(card);
-      });
-
-      statUnique.textContent = String(items.length);
-      statTotal.textContent  = String(total);
-    }
-
-    // === Main ===
-    (async ()=>{
-      try{
-        const firebaseConfig = await loadFirebaseConfig();
-        const app = initializeApp(firebaseConfig);
-        const db  = getFirestore(app);
-        const storage = getStorage(app); // Storage 服務
-
-        // userId（可跳過 LIFF）
-        let userId;
-        try{
-          await liff.init({ liffId: "2007870072-ZNeMmll2" });
-          if(!SKIP_LIFF_LOGIN){
-            if(!liff.isLoggedIn()){ liff.login(); return; }
-            userId = (await liff.getProfile()).userId;
-          }else{
-            userId = mockUid();
-            log("[DEV] Skip LIFF. mock userId =", userId);
-          }
-        }catch(e){
-          userId = mockUid();
-          log("[DEV] LIFF init failed. use mock userId =", userId, e?.message||e);
-        }
-
-        // 讀取資料：先 collection，再退 draw_history
-        let items = await fetchFromCardCollection(db, userId);
-		if(!items.length){
-		  items = await fetchFromDrawHistory(db, userId);
-		}
-		if(!items.length){
-		  items = await fetchFromUserDailyDraws(db, userId);  // ★ 新增
-		}
-        await renderGallery(items, storage);
-        log({ source: items.length ? "collection/draw_history(auto)" : "none", count: items.length });
-      }catch(e){
-        gallery.innerHTML = '<div class="col-span-full text-center text-sm text-red-600">載入圖鑑失敗：'+(e?.message||e)+'</div>';
-        console.error(e);
-      }
-    })();
+    (async ()=>{ try{ const firebaseConfig = await loadFirebaseConfig(); const app = initializeApp(firebaseConfig); const db  = getFirestore(app); const storage = getStorage(app); let userId; try{ await liff.init({ liffId: "2007870072-ZNeMmll2" }); if(!liff.isLoggedIn()){ liff.login(); return; } userId = (await liff.getProfile()).userId; }catch(e){ userId = mockUid(); } let items = await fetchFromUserDailyDraws(db, userId); await renderGallery(items, storage); }catch(e){ gallery.innerHTML = '<div class="col-span-full text-center text-sm text-red-600">載入圖鑑失敗：'+(e?.message||e)+'</div>'; } })();
   </script>
-
-  <!-- ✅ 保險絲補丁：若頁面上仍有 "002.png" 這種相對路徑圖片，強制換成 Storage URL -->
-  <!-- ✅ 保險絲補丁：轉 Storage URL（安全取得已存在的 app） -->
-<script type="module">
-  import { getApp, getApps, initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getStorage, ref as storageRef, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-  import { firebaseConfig } from "./firebase-config.js"; // 已上傳的設定檔
-
-  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-  const storage = getStorage(app);
-
-  const looksShort = s => /^\d{3}\.(png|jpg|jpeg|webp)$/i.test(s || "");
-  (async () => {
-    const imgs = Array.from(document.images);
-    await Promise.all(imgs.map(async img => {
-      try {
-        const src = img.getAttribute('src') || "";
-        if (looksShort(src)) {
-          const path = `images/knowledge/${src}`;
-          const url  = await getDownloadURL(storageRef(storage, path));
-          img.setAttribute('src', url);
-        }
-      } catch (e) {
-        console.warn('[patch] 轉 Storage 失敗：', e);
-      }
-    }));
-  })();
-</script>
-
 </body>
 </html>

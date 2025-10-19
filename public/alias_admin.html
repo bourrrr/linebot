@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <title>別名審核</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Firebase SDK (compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
@@ -12,10 +11,11 @@
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto; max-width: 900px; margin: 24px auto; padding: 0 12px; }
     h1 { font-size: 20px; }
-    .row { display: grid; grid-template-columns: 2fr 2fr 1fr 1fr; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
+    .row { display: grid; grid-template-columns: 2fr 2fr 2fr 1fr 1fr; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; }
     .row.header { font-weight: 700; }
     button { padding: 6px 10px; border-radius: 8px; border: 1px solid #ddd; background: #fafafa; cursor: pointer; }
     button:hover { background: #f0f0f0; }
+    input { padding: 4px 6px; border: 1px solid #ddd; border-radius: 6px; }
   </style>
 </head>
 <body>
@@ -23,18 +23,19 @@
   <div id="rows" class="rows"></div>
 
 <script>
-  // 1) 你的 Firebase 專案設定
-  const firebaseConfig = {
-    apiKey: "YOUR_KEY",
-    authDomain: "YOUR_PROJECT.firebaseapp.com",
-    projectId: "YOUR_PROJECT",
-    appId: "YOUR_APP_ID",
+  const firebaseConfig ={ 
+    apiKey:"AIzaSyCCUzkxpn1quR9PPSBeZBGGl7XVh8vPzjY", 
+    authDomain : "medwell-test1.firebaseapp.com" , 
+    databaseURL:"https://medwell-test1-default-rtdb.firebaseio.com", 
+    projectId:"medwell-test1", 
+    storageBucket:"medwell-test1.firebasestorage.app", 
+    messagingSenderId:"860851688843", 
+    appId:"1:860851688843:web:622eb8feccad45ce640b8e"
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
   const functions = firebase.app().functions('asia-east1');
 
-  // 2)（可選）要求登入（僅管理員使用）
   firebase.auth().onAuthStateChanged(async (user) => {
     if (!user) {
       const provider = new firebase.auth.GoogleAuthProvider();
@@ -48,7 +49,7 @@
     rowsEl.innerHTML = '';
     const header = document.createElement('div');
     header.className = 'row header';
-    header.innerHTML = '<div>標準鍵</div><div>候選別名</div><div>核可</div><div>拒絕</div>';
+    header.innerHTML = '<div>標準鍵</div><div>候選別名</div><div>輸入標準名</div><div>核可</div><div>拒絕</div>';
     rowsEl.appendChild(header);
 
     const snap = await db.collection('pending_aliases')
@@ -73,26 +74,40 @@
       const row = document.createElement('div');
       row.className = 'row';
       row.innerHTML = `
-        <div>${d.std}</div>
+        <div>${d.std || '-'}</div>
         <div>${d.alias}</div>
+        <div><input placeholder="輸入標準名 (std)" class="std-input" style="width:100%"></div>
         <div><button data-id="${doc.id}" data-act="approve">核可</button></div>
         <div><button data-id="${doc.id}" data-act="reject">拒絕</button></div>
       `;
-      row.addEventListener('click', async (ev) => {
-        const btn = ev.target.closest('button');
-        if (!btn) return;
-        const id = btn.getAttribute('data-id');
-        const act = btn.getAttribute('data-act');
-        btn.disabled = true;
-        try {
-          if (act === 'approve') await approveFn({ id });
-          else await rejectFn({ id });
-          row.style.opacity = 0.5;
-        } catch (e) {
-          alert('操作失敗：' + e.message);
-          btn.disabled = false;
-        }
-      });
+      // 綁定按鈕事件
+	row.addEventListener('click', async (ev) => {
+	  const btn = ev.target.closest('button');
+	  if (!btn) return;
+	  const id = btn.getAttribute('data-id');
+	  const act = btn.getAttribute('data-act');
+	  btn.disabled = true;
+
+	  const stdInput = row.querySelector('.std-input');
+	  const stdValue = stdInput ? stdInput.value.trim() : '';
+
+	  try {
+		if (act === 'approve') {
+		  if (!stdValue) { alert('請輸入標準名'); btn.disabled = false; return; }
+		  const res = await approveFn({ pendingId: id, alias: d.alias, std: stdValue });
+		  console.log('approve ok', res?.data);
+		} else {
+		  const res = await rejectFn({ id: id, alias: d.alias });
+		  console.log('reject ok', res?.data);
+		}
+		row.remove(); // 立刻從畫面移除
+	  } catch (e) {
+		console.error('callable error:', e);
+		// e 可能是 HttpsError，e.message 會帶後端拋出的訊息
+		alert('操作失敗：' + (e.message || 'unknown'));
+		btn.disabled = false;
+	  }
+	});
       rowsEl.appendChild(row);
     });
   }

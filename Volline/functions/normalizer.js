@@ -237,65 +237,45 @@ async function buildAliasMaps() {
 
 async function normalizeData(data, { learn = true, moderated = true } = {}) {
   const db = getDb();
-  const { aliasToStd, stdToAliases } = await buildAliasMaps();
+  const { aliasToStd } = await buildAliasMaps();
+
+  // ① 載入黑名單（由 rejectPendingAlias 寫入）
+  const rejSnap = await db.collection('rejected_aliases').get();
+  const rejected = new Set(rejSnap.docs.map(d => d.id)); // 用小寫 docId（normKey）
 
   const normalized = {};
   const learned = [];
 
   for (const [rawKey, rawVal] of Object.entries(data || {})) {
-    // 你原本的過濾/比對/時段判斷 ……
-    // （略）得到 targetKey 與 val 後：
-    normalized[targetKey] = val;
+    if (!rawKey) continue;
+    const rawV = String(rawVal ?? '').trim();
+    if (!rawV) continue;
+    if (looksLikeGarbageKey(rawKey)) continue;
 
-    if (learn && std && nRaw !== normKey(std) && !looksLikeGarbageKey(rawKey)) {
-      const stdForAlias = targetKey;
-      const set = stdToAliases.get(stdForAlias) || new Set();
-      if (!set.has(rawKey)) {
-        learned.push({ std: stdForAlias, alias: rawKey });
-        if (!stdToAliases.has(stdForAlias)) stdToAliases.set(stdForAlias, new Set());
-        stdToAliases.get(stdForAlias).add(rawKey);
-      }
+    const nRaw = normKey(rawKey);
+
+    // ② 在這裡直接過濾被拒絕的別名（不再丟 pending）
+    if (rejected.has(nRaw)) {
+      console.log('跳過已拒絕別名：', rawKey);
+      continue;
+    }
+
+    const stdKey = aliasToStd.get(nRaw);
+    const targetKey = stdKey || rawKey;
+    normalized[targetKey] = rawV;
+
+    // ③ 未命中且允許學習 → 丟 pending
+    if (learn && !stdKey) {
+      await db.collection('pending_aliases').add({
+        alias: rawKey,
+        std: null,
+        status: 'pending',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        source: 'health_records',
+      });
+      console.log(`Added pending alias: ${rawKey}`);
     }
   }
-
-  // ====== 這裡開始是你要替換/新增的部分 ======
-  if (learned.length) {
-    if (moderated) {
-      // 審核模式：先寫 pending_aliases，避免汙染正式詞庫
-      const batch = db.batch();
-      const col = db.collection('pending_aliases');
-      const now = admin.firestore.FieldValue.serverTimestamp();
-      for (const { std, alias } of learned) {
-        const id = makePendingId(std, alias); // 唯一鍵，避免重覆
-        batch.set(col.doc(id), {
-          std, alias,
-          status: 'pending',
-          createdAt: now,
-          updatedAt: now,
-          stdId: keyIdForFirestore(std), // 方便管理頁顯示/查詢
-          normStd: normKey(std),
-          normAlias: normKey(alias),
-          // 你也可附加來源，例如來源文件ID/使用者ID
-          // sourceDoc: ctx?.params?.id,
-        }, { merge: true });
-      }
-      await batch.commit();
-    } else {
-      // 直寫 key_alias（舊行為）
-      const batch = db.batch();
-      const grouped = {};
-      for (const { std, alias } of learned) (grouped[std] ||= []).push(alias);
-      for (const [std, arr] of Object.entries(grouped)) {
-        const ref = db.collection('key_alias').doc(keyIdForFirestore(std));
-        batch.set(ref, {
-          aliases: admin.firestore.FieldValue.arrayUnion(...arr),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-      }
-      await batch.commit();
-    }
-  }
-  // ====== 替換到這裡為止 ======
 
   return { normalized, learned };
 }
@@ -310,5 +290,3 @@ function makePendingId(std, alias) {
 module.exports = { normalizeData, normKey, __SEED_FOR_SEEDING: SEED };
 
 
-// 匯出給 index.js 使用；同時暴露 SEED 方便 B) 匯入腳本使用
-module.exports = { normalizeData, normKey, __SEED_FOR_SEEDING: SEED };

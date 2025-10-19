@@ -6,6 +6,7 @@
   <title>健康數據新增 | MakeWell</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
 
@@ -113,6 +114,7 @@
 
   <!-- 仍沿用你現有的字典解析器（若有） -->
   <script src="https://medwell-test1.web.app/extractHealthData.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-functions-compat.js"></script>
 
   <script>
     /* ====== 基本設定 ====== */
@@ -128,6 +130,31 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
+	// === 拒絕別名黑名單 ===
+let rejectedAliasSet = new Set();
+let rejectedLoaded = false;
+
+function normAlias(s = '') {
+  return String(s || '')
+    .normalize('NFKC')
+    .replace(/[()（）\[\]{}]/g, ' ')
+    .replace(/[：:|｜/、,，;；\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+async function loadRejectedAliases() {
+  if (rejectedLoaded) return;
+  try {
+    const snaps = await db.collection('rejected_aliases').get();
+    rejectedAliasSet = new Set(snaps.docs.map(d => normAlias(d.id)));
+  } catch (e) {
+    console.warn('讀取 rejected_aliases 失敗（先忽略）', e);
+  } finally {
+    rejectedLoaded = true;
+  }
+}
     const OCR_API = "https://linebot-o8nr.onrender.com/api/ocr";
 
     /* ====== DOM ====== */
@@ -433,6 +460,7 @@
 
     /* ====== 上傳辨識（多檔含 PDF）＋ 敏感欄位過濾（你前一版的邏輯保留） ====== */
     btnUpload.addEventListener('click', async ()=>{
+	await loadRejectedAliases();
       const files = Array.from(fileInput.files || []);
       if (!files.length){ toast("請先選擇檔案（可多檔）"); return; }
 
@@ -467,6 +495,7 @@
         function isSensitiveKey(k=''){
           const nk = normalizeText(k);
           if (!nk) return true;
+		  if (rejectedAliasSet.has(nk)) return true; 
           if (SENSITIVE_HEADERS.has(nk) || SENSITIVE_TOKENS.has(nk)) return true;
           if (looksDivider(nk)) return true;
           if (nk.includes('基本資料')) return true;
@@ -477,6 +506,7 @@
         function isSensitiveValue(v=''){
           const nv = normalizeText(v);
           if (!nv) return false;
+		   if (rejectedAliasSet.has(nv)) return true; 
           if (SENSITIVE_HEADERS.has(nv)) return true;
           if (looksDivider(nv)) return true;
           if (looksLikeDate(nv) || looksLikeId(nv) || looksLikePhone(nv)) return true;
@@ -519,7 +549,9 @@
             failCount++;
           }
         }
-
+		for (const k of Object.keys(dynamicData)) {
+  if (isSensitiveKey(k)) delete dynamicData[k];
+}
         for (const [k,v] of Object.entries({...dynamicData})){
           if (isSensitiveKey(k) || isSensitiveValue(v)) {
             delete dynamicData[k];
@@ -550,47 +582,64 @@
     btnClear.addEventListener('click', ()=>{ dynamicData={}; renderFields(); renderPretty(); });
 
     /* ====== 送出（儲存欄位順序） ====== */
-    btnConfirm.addEventListener('click', async ()=>{
-      const rows = fieldsEl.querySelectorAll('.mw-field-row');
-      rows.forEach(row=>{
-        const k = row.querySelector('[data-k="key"]')?.value?.trim();
-        const v = row.querySelector('[data-k="val"]')?.value?.trim();
-        if (k) dynamicData[k] = v ?? '';
-      });
+  
+  // 初始化後加入這行，區域請改成你部署 callable 的 region
+  const functions = firebase.app().functions('asia-east1'); // 或 'asia-northeast1'
 
-      const dataToSave = {};
-      Object.entries(dynamicData).forEach(([k,v])=>{
-        if (k && String(v ?? '').trim() !== '') dataToSave[k]=String(v).trim();
-      });
-      const orderedKeys = Object.keys(dataToSave);
-
-      try{
-        if (editingId) {
-          await db.collection('health_records').doc(editingId).update({
-            data: dataToSave,
-            orderKeys: orderedKeys,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          alert('✅ 已更新！');
-        } else {
-          await db.collection("health_records").add({
-            userId: (await ensureUserId()),
-            date: formattedDate,
-            data: dataToSave,
-            orderKeys: orderedKeys,
-            source: 'liff',
-            autoDietPushed: false,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          alert("✅ 資料成功上傳到 Firebase！");
-        }
-        localStorage.removeItem('edit_data');
-        window.location.href = new URL('/ocr_data1.html', window.location.origin).href;
-      }catch(err){
-        console.error(err);
-        alert("❌ 送出失敗，請查看 Console");
-      }
+  btnConfirm.addEventListener('click', async () => {
+    // 1) 蒐集畫面上的鍵值（沿用你現有做法）
+    const rows = fieldsEl.querySelectorAll('.mw-field-row');
+    const dynamicData = {};
+    rows.forEach(row => {
+      const k = row.querySelector('[data-k="key"]')?.value?.trim();
+      const v = row.querySelector('[data-k="val"]')?.value?.trim();
+      if (k) dynamicData[k] = v ?? '';
     });
+
+    // 2) 濾空白
+    const dataToSave = {};
+    Object.entries(dynamicData).forEach(([k, v]) => {
+      if (k && String(v ?? '').trim() !== '') dataToSave[k] = String(v).trim();
+    });
+
+    try {
+      // 3) 後端標準化（重點）
+      const normalizeFn = functions.httpsCallable('normalizeHealthData');
+      const { data: result } = await normalizeFn({ data: dataToSave, learn: true });
+      const normalized = result?.normalized || dataToSave;
+
+      // 4) 用標準化後的鍵值寫入 Firestore
+      const payload = {
+        userId: await ensureUserId(),       // 你頁面已有
+        date: formattedDate,                // 你頁面已有
+        data: normalized,
+        orderKeys: Object.keys(normalized),
+        source: 'liff',
+        autoDietPushed: false,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      if (window.editingId) {
+        await db.collection('health_records').doc(window.editingId).update({
+          ...payload, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert('✅ 已更新');
+      } else {
+        await db.collection('health_records').add(payload);
+        alert('✅ 已上傳');
+      }
+
+      localStorage.removeItem('edit_data');
+      // 成功後導回
+      window.location.href = new URL('/ocr_data1.html', window.location.origin).href;
+
+    } catch (err) {
+      console.error(err);
+      alert('❌ 標準化或寫入失敗，請開 Console 看錯誤');
+    }
+  });
+
+
 
     // 閱讀模式切換
 		btnPretty.addEventListener('click', ()=>{

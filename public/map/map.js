@@ -427,7 +427,10 @@ function applyFilter() {
     matched.forEach(m => m.addTo(map));
     const group = new L.featureGroup(matched);
 
-    suppressNextZoomCollapse = true; // ✅ 通知 zoomend 跳過一次
+    // ✅ 告知 zoomend 跳過接下來 2 次 collapse 檢查（避免 fitBounds 造成收起）
+    suppressNextZoomCollapse = true;
+    suppressZoomCollapseCount = 2;
+
     map.fitBounds(group.getBounds().pad(0.2));
 
     document.getElementById('bottom-sheet').classList.remove('collapsed');
@@ -742,7 +745,7 @@ let detailHtml = `
   <div style="font-size:22px;font-weight:700;color:#588157;margin-bottom:8px;">
     🚩 ${meta.name} ${statusTag}
   </div>
-  <div style="font-size:16.5px;line-height:1.8; padding-left:10px;">
+  <div style="font-size:16.5px;line-height:1.8; padding-left:3px;">
     ☎️ ${phone}
     <a href="tel:${phone}" style="color:#659963de;font-size:14.5px;text-decoration:underline;margin-left:8px;">
       (點我撥打)

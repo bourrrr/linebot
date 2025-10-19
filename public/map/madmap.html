@@ -716,7 +716,7 @@
 <body>
   <div id="app">
     <div class="header-search">
-      <button class="mode-btn" id="btn-clinic" data-mode="clinic">🏥 就醫掛號</button>
+      <button class="mode-btn active" id="btn-clinic" data-mode="clinic">🏥 就醫掛號</button>
       <button class="mode-btn" id="btn-pharmacy" data-mode="pharmacy">💊 就近領藥</button>
       <select id="citySelect">
         <option value="">縣市</option>
@@ -764,16 +764,38 @@
   <script>
     // 初始化 Choices，下拉選單就會自動換成自訂的，手機能滑到底
     document.addEventListener('DOMContentLoaded', function () {
-      new Choices('#citySelect', {
+      // 保留實例以便之後啟用/停用
+      window.cityChoices = new Choices('#citySelect', {
         searchEnabled: false,
         itemSelectText: '',
         shouldSort: false
       });
-      new Choices('#districtSelect', {
+      window.districtChoices = new Choices('#districtSelect', {
         searchEnabled: false,
         itemSelectText: '',
         shouldSort: false
       });
+    });
+  </script>
+  <script>
+    // 預設為 clinic：放在 window.load（確保 map.js 綁定完事件）並確保 choices 與 select 為可用狀態
+    window.addEventListener('load', function () {
+      const btnClinic = document.getElementById('btn-clinic');
+      const citySelect = document.getElementById('citySelect');
+
+      // 確保原生 select 未被 disabled（若 map.js 有設定可能會被關閉）
+      if (citySelect) {
+        citySelect.disabled = false;
+        if (window.cityChoices && typeof window.cityChoices.enable === 'function') {
+          window.cityChoices.enable();
+        }
+      }
+
+      if (btnClinic) {
+        btnClinic.classList.add('active');
+        // 使用短延遲以確保 map.js 的 click handler 已綁定
+        setTimeout(() => btnClinic.click(), 50);
+      }
     });
   </script>
   <!-- 🟢 新手教學 Modal -->

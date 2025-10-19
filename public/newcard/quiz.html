@@ -52,7 +52,29 @@
 <div id="quiz"></div>
 <div id="result" class="result"></div>
 
-<script>
+<!-- 直接覆蓋：把你的 <script> 改成 module，並加入每日一次 + 加抽卡的最少變更 -->
+<script type="module">
+/* ==== 新增：Firebase / Firestore / LIFF 初始化 ==== */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, doc, getDoc, runTransaction, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { firebaseConfig, LIFF_ID } from "./firebase-config.js";
+import "https://static.line-scdn.net/liff/edge/2/sdk.js";
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+const TZ  = "Asia/Taipei";
+const DRAWS_SUBCOL = "daily_draws"; // 與 knowledge-draw.js 相同
+function todayKey(){
+  const now = new Date();
+  const y = new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric"}).format(now);
+  const m = new Intl.DateTimeFormat("en-CA",{timeZone:TZ,month:"2-digit"}).format(now);
+  const d = new Intl.DateTimeFormat("en-CA",{timeZone:TZ,day:"2-digit"}).format(now);
+  return `${y}-${m}-${d}`;
+}
+
 const questions = [
   { q:"哪一項屬於慢性病？", a:["流行性感冒","關節炎","食物中毒","腸病毒"], correct:2 },
   { q:"下列哪個不是常見的三高慢性病？", a:["高血壓","高血脂","高體溫","高血糖"], correct:3 },
@@ -158,6 +180,7 @@ const questions = [
   { q:"高血壓若未控制，可能會造成下列哪一項併發症？", a:["視網膜病變","骨質疏鬆","胃潰瘍","感冒"], correct:1 },
 ];
 
+/* ==== 你的原本流程（保留），僅把 onclick 換成 window 綁定 ==== */
 let current = 0;
 let score = 0;
 let quizQuestions = [];
@@ -180,45 +203,121 @@ function showQuestion() {
     <div class="question">
       <h3>${current + 1}. ${q.q}</h3>
       ${q.a.map((opt, i) => 
-        `<button onclick="checkAns(${i}, ${q.correct})">${opt}</button>`
+        `<button onclick="window.__checkAns(${i}, ${q.correct})">${opt}</button>`
       ).join("")}
     </div>
   `;
 }
 
-function checkAns(selected, correct) {
-  // 題庫是 1-based，這裡轉成 0-based 判斷
+window.__checkAns = (selected, correct) => {
   if (selected === correct - 1) score++;
   current++;
   showQuestion();
+};
+
+/* ==== 新增：寫入 Firestore（每日一次、≥3 題加 1 次抽卡） ==== */
+async function writeQuizResultAndMaybeBonus(uid, dateKey, score, total) {
+  const ref = doc(db, "users", uid, DRAWS_SUBCOL, dateKey);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.exists() ? snap.data() : {};
+
+    // 已做過測驗就不再處理
+    if (data.quiz_taken === true) return;
+
+    const base = {
+      quiz_taken: true,
+      quiz_score: score,
+      quiz_total: total,
+      quiz_updatedAt: serverTimestamp(),
+    };
+
+    if (score >= 3 && !data.quiz_bonus_applied) {
+      const currentQuota = typeof data.quota === "number" ? data.quota : 1;
+      const newQuota = Math.min(currentQuota + 1, 3);
+      tx.set(ref, {
+        ...base,
+        quiz_passed: true,
+        quiz_bonus_applied: true,
+        quota: newQuota,
+      }, { merge: true });
+    } else {
+      tx.set(ref, {
+        ...base,
+        quiz_passed: score >= 3
+      }, { merge: true });
+    }
+  });
 }
 
-function finishQuiz() {
+async function finishQuiz() {
+  const resultEl = document.getElementById("result");
   let html = `<h2>✅ 你答對了 ${score} / ${quizQuestions.length} 題</h2>`;
   if (score >= 3) {
-    localStorage.setItem("extraDrawAvailable", "true");
     html += `<p>🎉 恭喜獲得一次額外抽卡機會！</p>`;
   } else {
     html += `<p>😅 未達成條件，下次加油！</p>`;
   }
-html += `<h3>📌 正確答案</h3><ol>`;
-  quizQuestions.forEach((q, idx) => {
-    const correctIndex = q.correct - 1; // 題庫是 1-based
+  html += `<h3>📌 正確答案</h3><ol>`;
+  quizQuestions.forEach((q) => {
+    const correctIndex = q.correct - 1;
     html += `<li>${q.q}<br><strong>正確答案：</strong> ${q.a[correctIndex]}</li>`;
   });
   html += `</ol>`;
-
-  html += `<button class="btn-home" onclick="location.href='index.html'">返回首頁</button>`;
+  //唯一修改：修正為抽卡頁的正確路徑 ▼▼ -->
+  html += `<button class="btn-home" onclick="location.href='/newcard/knowledge-draw.html'">前往隨機獲得知識圖卡</button>`;
+  // 唯一修改：修正為抽卡頁的正確路徑 ▲▲ -->
+  html += `<button class="btn-home" onclick="location.href='indexcard.html'">返回首頁</button>`;
 
   document.getElementById("quiz").innerHTML = "";
-  document.getElementById("result").innerHTML = html;
-  
-  html += `<button class="btn-home" onclick="location.href='index.html'">返回首頁</button>`;
-  document.getElementById("quiz").innerHTML = "";
-  document.getElementById("result").innerHTML = html;
+  resultEl.innerHTML = html;
+
+  // 寫入雲端（首次當日測驗才會生效；失敗不影響畫面）
+  try {
+    const prof = await liff.getProfile();
+    const uid  = prof.userId;
+    const date = todayKey();
+    await writeQuizResultAndMaybeBonus(uid, date, score, quizQuestions.length);
+  } catch (e) {
+    console.error("[quiz write error]", e);
+  }
 }
 
-startQuiz();
+/* ==== 進頁時檢查是否已做過（今日只允許一次） ==== */
+async function gateAndStart() {
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+
+    const prof = await liff.getProfile();
+    const uid  = prof.userId;
+    const date = todayKey();
+
+    const ref = doc(db, "users", uid, DRAWS_SUBCOL, date);
+    const snap = await getDoc(ref);
+    const data = snap.exists() ? snap.data() : null;
+
+    if (data?.quiz_taken) {
+      // 今天做過了：顯示提示
+      document.getElementById("quiz").innerHTML = `
+        <div class="question">
+          <h3>今天的測驗已經完成囉！</h3>
+          ${data.quiz_passed ? `<p>你今天已獲得 +1 抽卡（若抽卡頁未更新，請重整）。</p>` : `<p>未達成條件，明天再試一次！</p>`}
+          <button class="btn-home" onclick="location.href='indexcard.html'">返回首頁</button>
+        </div>
+      `;
+      document.getElementById("result").innerHTML = "";
+    } else {
+      startQuiz();
+    }
+  } catch (e) {
+    // 若 LIFF 失敗，允許離線練習（不鎖定、不加抽）
+    console.warn("[LIFF init failed, offline practice mode]", e);
+    startQuiz();
+  }
+}
+
+gateAndStart();
 </script>
 </body>
 </html>

@@ -3,7 +3,7 @@ const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const express = require('express');
 const crypto = require('crypto');
-const { normalizeData, normKey } = require('./normalizer');
+const { normalizeData: baseNormalizeData, normKey } = require('./normalizer');
 const { makeMatchCard } = require('./flex-cards');
 const { renderSwitchCarousel } = require('./quick-replies'); // ★ 新增：改由共用檔產生（多頁）Quick Reply
 
@@ -585,6 +585,7 @@ exports.healthRecordNormalize = functions
     const same =
       Object.keys(doc.data).length === Object.keys(normalized).length &&
       Object.keys(doc.data).every(k => normalized[k] === doc.data[k]);
+      Object.keys(doc.data).every(k => normalized[k] === doc.data[k]);
 
     await snap.ref.update({
       data: normalized,
@@ -618,59 +619,71 @@ exports.healthRecordNormalizeOnUpdate = functions
     return null;
   });
 
-exports.approvePendingAlias = functions
-  .region('asia-east1')
-  .https.onCall(async (req, ctx) => {
-    // TODO: 你可以在這裡檢查 ctx.auth 是否為管理員
-    const { id } = req;
-    if (!id) throw new functions.https.HttpsError('invalid-argument', 'id 必填');
+exports.approvePendingAlias = functions.region('asia-east1').https.onCall(async (data, ctx) => {
+  try {
+    if (!ctx.auth) throw new functions.https.HttpsError('unauthenticated', '請先登入');
 
-    const db = admin.firestore();
-    const ref = db.collection('pending_aliases').doc(id);
-    const snap = await ref.get();
-    if (!snap.exists) throw new functions.https.HttpsError('not-found', '找不到 pending_alias');
-    const { std, alias, status } = snap.data();
-    if (status === 'approved') return { ok: true, message: '已是核可狀態' };
-    if (status === 'rejected') return { ok: false, message: '已被拒絕' };
+    // 兼容 id / pendingId 兩種命名
+    const pendingId = data?.pendingId || data?.id;
+    const alias = (data?.alias || '').trim();
+    const std   = (data?.std || '').trim();
 
-    const keyRef = db.collection('key_alias').doc(keyIdForFirestore(std));
-    await db.runTransaction(async (tx) => {
-      tx.set(keyRef, {
-        aliases: admin.firestore.FieldValue.arrayUnion(alias),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-      tx.update(ref, {
-        status: 'approved',
-        approvedAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
-      });
-    });
+    if (!pendingId) throw new functions.https.HttpsError('invalid-argument', '缺少 pendingId');
+    if (!alias)     throw new functions.https.HttpsError('invalid-argument', '缺少 alias');
+    if (!std || std.toLowerCase() === 'null')
+      throw new functions.https.HttpsError('invalid-argument', '請輸入有效的標準名（std）');
 
-    return { ok: true };
-  });
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    const refKey = db.collection('key_alias').doc(keyIdForFirestore(std));
 
-exports.rejectPendingAlias = functions
-  .region('asia-east1')
-  .https.onCall(async (req, ctx) => {
-    // TODO: 同上可檢查權限
-    const { id } = req;
-    if (!id) throw new functions.https.HttpsError('invalid-argument', 'id 必填');
-    const db = admin.firestore();
-    const ref = db.collection('pending_aliases').doc(id);
-    const snap = await ref.get();
-    if (!snap.exists) throw new functions.https.HttpsError('not-found', '找不到 pending_alias');
-    const { status } = snap.data();
-    if (status === 'approved') return { ok: false, message: '已核可，不能拒絕' };
-    if (status === 'rejected') return { ok: true, message: '已是拒絕狀態' };
+    const batch = db.batch();
+    batch.set(refKey, {
+      aliases: admin.firestore.FieldValue.arrayUnion(alias),
+      updatedAt: now
+    }, { merge: true });
+    batch.delete(db.collection('pending_aliases').doc(pendingId));
+    await batch.commit();
 
-    await ref.update({
-      status: 'rejected',
-      rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-    return { ok: true };
-  });
+    return { ok: true, std, alias, pendingId };
+  } catch (err) {
+    console.error('approvePendingAlias error:', err);
+    if (err instanceof functions.https.HttpsError) throw err;
+    throw new functions.https.HttpsError('unknown', err.message || 'unknown error');
+  }
+});
 
+exports.rejectPendingAlias = functions.region('asia-east1').https.onCall(async (data, ctx) => {
+  try {
+    if (!ctx.auth) throw new functions.https.HttpsError('unauthenticated', '請先登入');
+
+    const pendingId = data?.pendingId || data?.id;
+    const alias = (data?.alias || '').trim();
+    const reason = (data?.reason || '').trim();
+
+    if (!pendingId) throw new functions.https.HttpsError('invalid-argument', '缺少 pendingId');
+    if (!alias)     throw new functions.https.HttpsError('invalid-argument', '缺少 alias');
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    const norm = alias.trim().toLowerCase();
+
+    const batch = db.batch();
+    // 黑名單：之後 normalize 會略過
+    batch.set(
+      db.collection('rejected_aliases').doc(norm),
+      { alias, rejectedAt: now, reason: reason || null },
+      { merge: true }
+    );
+    // 刪 pending
+    batch.delete(db.collection('pending_aliases').doc(pendingId));
+    await batch.commit();
+
+    return { ok: true, alias, pendingId };
+  } catch (err) {
+    console.error('rejectPendingAlias error:', err);
+    if (err instanceof functions.https.HttpsError) throw err;
+    throw new functions.https.HttpsError('unknown', err.message || 'unknown error');
+  }
+});
 // 這裡重用 normalizer 的工具方法
 function keyIdForFirestore(stdKey){ return String(stdKey).replace(/\//g,'__'); }
 
@@ -758,4 +771,52 @@ exports.recalcDay = functions
     }, { merge: true });
 
     return { ok: true };
+  });
+  
+// === 黑名單過濾工具（你已加，保留） ===
+function normAlias(s=''){
+  return String(s||'')
+    .normalize('NFKC')
+    .replace(/[()（）\[\]{}]/g,' ')
+    .replace(/[：:|｜/、,，;；\\]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim()
+    .toLowerCase();
+}
+
+async function loadRejectedAliasSet(){
+  const snaps = await admin.firestore().collection('rejected_aliases').get();
+  return new Set(snaps.docs.map(d => normAlias(d.id)));
+}
+
+// === 黑名單包裝：先濾掉黑名單 key，再交給原本 normalizer ===
+async function normalizeData(rawData, { learn = true } = {}) {
+  const rejected = await loadRejectedAliasSet();
+
+  // 先把黑名單鍵丟掉（注意：只過濾「鍵」，值的過濾交給前端或你的 base normalizer）
+  const filtered = {};
+  for (const [k, v] of Object.entries(rawData || {})) {
+    if (!rejected.has(normAlias(k))) {
+      filtered[k] = v;
+    }
+  }
+
+  // 交給你原本的 normalizer（就是 ./normalizer 匯入的那個）
+  return await baseNormalizeData(filtered, { learn });
+}
+  
+exports.normalizeHealthData = functions
+  .region('asia-east1')
+  .https.onCall(async (data, context) => {
+    const { data: rawData } = data || {};
+    if (!rawData) {
+      throw new functions.https.HttpsError('invalid-argument', '缺少 data');
+    }
+    try {
+      const { normalized, learned } = await normalizeData(rawData, { learn: true });
+      return { normalized, learned };
+    } catch (e) {
+      console.error('[normalizeHealthData] error:', e);
+      throw new functions.https.HttpsError('internal', e.message || 'normalize failed');
+    }
   });
