@@ -2,306 +2,219 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Make Well 圖卡系統</title>
-  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#588157" />
+  <title>Make Well 圖卡系統 · LINE 登入版</title>
+
+  <link rel="stylesheet" href="style.css" />
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://static.line-scdn.net/liff/edge/2.1/sdk.js"></script>
-	<style>
-    body { background-color: #efede9; color: #363636; font-family: sans-serif; }
-    .logo { display:block; margin: 0 auto; max-width: 160px; }
-    .title-center { text-align:center; color:#363636; }
-    .checkin-card {
-      max-width:720px; 
-      border-radius:16px; background:#efede9; color:#363636;
-    }
-    .checkin-title{padding-top: 6px; font-size:20px; font-weight:550; color:#588157; text-align:center; }
-    #checkinCount {padding-top: 6px; font-weight:550;font-size:20px; color:#588157; text-align:center; }
-    .calendar-header {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 6px;
-      margin-top: 5px;
-      text-align: center;
-      font-weight: bold;
-      color: #6e746e;
-      font-size: 14px;
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-    }
-    .calendar {  display: grid; grid-template-columns: repeat(7, 1fr); }
-    .day {
-      padding: 4px 0; text-align: center; border-radius: 6px;
-       font-weight: bold; color: #6e746e;
-    }
-    .day.signed {
-      border: 2px solid #588157; background-color: rgba(255,255,255,0.6);
-      background-image: url("S__106053636.jpg"); background-size: 60%;
-      background-repeat: no-repeat; background-position: center; background-blend-mode: lighten;
-    }
-    .btn-primary {
-      background:#659963de; color:#fff; border:none; border-radius:16px;
-      padding:8px 8px; font-weight:500; cursor:pointer; 
-    }
-    .btn-primary[disabled]{ opacity:.6; cursor:not-allowed; }
-    .btn-ghost { background:#659963de; color:#fff; border:none; border-radius:16px; padding:8px 8px; }
+  <style>
+    body { background: #efede9; color: #363636; font-family: 'Noto Sans TC', sans-serif; margin:0; overflow-x:hidden; }
+    .container { max-width: 960px; margin: 0 auto; padding: 20px; }
+    .logo { display:block; margin:0 auto; max-width:120px; border-radius:10px; }
+    h1 { text-align:center; color:#588157; font-size:28px; }
+    .checkin-card { background:#dad7cd; padding:24px; border-radius:16px; box-shadow:0 4px 12px rgba(0,0,0,.1); position:relative; }
+    .month-bar { display:flex; justify-content:space-between; align-items:center; background:#fff; border-radius:10px; padding:8px 12px; margin-bottom:10px; }
+    #weekdayHeader, #calendarDays { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+    .weekday { text-align:center; color:#666; font-weight:bold; }
+    .day { text-align:center; padding:8px 0; background:#f3f3f1; border-radius:6px; font-weight:bold; color:#363636; transition:transform 0.1s; }
+    .day.today { outline:2px dashed #588157; }
+    .day.signed { border:2px solid #588157; background:url('S__106053636.jpg') center/60% no-repeat rgba(255,255,255,0.6); }
+    .btn { border:none; border-radius:999px; padding:10px 16px; font-weight:bold; cursor:pointer; transition:0.2s; }
+    .btn-primary { background:#588157; color:#fff; }
+    .btn-ghost { background:#659963de; color:#fff; }
+    .btn:hover { transform:scale(1.05); }
+    .cta { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-top:12px; }
 
-    .spinner {
-      border: 6px solid #f3f3f3; border-top: 6px solid #588157;
-      border-radius: 50%; width: 40px; height: 40px;
-      animation: spin 0.8s linear infinite; margin: 20px auto;
-    }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    .error { color: red; text-align:center; margin-top: 12px; font-weight:bold; }
-    #cardDisplay {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin-top: 12px;
-    }
-    .card {
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 8px;
-      margin: 8px;
-      text-align: center;
-      background: white;
-      width: 140px;
-      perspective: 800px;
-      transform-style: preserve-3d;
-      transform: rotateY(180deg);
-      transition: transform 0.6s ease;
-    }
-    .card.flip { transform: rotateY(0deg); }
-    .card img {
-      max-width: 100px;
-      display: block;
-      margin: auto;
-      backface-visibility: hidden;
+    @media (max-width: 680px) {
+      .container { padding: 12px; }
+      .logo { max-width:100px; }
+      h1 { font-size:22px; line-height:1.3; }
+      .checkin-card { padding:16px; border-radius:12px; }
+      .month-bar { flex-direction:column; gap:8px; padding:10px; text-align:center; }
+      .calendar { padding:6px; }
+      #weekdayHeader, #calendarDays { grid-template-columns:repeat(7,1fr); gap:4px; }
+      .day { padding:6px 0; font-size:14px; }
+      .btn { width:100%; font-size:16px; padding:12px; border-radius:12px; }
+      .cta { flex-direction:column; gap:8px; }
     }
 
-    /* 知識圖片抽卡：區域化樣式（不影響原有按鈕樣式） */
-    #drawArea{
-      /* 局部自訂色票 */
-      --green-dark:#588157;
-      --green-light:#659963de;
-      --gray-soft:#dad7cd;
-      --gray-deep:#8e8e8cf2;
-      --yellow-soft:#efede9;
-      --black-soft:#363636;
-
-      max-width:640px; margin:16px auto;  background:transparent;
-      color:var(--black-soft);
+    /* ✅ 簽到成功動畫（含文字提示） */
+    .success-overlay {
+      position:absolute; inset:0;
+      display:flex; align-items:center; justify-content:center;
+      background:rgba(255,255,255,0.85);
+      border-radius:16px;
+      opacity:0; pointer-events:none; transition:opacity 0.3s ease;
+      z-index:50;
     }
-    #drawArea .row{ display:flex; align-items:center; gap:5px; margin-bottom:12px; flex-wrap:wrap; justify-content:center; }
-    #drawArea .k-title{ font-size:22px; font-weight:700; color:var(--green-dark); margin:0 0 8px;align-items: center; }
-    #drawArea .k-sub{ font-size:14px; color:var(--gray-deep); margin:0 0 12px; text-align: center; }
-    #drawArea .k-hint{ font-size:14px; color:var(--gray-deep); margin:0 0 6px; }
-    #drawArea .k-cardname{ font-size:18px; font-weight:600; margin:0 0 10px; }
-
-    /* 抽卡專用按鈕（與原頁面按鈕樣式隔離） */
-    #drawArea .kbtn{
-      display:inline-flex; align-items:center; justify-content:center;
-      gap:.4rem; padding:.65rem 1rem; border-radius:.75rem; font-weight:600;
-      transition:transform .06s ease, opacity .2s ease, background .2s ease;
-      text-decoration:none; cursor:pointer;
-    }
-    #drawArea .kbtn:active{ transform:translateY(1px); }
-    #drawArea .kbtn-primary{ background:var(--green-dark); color:#fff; }
-    #drawArea .kbtn-primary:hover{ opacity:.9; }
-    #drawArea .kbtn-ghost{ color:var(--green-dark); background:transparent; border:1px solid var(--green-dark); }
-    #drawArea .kbtn-ghost:hover{ background:var(--gray-soft); }
-
-    /* 抽卡主按鈕 */
-    #drawArea #drawBtn{
-      background:var(--green-dark); color:#fff; border:none; border-radius:.75rem;
-      padding:12px 20px; font-weight:600; cursor:pointer; transition:opacity .2s ease;
-    }
-    #drawArea #drawBtn:hover{ opacity:.9; }
-    #drawArea #drawBtn:disabled{ background:var(--gray-deep); cursor:not-allowed; }
-
-    #drawArea .info-box{
-      background:var(--gray-soft); color:var(--black-soft);
-      padding:6px 12px; border-radius:.5rem; border:1px solid var(--green-light); font-weight:500;
-    }
-    #drawArea #result{
-      background:#fff; border:1px solid var(--gray-soft); border-radius:1rem;
-      box-shadow:0 4px 6px rgba(0,0,0,.08); padding:12px; margin-top:14px;
-    }
-    #drawArea #errorMsg{ color:red; font-weight:bold; margin-top:8px; }
-    #drawArea #cardImg{ width:100%; border-radius:12px; border:1px solid var(--gray-soft); }
-
-    /* 取代 Tailwind 的 hidden */
-    #drawArea .hidden{ display:none; }
+    .success-overlay.active { opacity:1; pointer-events:auto; animation:fadeOut 1.5s forwards; }
+    @keyframes fadeOut { 0%{opacity:1} 80%{opacity:1} 100%{opacity:0} }
+    .checkmark { width:80px; height:80px; border-radius:50%; background:#588157; display:flex; align-items:center; justify-content:center; animation:popIn .3s ease; }
+    @keyframes popIn { from{ transform:scale(0); opacity:0 } to{ transform:scale(1); opacity:1 } }
+    .checkmark::after { content:"✓"; color:#fff; font-size:48px; font-weight:700; }
+    .success-text{ position:absolute; bottom:18%; left:50%; transform:translateX(-50%); font-weight:800; color:#256029; background:rgba(255,255,255,.9); padding:8px 14px; border-radius:999px; box-shadow:0 4px 12px rgba(0,0,0,.08); opacity:0; }
+    .success-overlay.active .success-text{ animation:toast 1.5s ease forwards; }
+    @keyframes toast{ 0%{opacity:0; transform:translate(-50%, 8px)} 20%{opacity:1; transform:translate(-50%, 0)} 80%{opacity:1; transform:translate(-50%, 0)} 100%{opacity:0; transform:translate(-50%, -6px)} }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class ="backgroundcard" style="background-color: #fff;border-radius:16px;padding: 10px 18px 255px 18px; margin: 20px 10px 20px 10px;">
-    <section>
-      <div class="title-center" style="padding-bottom: 3px; font-size: 25px; align-items: center;color:#363636;font-weight:700">🗓️確定用藥簽到</div>
-      <div class="checkin-description" style="font-size: 1rem; color: #666; text-align: center; margin-top: 8px;"></div>
-     
+    <img src="S__106053636.jpg" alt="Make Well Logo" class="logo">
+    <h1>Make Well 圖卡系統（LINE 登入版）</h1>
 
-    </section>
-
-    <!-- 簽到卡片 -->
-    <section class="checkin-card" id="checkinCard" style="display:block;">
-            <div style="display: flex; align-items: center; justify-content: center; gap: 4px;">
-        <div class="checkin-title" id="monthTitle"></div>
-        <div class="title-center" id="checkinCount" ></div>
+    <section class="checkin-card">
+      <div class="month-bar">
+        <button id="btnPrevMonth" class="btn btn-ghost">◀ 上個月</button>
+        <div id="monthTitle"></div>
+        <button id="btnNextMonth" class="btn btn-ghost">下個月 ▶</button>
       </div>
-      <hr>
-      <div class="calendar-header" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 12px; text-align: center; font-weight: bold; color: #588157;">
-  <div>日</div>
-  <div>一</div>
-  <div>二</div>
-  <div>三</div>
-  <div>四</div>
-  <div>五</div>
-  <div>六</div>
-</div>
-      <div class="calendar" id="calendarDays"></div>
-      <div class="title-center" style="margin-top:0px;padding-block-end: 10px;">
-<hr>
-  <button id="btnCheckin" class="btn-primary">今日簽到</button>
-  <a href="knowledge-draw.html"><button class="btn-ghost">獲得圖片</button></a>
-  <a href="collection.html"><button class="btn-ghost">查看圖鑑</button></a>
-  <a href="quiz.html"><button class="btn-ghost">蒐集更多</button></a>
-</div>
+      <div id="checkinCount" style="text-align:center;color:#588157;font-weight:bold;margin-bottom:8px;"></div>
+      <div class="calendar">
+        <div id="weekdayHeader"></div>
+        <div id="calendarDays"></div>
+      </div>
+      <div class="cta">
+        <button id="btnCheckin" class="btn btn-primary">今日簽到</button>
+        <a href="knowledge-draw.html"><button class="btn btn-ghost">隨機獲得圖片</button></a>
+        <a href="collection.html"><button class="btn btn-ghost">查看我的圖鑑</button></a>
+      </div>
+      <!-- 簽到成功動畫層 -->
+      <div class="success-overlay" id="successOverlay">
+        <div class="checkmark" aria-hidden="true"></div>
+        <div class="success-text" id="successText" aria-live="polite">簽到成功！</div>
+      </div>
     </section>
-
-  
-
-
-<!-- 下方按鈕區 -->
-
-
-<section id="drawArea">
-  <div class="k-title" style="padding-bottom: 3px; font-size: 25px; text-align: center;color:#363636;font-weight:700">🎴健康知識圖卡</div>
-  <p class="k-sub">
-   💡登入、完成用藥、完成測驗皆能抽卡 (3次/日)
-
-  </p>
-
-
-  <div class="row">
-    <span class="info-box">可抽：<b id="quota">3</b> 次</span>
-    <span class="info-box">已抽：<b id="used">0</b> 次</span>
-    <button id="drawBtn">🎴 抽一張</button>
   </div>
-
-  <p id="errorMsg"></p>
-
-  <div id="result" class="hidden">
-    <p class="k-hint">你抽到了：</p>
-    <h2 id="cardName" class="k-cardname"></h2>
-    <img id="cardImg" alt="知識圖片" />
-  </div>
- 
-</section>
-
-
-
-<footer style="margin-top: 40px;text-align:center;">
-  <p style="color: #8e8e8cf2; font-size: 13px;">
-    © 2025 MakeWell 抽卡系統 | 圖卡收集計畫
-  </p>
-</footer>
-
 
   <script>
-    const DEV_MODE = true;
-    const SKIP_LIFF_LOGIN = false;            // ← 開發時設 true，可不登入 LIFF
-const DEV_MOCK_UID_KEY = "dev_mock_uid"; // 假 uid 保存用
-function getMockUserId() {
-  let id = localStorage.getItem(DEV_MOCK_UID_KEY);
-  if (!id) {
-    id = "DEV_" + Math.random().toString(36).slice(2, 10);
-    localStorage.setItem(DEV_MOCK_UID_KEY, id);
-  }
-  return id;
-}
+    const firebaseConfig = {
+      apiKey: "AIzaSyCCUzkxpn1quR9PPSBeZBGGl7XVh8vPzjY",
+      authDomain: "medwell-test1.firebaseapp.com",
+      projectId: "medwell-test1",
+      storageBucket: "medwell-test1.firebasestorage.app",
+      messagingSenderId: "860851688843",
+      appId: "1:860851688843:web:622eb8feccad45ce640b8e"
+    };
+    firebase.initializeApp(firebaseConfig);
 
-    let userId = null;
+    const WEEK_LABELS = ["日","一","二","三","四","五","六"];
 
-    // 初始化 LIFF + Firebase
-    document.addEventListener("DOMContentLoaded", async () => {
-      await liff.init({ liffId: "2007870072-ZNeMmll2" });
-      if (!liff.isLoggedIn()) { liff.login(); return; }
+    async function initApp() {
+      await liff.init({ liffId: '2007870072-ZNeMmll2' });
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+
       const profile = await liff.getProfile();
-      userId = profile.userId;
+      const userId = profile.userId;
 
-      const firebaseConfig = { 
-        apiKey: "AIzaSyCCUzkxpn1quR9PPSBeZBGGl7XVh8vPzjY",
-        authDomain: "medwell-test1.firebaseapp.com",
-        projectId: "medwell-test1",
-        storageBucket: "medwell-test1.firebasestorage.app",
-        messagingSenderId: "860851688843",
-        appId: "1:860851688843:web:622eb8feccad45ce640b8e" };
-        firebase.initializeApp(firebaseConfig);
-    });
+      const db = firebase.firestore();
+      const checkinRef = db.collection('makewell_checkin');
 
-    // ===== 簽到月曆邏輯 =====
-    function getMonthKey(){
-      const d=new Date();
-      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    }
-    function getTodayStr(){
-      return new Date().toISOString().slice(0,10);
-    }
-    function renderCalendar(signedDays){
-      const calendar = document.getElementById('calendarDays');
-      const monthTitle = document.getElementById('monthTitle');
-      const checkinCount = document.getElementById('checkinCount');
-      calendar.innerHTML='';
-      const now = new Date();
-      monthTitle.textContent = `${now.getFullYear()} 年 ${now.getMonth()+1} 月`;
-      checkinCount.textContent = `本月已簽到 ${signedDays.length} 天`;
-      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-      const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
-      const startWeekday = firstDay.getDay();
-      for(let i=0;i<startWeekday;i++){ calendar.appendChild(document.createElement('div')); }
-      for(let day=1;day<=lastDay;day++){
-        const div=document.createElement('div');
-        div.className='day';
-        div.textContent=day;
-        const dateStr=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-        if(signedDays.includes(dateStr)){div.classList.add('signed');}
-        calendar.appendChild(div);
+      function getMonthKey(d=new Date()){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+      function getTodayStr(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+
+      function renderWeekHeader(){
+        const header=document.getElementById('weekdayHeader');
+        header.innerHTML='';
+        WEEK_LABELS.forEach(day=>{
+          const div=document.createElement('div'); div.className='weekday'; div.textContent=day; header.appendChild(div);
+        });
       }
-    }
-    if(DEV_MODE){
-      document.getElementById('checkinCard').style.display = 'block';
-      const STORAGE_KEY = 'checkin_calendar_data';
-      const btn = document.getElementById('btnCheckin');
-      function loadData(){
-        const data = JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');
-        if(data.month!==getMonthKey()){data.month=getMonthKey();data.days=[];}
-        return Object.assign({month:getMonthKey(),days:[]},data);
+
+      async function getSignedDays(monthKey){
+        const docSnap = await checkinRef.doc(`${userId}_${monthKey}`).get();
+        if(docSnap.exists) return docSnap.data().days || [];
+        return [];
       }
-      function saveData(data){localStorage.setItem(STORAGE_KEY, JSON.stringify(data));}
-      function render(){
-        const data=loadData();
-        renderCalendar(data.days);
-        const already=data.days.includes(getTodayStr());
-        btn.disabled=already;
-        btn.textContent=already?'完成簽到':'今日簽到';
+
+      async function saveSignedDay(monthKey, today){
+        const ref = checkinRef.doc(`${userId}_${monthKey}`);
+        await db.runTransaction(async (t)=>{
+          const doc = await t.get(ref);
+          let days = [];
+          if(doc.exists) days = doc.data().days || [];
+          if(!days.includes(today)) days.push(today);
+          t.set(ref, { days }, { merge:true });
+        });
       }
-      btn.addEventListener('click',()=>{
-        const data=loadData();
-        if(!data.days.includes(getTodayStr())){
-          data.days.push(getTodayStr());
-          saveData(data);
+
+      function renderCalendar(signedDays,baseDate=new Date()){
+        const daysWrap=document.getElementById('calendarDays');
+        const monthTitle=document.getElementById('monthTitle');
+        const checkinCount=document.getElementById('checkinCount');
+        daysWrap.innerHTML='';
+
+        const year=baseDate.getFullYear();
+        const month=baseDate.getMonth();
+        const firstDay=new Date(year,month,1);
+        const lastDate=new Date(year,month+1,0).getDate();
+        const startWeekday=firstDay.getDay();
+        const todayStr=getTodayStr();
+
+        monthTitle.textContent=`${year} 年 ${month+1} 月`;
+        checkinCount.textContent=`本月已簽到 ${signedDays.length} 天`;
+
+        for(let i=0;i<startWeekday;i++){ const gap=document.createElement('div'); daysWrap.appendChild(gap); }
+        for(let d=1; d<=lastDate; d++){
+          const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          const cell=document.createElement('div');
+          cell.className='day';
+          cell.textContent=d;
+          if(dateStr===todayStr) cell.classList.add('today');
+          if(signedDays.includes(dateStr)) cell.classList.add('signed');
+          daysWrap.appendChild(cell);
         }
-        render();
+      }
+
+      function showSuccess(){
+        const overlay=document.getElementById('successOverlay');
+        const textEl=document.getElementById('successText');
+        overlay.classList.remove('active');
+        void overlay.offsetWidth;
+        textEl.textContent='簽到成功！';
+        overlay.classList.add('active');
+        setTimeout(()=>overlay.classList.remove('active'),1500);
+      }
+
+      renderWeekHeader();
+      let currentMonth=new Date(); currentMonth.setDate(1);
+
+      const btnPrev=document.getElementById('btnPrevMonth');
+      const btnNext=document.getElementById('btnNextMonth');
+      const btnCheckin=document.getElementById('btnCheckin');
+
+      async function refresh(baseDate){
+        const key=getMonthKey(baseDate);
+        const signed=await getSignedDays(key);
+        renderCalendar(signed,baseDate);
+        const isThisMonth=getMonthKey(new Date())===key;
+        const today=getTodayStr();
+        btnCheckin.disabled=!isThisMonth||signed.includes(today);
+        btnCheckin.textContent=!isThisMonth?'僅可在本月簽到':(signed.includes(today)?'今日已簽到 ✓':'今日簽到');
+      }
+
+      btnCheckin.addEventListener('click', async ()=>{
+        const key=getMonthKey(currentMonth);
+        const today=getTodayStr();
+        await saveSignedDay(key,today);
+        await refresh(currentMonth);
+        showSuccess();
       });
-      render();
+
+      btnPrev.addEventListener('click',()=>{ currentMonth.setMonth(currentMonth.getMonth()-1); refresh(currentMonth); });
+      btnNext.addEventListener('click',()=>{ currentMonth.setMonth(currentMonth.getMonth()+1); refresh(currentMonth); });
+
+      await refresh(currentMonth);
     }
 
+    document.addEventListener('DOMContentLoaded', initApp);
   </script>
-  
 </body>
 </html>

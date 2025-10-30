@@ -32,6 +32,32 @@
     .mw-item{ border:1px solid var(--mw-border); background:linear-gradient(180deg,#ffffff, #fffefb); }
     .mw-date{ background:var(--mw-cream); border:1px solid var(--mw-border); color:var(--mw-ink); }
     .mw-badge{ background:var(--mw-green-light); color:#fff; }
+    
+    /* ★ 1. 新增 Data Pill 樣式 ★ */
+    .mw-data-preview {
+      display: flex;
+      flex-wrap: wrap; /* 允許換行 */
+      gap: 6px; /* 標籤之間的間距 */
+      margin-top: 8px; /* 與上方標題的間距 */
+      max-height: 58px; /* 限制最大高度，約兩行 */
+      overflow: hidden; /* 隱藏多餘內容 */
+    }
+    .mw-data-pill {
+      display: inline-block;
+      font-size: 0.75rem; /* 12px */
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 8px;
+      background: var(--mw-cream); /* 使用現有的米色 */
+      border: 1px solid var(--mw-border);
+      color: var(--mw-ink);
+      line-height: 1.4;
+    }
+    .mw-data-pill strong {
+      color: var(--mw-green); /* 讓 Key 顏色突出 */
+      margin-right: 4px;
+    }
+
     .mw-fab{ position: fixed; right: 20px; bottom: 20px; width:64px; height:64px; border-radius:50%;
       background: linear-gradient(135deg, var(--mw-green) 0%, rgba(101,153,99,.9) 100%);
       color:#fff; font-size:2rem; font-weight:900; box-shadow:0 10px 24px rgba(0,0,0,.18); display:flex; align-items:center; justify-content:center; transition:.18s ease; z-index:50;}
@@ -70,19 +96,28 @@
     </div>
   </header>
 
-  <main class="mx-auto max-w-4xl px-4">
-    <section class="mw-card mt-6 p-5 md:p-6 animate-fadeInUp">
-      <div class="flex items-center justify-between gap-3 flex-wrap section-head">
-        <div class="flex items-center gap-2"><span class="mw-chip mw-chip-title">數據紀錄</span></div>
-        <div class="flex items-center gap-2"><span class="text-sm intro" style="color:var(--mw-gray)">近期上傳的健康紀錄（依時間新→舊）</span></div>
-        <div class="flex items-center gap-2">
-          <button id="prevPage" class="mw-btn mw-btn-ghost">上一頁</button>
-          <button id="nextPage" class="mw-btn mw-btn-primary">下一頁</button>
-        </div>
-      </div>
-      <div id="record-list" class="mt-4 flex flex-col gap-4"></div>
-    </section>
-  </main>
+	<main class="mx-auto max-w-4xl px-4">
+	  <section class="mw-card mt-6 p-5 md:p-6 animate-fadeInUp">
+
+		<div class="flex items-center justify-between gap-3 flex-wrap section-head">
+		  <div class="flex items-center gap-2">
+			<span class="mw-chip mw-chip-title">數據紀錄</span>
+		  </div>
+		  <div class="flex items-center gap-2">
+			<span class="text-sm intro" style="color:var(--mw-gray)">近期上傳的健康紀錄（依時間新→舊）</span>
+		  </div>
+		</div>
+
+		<div id="record-list" class="mt-4 flex flex-col gap-4">
+		  </div>
+
+		<div class="flex items-center gap-2 justify-center mt-4">
+		  <button id="prevPage" class="mw-btn mw-btn-ghost">上一頁</button>
+		  <button id="nextPage" class="mw-btn mw-btn-primary">下一頁</button>
+		</div>
+
+	  </section>
+	</main>
 
   <button class="mw-fab" aria-label="新增紀錄"
         onclick="localStorage.removeItem('edit_data'); location.href='ocr_data2.html'">＋</button>
@@ -164,93 +199,108 @@
       return '健康紀錄';
     }
 
-    function renderPage() {
-      clearSkeleton();
-      const start = currentPage * PAGE_SIZE;
-      const end   = start + PAGE_SIZE;
-      const pageRecords = records.slice(start, end);
+	function renderPage() {
+		  clearSkeleton();
+		  const start = currentPage * PAGE_SIZE;
+		  const end   = start + PAGE_SIZE;
+		  const pageRecords = records.slice(start, end);
 
-      recordList.innerHTML = "";
-      pageRecords.forEach((data, idx) => {
-        const ts = data.timestamp?.seconds ? new Date(data.timestamp.seconds * 1000) : new Date();
-        const month = ts.getMonth() + 1, day = ts.getDate();
-        const showObj = data.data || data;
+		  recordList.innerHTML = "";
+		  pageRecords.forEach((data, idx) => {
+			const ts = data.timestamp?.seconds ? new Date(data.timestamp.seconds * 1000) : new Date();
+			const month = ts.getMonth() + 1, day = ts.getDate();
+			const showObj = data.data || data;
 
-        const item = document.createElement('div');
-        item.className = "mw-item rounded-2xl p-5 md:p-6 flex items-center gap-4 relative transition hover:scale-[1.01] hover:shadow duration-150 animate-fadeInUp";
-        item.style.animationDelay = `${idx * 0.08}s`;
+			const item = document.createElement('div');
+			item.className = "mw-item rounded-2xl p-5 md:p-6 flex items-center gap-4 relative transition hover:scale-[1.01] hover:shadow duration-150 animate-fadeInUp";
+			item.style.animationDelay = `${idx * 0.08}s`;
+			
+			// ★ 變更點 1：增加手型游標，並為整張卡片加上點擊事件
+			item.style.cursor = 'pointer'; 
+			item.onclick = () => {
+			  const absoluteIndex = start + idx;
+			  localStorage.setItem('edit_data', JSON.stringify(records[absoluteIndex]));
+			  window.location.href = `ocr_data2.html?id=${records[absoluteIndex]._id}`;
+			};
 
-        const actions = document.createElement('div');
-        actions.className = "absolute top-2 right-2 flex gap-1 z-10";
-        actions.innerHTML = `
-          <button class="icon-btn px-2 py-1 rounded-md text-xs bg-white border border-[var(--mw-border)] hover:bg-[var(--mw-cream)] text-[var(--mw-ink)] shadow edit-btn" aria-label="編輯" data-idx="${start + idx}">
-            <span class="icon">✎</span><span class="action-label">&nbsp;編輯</span>
-          </button>
-          <button class="icon-btn px-2 py-1 rounded-md text-xs bg-white border border-[var(--mw-border)] hover:bg-red-50 text-red-600 shadow delete-btn" aria-label="刪除" data-idx="${start + idx}">
-            <span class="icon">🗑</span><span class="action-label">&nbsp;刪除</span>
-          </button>
-        `;
+			const actions = document.createElement('div');
+			actions.className = "absolute top-2 right-2 flex gap-1 z-10";
+			
+			// ★ 變更點 2：移除了原本的 "編輯" 按鈕，只保留 "刪除"
+			actions.innerHTML = `
+			  <button class="icon-btn px-2 py-1 rounded-md text-xs bg-white border border-[var(--mw-border)] hover:bg-red-50 text-red-600 shadow delete-btn" aria-label="刪除" data-idx="${start + idx}">
+				<span class="icon">🗑</span><span class="action-label">&nbsp;刪除</span>
+			  </button>
+			`;
 
-        const dateBox = document.createElement('div');
-        dateBox.className = "mw-date w-16 h-16 rounded-2xl flex flex-col justify-center items-center shadow-sm flex-shrink-0 animate-fadeInUp";
-        dateBox.style.animationDelay = `${idx * 0.08 + 0.04}s`;
-        dateBox.innerHTML = `
-          <span class="text-2xl font-black leading-tight" style="color:var(--mw-green)">${day}</span>
-          <span class="text-xs" style="color:var(--mw-gray)">${month}月</span>
-        `;
+			const dateBox = document.createElement('div');
+			dateBox.className = "mw-date w-16 h-16 rounded-2xl flex flex-col justify-center items-center shadow-sm flex-shrink-0 animate-fadeInUp";
+			dateBox.style.animationDelay = `${idx * 0.08 + 0.04}s`;
+			dateBox.innerHTML = `
+			  <span class="text-2xl font-black leading-tight" style="color:var(--mw-green)">${day}</span>
+			  <span class="text-xs" style="color:var(--mw-gray)">${month}月</span>
+			`;
 
-        const mid = document.createElement('div');
-        mid.className = "flex-1 min-w-0 animate-fadeInUp";
-        mid.style.animationDelay = `${idx * 0.08 + 0.06}s`;
-        mid.innerHTML = `
-          <div class="mw-badge inline-flex items-center px-3 py-1 rounded-full text-sm font-extrabold tracking-wide">
-            ${getRecordType(showObj)}
-          </div>
-        `;
+			const mid = document.createElement('div');
+			mid.className = "flex-1 min-w-0 animate-fadeInUp";
+			mid.style.animationDelay = `${idx * 0.08 + 0.06}s`;
+			mid.innerHTML = `
+			  <div class="mw-badge inline-flex items-center px-3 py-1 rounded-full text-sm font-extrabold tracking-wide">
+				${getRecordType(showObj)}
+			  </div>
+			`;
 
-        /* ★ 卡片快速預覽（key → value 橫向排） */
-        const kvHtml = Object.entries(showObj || {})
-          .map(([k,v]) => `<span class="mr-4"><strong>${k}</strong>&nbsp;&nbsp;${String(v ?? '')}</span>`)
-          .join('');
-        mid.insertAdjacentHTML('beforeend',
-          `<div class="mt-2 text-sm text-slate-700 line-clamp-2">${kvHtml}</div>`);
+			/* ★ 2. 修改卡片快速預覽 (改為 Pill 標籤樣式) ★ */
+			// 檢查 data.orderKeys 是否存在且有內容，否則用 Object.keys
+			const keysToShow = (data.orderKeys && Array.isArray(data.orderKeys) && data.orderKeys.length > 0) 
+								? data.orderKeys 
+								: Object.keys(showObj || {});
+			
+			const pillsHtml = keysToShow
+			  .slice(0, 3) // ★ 只顯示前 3 筆
+			  .map(k => {
+				const v = String(showObj[k] ?? '');
+				if (!k || !v) return ''; // 避免空標籤
+				// 使用 CSS class 來定義樣式
+				return `<span class="mw-data-pill">
+						  <strong>${k}</strong> ${v}
+						</span>`;
+			  })
+			  .join('');
+			
+			// 移除舊的 .line-clamp-2 樣式，改用新的 CSS class 來包裝
+			mid.insertAdjacentHTML('beforeend',
+			  `<div class="mw-data-preview">${pillsHtml || '<span class="text-sm" style="color:var(--mw-gray)">無預覽資料</span>'}</div>`);
 
-        item.appendChild(actions);
-        item.appendChild(dateBox);
-        item.appendChild(mid);
-        recordList.appendChild(item);
-      });
-
-      // 編輯
-      document.querySelectorAll('.edit-btn').forEach(btn => {
-        btn.onclick = e => {
-          e.stopPropagation();
-          const idx = +btn.getAttribute("data-idx");
-          localStorage.setItem('edit_data', JSON.stringify(records[idx]));
-          window.location.href = `ocr_data2.html?id=${records[idx]._id}`;
-        };
-      });
-
-      // 刪除
-      document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.onclick = async e => {
-          e.stopPropagation();
-          const idx = +btn.getAttribute("data-idx");
-          const _id = records[idx]._id;
-          if (!confirm('確定要刪除這筆紀錄嗎？')) return;
-          try {
-            await deleteDoc(docRef(db, "health_records", _id));
-            alert('已刪除！');
-            records.splice(idx, 1);
-            if (currentPage > 0 && currentPage * PAGE_SIZE >= records.length) currentPage--;
-            renderPage();
-          } catch (err) {
-            console.error(err);
-            alert('刪除失敗，請檢查網路或權限');
-          }
-        };
-      });
-    }
+			item.appendChild(actions);
+			item.appendChild(dateBox);
+			item.appendChild(mid);
+			recordList.appendChild(item);
+		  });
+		  
+		  // 刪除
+		  document.querySelectorAll('.delete-btn').forEach(btn => {
+			btn.onclick = async e => {
+			  // 這行 very important! 它會停止事件冒泡
+			  // 確保點擊 "刪除" 時，不會同時觸發卡片的 "編輯" 事件
+			  e.stopPropagation(); 
+			  
+			  const idx = +btn.getAttribute("data-idx");
+			  const _id = records[idx]._id;
+			  if (!confirm('確定要刪除這筆紀錄嗎？')) return;
+			  try {
+				await deleteDoc(docRef(db, "health_records", _id));
+				alert('已刪除！');
+				records.splice(idx, 1);
+				if (currentPage > 0 && currentPage * PAGE_SIZE >= records.length) currentPage--;
+				renderPage();
+			  } catch (err) {
+				console.error(err);
+				alert('刪除失敗，請檢查網路或權限');
+			  }
+			};
+		  });
+		}
 
     prevPageBtn.addEventListener("click", () => {
       if (currentPage > 0) { currentPage--; showSkeleton(); renderPage(); }

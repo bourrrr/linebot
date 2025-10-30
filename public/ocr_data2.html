@@ -7,10 +7,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display.swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Firebase & LIFF -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -32,12 +31,30 @@
     .mw-btn-primary{ background:var(--mw-green); color:#fff; border-radius:12px; padding:.65rem 1rem; font-weight:700; transition:.2s;}
     .mw-btn-ghost{ border:1px solid var(--mw-border); background:#fff; color:#363636; border-radius:12px; padding:.55rem .9rem; }
     .mw-input{ width:100%; border:1px solid var(--mw-border); border-radius:14px; padding:.7rem .9rem; background:#fff; }
-    .mw-field-row{ display:grid; grid-template-columns:160px 1fr auto; gap:.6rem; align-items:center; }
-    @media (max-width: 767px){ .mw-field-row{ grid-template-columns: 1fr 1fr; } .mw-field-row [data-del]{ grid-column: 1 / -1; } }
+    .mw-field-row{ display:grid; grid-template-columns:1fr 1fr auto; gap:.6rem; align-items:center; } /* ★ 1. 套用新佈局 CSS */
+
+    /* ★ 2. 為新的刪除圖示按鈕新增樣式 ★ */
+    .mw-btn-del{ 
+      background:#fff; 
+      color:#c02a2a; /* 紅色，表示危險操作 */
+      border:1px solid var(--mw-border); 
+      border-radius:12px; 
+      padding: 0.55rem 0.75rem; /* 調整 padding 讓它接近方形 */
+      font-weight:700; 
+      line-height:1.25rem; /* 確保高度與輸入框一致 */
+    }
+    .mw-btn-del:hover{ 
+      background:#fff3f3; /* 滑過時的淡淡紅色 */
+    }
+    
+    /* ★ 3. 修正手機版的跑版問題 ★ */
+    @media (max-width: 767px){ 
+      /* ★ 讓手機版也維持三欄式 (名稱、值、刪除) ★ */
+      .mw-field-row{ grid-template-columns: 1fr 1fr auto; } 
+    }
   </style>
 </head>
 <body>
-  <!-- Header -->
   <header class="mw-header">
     <div class="mx-auto max-w-6xl px-4 py-4 flex items-center gap-4">
       <div style="padding: 10px; text-align: left;">
@@ -56,8 +73,22 @@
   </header>
 
   <main class="mx-auto max-w-6xl px-4 py-6 space-y-6">
-    <!-- 上傳卡片 -->
-    <section class="mw-card p-4 md:p-6">
+
+    <section id="choiceSection" class="mw-card p-4 md:p-6 hidden">
+      <h2 class="text-xl font-bold" style="color:var(--mw-green)">您想如何新增紀錄？</h2>
+      <p class="text-sm mt-1" style="color:var(--mw-gray)">請選擇開始方式</p>
+      <div class="mt-4 flex flex-col md:flex-row gap-3">
+        <button id="btnManual" class="mw-btn-ghost flex-1 py-4 text-base">
+          ✍️ 手動輸入
+        </button>
+        <button id="btnScan" class="mw-btn-primary flex-1 py-4 text-base">
+          📷 拍照掃描
+        </button>
+      </div>
+    </section>
+
+    <section id="uploadSection" class="mw-card p-4 md:p-6 hidden">
+      
       <div class="flex flex-col md:flex-row md:items-end gap-4">
         <div class="flex-1">
           <label class="block text-sm font-semibold mb-1" style="color:var(--mw-green)">選擇圖片 / PDF</label>
@@ -69,12 +100,11 @@
                  placeholder="選擇影像或 PDF（可多檔）">
           <p class="text-xs mt-2" style="color:var(--mw-gray)">僅做 OCR 辨識，請避開反光、傾斜與過度裁切。</p>
         </div>
-        <div class="flex gap-2">
+        <div class="flex gap-2 justify-center">
           <button id="btnUpload" class="mw-btn-primary">上傳並辨識</button>
         </div>
       </div>
 
-      <!-- 多檔預覽，可滾動 -->
       <div id="previewWrap" class="mt-4 hidden"
            style="background:#f6f6f3; border:1px dashed var(--mw-border); border-radius:16px; padding:.75rem;
                   max-height:60vh; overflow:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;">
@@ -85,17 +115,17 @@
       <div id="status" class="mt-3 text-sm hidden"></div>
     </section>
 
-    <!-- 辨識結果 -->
-    <section class="mw-card p-4 md:p-6">
+    <section id="resultsSection" class="mw-card p-4 md:p-6 hidden">
+      
       <div class="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <h2 class="text-xl font-bold" style="color:var(--mw-green)">辨識結果（可編輯）</h2>
+          <h2 id="resultsCardTitle" class="text-xl font-bold" style="color:var(--mw-green)">辨識結果</h2>
           <p class="text-xs mt-1" style="color:var(--mw-gray)">日期：<span id="date"></span></p>
         </div>
         <div class="flex gap-2">
-          <button id="btnAdd" class="mw-btn-ghost">＋ 新增欄位</button>
-          <button id="btnClear" class="mw-btn-ghost">清除全部欄位</button>
-          <button id="btnPretty" class="mw-btn-ghost">閱讀模式</button>
+          <button id="btnAdd" class="mw-btn-ghost">新增</button>
+          <button id="btnClear" class="mw-btn-ghost">清除全部</button>
+          <button id="btnPretty" class="mw-btn-ghost">閱讀</button>
           <button id="btnConfirm" class="mw-btn-primary">確認</button>
         </div>
       </div>
@@ -104,15 +134,18 @@
         <div class="text-sm" style="color:var(--mw-gray)">尚未有資料，請先上傳圖片／PDF 辨識，或點「＋ 新增欄位」。</div>
       </div>
 
-      <!-- 友善閱讀模式 -->
       <div id="prettyView" class="mt-4 hidden">
         <div class="text-sm" style="color:var(--mw-gray)">（閱讀模式）</div>
         <div id="prettyList" class="mt-2 space-y-2"></div>
       </div>
     </section>
+
+    <div id="backBtnCommonWrap" class="flex justify-center hidden">
+      <button id="btnBackCommon" class="mw-btn-ghost text-sm">← 返回選擇</button>
+    </div>
+
   </main>
 
-  <!-- 仍沿用你現有的字典解析器（若有） -->
   <script src="https://medwell-test1.web.app/extractHealthData.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-functions-compat.js"></script>
 
@@ -131,30 +164,30 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 	// === 拒絕別名黑名單 ===
-let rejectedAliasSet = new Set();
-let rejectedLoaded = false;
+    let rejectedAliasSet = new Set();
+    let rejectedLoaded = false;
 
-function normAlias(s = '') {
-  return String(s || '')
-    .normalize('NFKC')
-    .replace(/[()（）\[\]{}]/g, ' ')
-    .replace(/[：:|｜/、,，;；\\]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
-}
+    function normAlias(s = '') {
+      return String(s || '')
+        .normalize('NFKC')
+        .replace(/[()（）\[\]{}]/g, ' ')
+        .replace(/[：:|｜/、,，;；\\]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+    }
 
-async function loadRejectedAliases() {
-  if (rejectedLoaded) return;
-  try {
-    const snaps = await db.collection('rejected_aliases').get();
-    rejectedAliasSet = new Set(snaps.docs.map(d => normAlias(d.id)));
-  } catch (e) {
-    console.warn('讀取 rejected_aliases 失敗（先忽略）', e);
-  } finally {
-    rejectedLoaded = true;
-  }
-}
+    async function loadRejectedAliases() {
+      if (rejectedLoaded) return;
+      try {
+        const snaps = await db.collection('rejected_aliases').get();
+        rejectedAliasSet = new Set(snaps.docs.map(d => normAlias(d.id)));
+      } catch (e) {
+        console.warn('讀取 rejected_aliases 失敗（先忽略）', e);
+      } finally {
+        rejectedLoaded = true;
+      }
+    }
     const OCR_API = "https://linebot-o8nr.onrender.com/api/ocr";
 
     /* ====== DOM ====== */
@@ -169,6 +202,19 @@ async function loadRejectedAliases() {
     const previewWrap = document.getElementById('previewWrap');
     const pageTitle = document.getElementById('pageTitle');
     const loginStatus = document.getElementById('loginStatus');
+
+    /* ====== DOM (模式選擇) ====== */
+    const choiceSection = document.getElementById('choiceSection');
+    const uploadSection = document.getElementById('uploadSection');
+    const resultsSection = document.getElementById('resultsSection');
+    const btnManual = document.getElementById('btnManual');
+    const btnScan = document.getElementById('btnScan');
+    const backBtnCommonWrap = document.getElementById('backBtnCommonWrap');
+    const btnBackCommon = document.getElementById('btnBackCommon');
+    
+    /* ====== ★ 5. 新增卡片標題 DOM 變數 ★ ====== */
+    const resultsCardTitle = document.getElementById('resultsCardTitle');
+
 
     /* ====== 狀態 ====== */
     let dynamicData = {};
@@ -187,7 +233,60 @@ async function loadRejectedAliases() {
       document.getElementById('date').textContent = formattedDate;
     })();
 
-    /* ====== 編輯模式 ====== */
+    /* ====== 返回選擇畫面的共用函數 ====== */
+    function goBackToChoice() {
+      // 1. 隱藏所有內容區塊
+      uploadSection.classList.add('hidden');
+      resultsSection.classList.add('hidden');
+      backBtnCommonWrap.classList.add('hidden'); 
+      
+      // 2. 顯示選擇區塊
+      choiceSection.classList.remove('hidden');
+
+      // 3. 重置所有狀態 
+      dynamicData = {};
+      ocrRawText = "";
+      renderFields(); 
+      renderPretty(); 
+      /* ====== ★ 6. 重置標題為預設值 ★ ====== */
+      resultsCardTitle.textContent = '辨識結果';
+      
+      // 4. 清空檔案上傳相關
+      fileInput.value = null; 
+      const list = document.getElementById('previewList');
+      if (list) list.innerHTML = ''; 
+      previewWrap.classList.add('hidden'); 
+      setStatus(""); 
+    }
+    btnBackCommon.addEventListener('click', goBackToChoice);
+
+
+    /* ====== 模式選擇事件 ====== */
+    
+    // "手動輸入" 流程
+    btnManual.addEventListener('click', () => {
+      /* ====== ★ 7. 動態修改標題 ★ ====== */
+      resultsCardTitle.textContent = '手動輸入';
+      
+      choiceSection.classList.add('hidden');
+      uploadSection.classList.add('hidden');
+      resultsSection.classList.remove('hidden');
+      backBtnCommonWrap.classList.remove('hidden');
+    });
+
+    // "拍照掃描" 流程
+    btnScan.addEventListener('click', () => {
+      /* ====== ★ 8. 確保標題為"辨識結果" ★ ====== */
+      resultsCardTitle.textContent = '辨識結果';
+      
+      choiceSection.classList.add('hidden');
+      uploadSection.classList.remove('hidden');
+      resultsSection.classList.add('hidden');
+      backBtnCommonWrap.classList.remove('hidden');
+    });
+
+
+    /* ====== 編輯模式邏輯 ====== */
     (function(){
       const id = new URL(location.href).searchParams.get('id');
       if (!id) { localStorage.removeItem('edit_data'); editingId = null; originalDoc = null; }
@@ -210,10 +309,19 @@ async function loadRejectedAliases() {
           if (originalDoc.date) formattedDate = originalDoc.date;
           document.getElementById('date').textContent = formattedDate;
           pageTitle.textContent = '健康數據編輯';
+          /* ====== ★ 9. 編輯模式動態修改標題 ★ ====== */
+          resultsCardTitle.textContent = '編輯紀錄';
+          
+          choiceSection.classList.add('hidden');
+          uploadSection.classList.add('hidden');
+          resultsSection.classList.remove('hidden');
+          backBtnCommonWrap.classList.add('hidden'); // 編輯模式不顯示返回
+
           renderFields(); renderPretty();
-          return;
+          return; 
         }
       }
+      
       const cached = localStorage.getItem('edit_data');
       if (cached) {
         try {
@@ -223,11 +331,28 @@ async function loadRejectedAliases() {
           if (obj.date) formattedDate = obj.date;
           document.getElementById('date').textContent = formattedDate;
           pageTitle.textContent = '健康數據編輯';
+          /* ====== ★ 10. 編輯模式動態修改標題 ★ ====== */
+          resultsCardTitle.textContent = '編輯紀錄';
+
+          choiceSection.classList.add('hidden');
+          uploadSection.classList.add('hidden');
+          resultsSection.classList.remove('hidden');
+          backBtnCommonWrap.classList.add('hidden'); // 編輯模式不顯示返回
+
           renderFields(); renderPretty();
+          return; 
         } catch {}
       }
+
+      // 新增模式：顯示選擇，隱藏其他
+      choiceSection.classList.remove('hidden');
+      uploadSection.classList.add('hidden');
+      resultsSection.classList.add('hidden');
+      backBtnCommonWrap.classList.add('hidden');
+      
+      localStorage.removeItem('edit_data');
     }
-    loadEditIfAny();
+    loadEditIfAny(); 
 
     /* ====== LIFF ====== */
     async function initLIFF() {
@@ -246,7 +371,7 @@ async function loadRejectedAliases() {
     }
     document.addEventListener('DOMContentLoaded', initLIFF);
 
-    /* ====== 欄位渲染（維持兩欄編輯） ====== */
+    /* ====== ★ 11. 已包含新佈局的 renderFields 函數 ★ ====== */
     function renderFields(){
       const pretty = document.getElementById('prettyView');
       const prettyIsOpen = pretty && !pretty.classList.contains('hidden');
@@ -260,17 +385,20 @@ async function loadRejectedAliases() {
       }
       keys.forEach((k)=>{
         const row = document.createElement('div');
-        row.className = "mw-field-row ";
+        row.className = "mw-field-row "; 
 
         const keyVal = (k || "").trim();
         const valVal = String(dynamicData[k] ?? "").trim();
+        
+        // 修正語法錯誤：補上 ``
         const keyAttr = keyVal ? `value="${keyVal.replace(/"/g,'&quot;')}"` : "";
         const valAttr = valVal ? `value="${valVal.replace(/"/g,'&quot;')}"` : "";
 
+        // 改為單行三欄式佈局
         row.innerHTML = `
           <input class="mw-input" data-k="key" ${keyAttr} placeholder="名稱（如 血壓）">
           <input class="mw-input" data-k="val" ${valAttr} placeholder="值（如 120/80 mmHg）">
-          <button class="mw-btn-ghost" data-del>刪除</button>
+          <button class="mw-btn-del" data-del title="刪除">🗑️</button>
         `;
 
         row.querySelector('[data-del]').onclick = ()=>{ delete dynamicData[k]; renderFields(); };
@@ -300,6 +428,9 @@ async function loadRejectedAliases() {
 
     /* ====== 友善閱讀：合併 + 判讀 ====== */
     const KEY_ALIAS = {
+	 'SYS':'收縮壓',
+     'DIA':'舒張壓',
+     'PUL':'脈搏',
       '身高':'身高', '身高 172 cm':'身高',
       '體重':'體重', '體重 82 kg':'體重',
       '血壓':'血壓',
@@ -457,17 +588,31 @@ async function loadRejectedAliases() {
       previewWrap.classList.remove('hidden');
       setStatus(`已選 ${files.length} 檔`, true);
     });
-
-    /* ====== 上傳辨識（多檔含 PDF）＋ 敏感欄位過濾（你前一版的邏輯保留） ====== */
+/* ====== (新函式) 將檔案讀取為 Base64 ====== */
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        // 成功讀取後，我們只回傳 Base64 資料的部分 (去掉 'data:image/jpeg;base64,')
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = error => reject(error);
+      });
+    }
+   /* ====== 上傳辨識 (已更新為 Google Cloud Vision API) ====== */
     btnUpload.addEventListener('click', async ()=>{
-	await loadRejectedAliases();
+      await loadRejectedAliases();
       const files = Array.from(fileInput.files || []);
       if (!files.length){ toast("請先選擇檔案（可多檔）"); return; }
 
       setStatus("⏳ 上傳並辨識中…", true);
       btnUpload.disabled = true;
 
+      /* === 新增：定義 Vision API 資訊 === */
+      const GOOGLE_API_KEY = 'AIzaSyCCUzkxpn1quR9PPSBeZBGGl7XVh8vPzjY'; // 直接使用您 Firebase 設定中的 API Key
+      const VISION_API_URL = `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_API_KEY}`;
+      
       try {
+        // (敏感詞過濾相關的函式，從舊版保留)
         function normalizeText(s=''){
           return String(s || '')
             .normalize('NFKC')
@@ -530,38 +675,90 @@ async function loadRejectedAliases() {
         let handled = 0, failCount = 0;
 
         for (const f of files){
-          const fd = new FormData();
-          fd.append('image', f, f.name);
           try{
-            const resp = await fetch(OCR_API, { method:'POST', body:fd });
-            if (!resp.ok){ failCount++; continue; }
+            /* === 修改：呼叫 Vision API === */
+            
+            // 1. 將檔案轉為 Base64
+            const base64Image = await fileToBase64(f);
+
+            // 2. 準備 Vision API 的請求 JSON
+            const requestBody = {
+              requests: [
+                {
+                  image: {
+                    content: base64Image
+                  },
+                  features: [
+                    {
+                      type: "TEXT_DETECTION" // 偵測圖片中的所有文字
+                    }
+                  ]
+                }
+              ]
+            };
+
+            // 3. 呼叫 API
+            const resp = await fetch(VISION_API_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(requestBody)
+            });
+
+            if (!resp.ok){ 
+              const errDetails = await resp.json();
+              console.error('Google Vision API 錯誤:', errDetails);
+              failCount++; 
+              continue; 
+            }
+            
             const result = await resp.json();
-            const text = result.text || "";
-            const sug  = result.fieldsSuggested || {};
+
+            // 4. 從 Vision API 回應中提取文字
+            let text = "";
+            const responses = result.responses;
+            if (responses && responses[0] && responses[0].fullTextAnnotation) {
+              text = responses[0].fullTextAnnotation.text;
+            } else if (responses && responses[0] && responses[0].textAnnotations && responses[0].textAnnotations.length > 0) {
+              // 備用方案：抓取第一個(通常是全部)的文字
+              text = responses[0].textAnnotations[0].description;
+            }
+
+            // 5. Vision API 不會回傳 'fieldsSuggested'，所以我們給一個空物件
+            // 我們將 100% 依賴您原有的 parseOCRResultFlexible 函式來解析
+            const sug = {}; 
+
+            /* === (以下邏輯不變) === */
             ocrRawText += (ocrRawText ? "\n" : "") + text;
-            mergeFields(sug);
+            mergeFields(sug); // (sug 現在是空的，這沒問題)
             if (window.extractHealthData) mergeFields(window.extractHealthData(text));
-            mergeFields(parseOCRResultFlexible(text));
+            mergeFields(parseOCRResultFlexible(text)); // 您的解析函式現在是主力
             handled++;
             setStatus(`處理中…(${handled}/${files.length})`, true);
+
           }catch(e){
             console.warn('OCR 例外（略過）:', f?.name, e);
             failCount++;
           }
         }
+
+        // (過濾邏輯不變)
 		for (const k of Object.keys(dynamicData)) {
-  if (isSensitiveKey(k)) delete dynamicData[k];
-}
+          if (isSensitiveKey(k)) delete dynamicData[k];
+        }
         for (const [k,v] of Object.entries({...dynamicData})){
           if (isSensitiveKey(k) || isSensitiveValue(v)) {
             delete dynamicData[k];
           }
         }
 
+        // (後續邏輯不變)
         dynamicData = sortByDocOrder(dynamicData, ocrRawText);
         renderFields();
         setStatus(failCount ? `✅ 完成（${files.length - failCount}/${files.length} 檔）` : "✅ 完成");
-        renderPretty(); // ← 上傳完成後顯示友善閱讀
+        renderPretty(); 
+        
+        resultsSection.classList.remove('hidden');
+        
       } catch(err){
         console.error(err);
         setStatus("❌ " + err.message);
@@ -656,7 +853,7 @@ async function loadRejectedAliases() {
 			// 切回編輯模式
 			fields.classList.remove('hidden');
 			pretty.classList.add('hidden');
-			btnPretty.textContent = '閱讀模式';
+			btnPretty.textContent = '閱讀';
 		  }
 		});
 
@@ -689,7 +886,7 @@ async function loadRejectedAliases() {
       const lines = (rawText || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
       const merged = [];
       const isNameLike = (t) => /^(總膽固醇|血清總膽固醇|血清膽固醇|三酸甘油|三酸甘油脂|中性脂肪|HDL|LDL|Cholesterol|Triglyceride|HDL\s*Cholesterol|LDL\s*Cholesterol|血壓|脈搏|心率|血糖|BMI|身高|體重|尿蛋白|尿糖|血小板|白血球|紅血球|HbA1c|CRP|TSH|T3|T4|Ferritin|Vitamin\s*D|鈣|鈉|鉀|氯|膽紅素|AST|ALT|GOT|GPT|ALP|GGT|eGFR|Creatinine|BUN|尿酸|MCV|MCH|MCHC|Hct|HGB)/i.test(t);
-      const isValueLike = (s) => /^([<>]?\s*\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?|(?:\d{2,3}\s*\/\s*\d{2,3}))$/i.test(String(s || ''));
+      const isValueLike = (s) => /^([<>]?\s*\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?|(?:\d{2,3}\s*\/\s*\d{2,3})|^\d+(\.\d+)?)$/i.test(String(s || ''));
       const isRefLike   = (s) => /^[<>]\s*\d+(?:\.\d+)?|\d+\s*[-~～]\s*\d+(?:\.\d+)$/i.test(String(s || ''));
       const isUnitLike  = (s) => /^(mg\/?d[l1I]|mmol\/?L|mmHg|bpm|%|°C|cm|kg|g\/?d[l1I]|10\^9\/L|10\^6\/µL)$/i.test(String(s || ''));
 
@@ -719,7 +916,7 @@ async function loadRejectedAliases() {
       const stripEnglishParen = (s='') => String(s||'').replace(/[（(]\s*[A-Za-z][A-Za-z.\-\/\s]*\s*[)）]/g, '').trim();
 
       const keyValRegex1 = /^(.{1,60}?)[：:]\s*(.+)$/;
-      const keyValRegex2 = /^(.{1,60}?)\s{2,}(.{1,120})$/;
+      const keyValRegex2 = /^(.{1,60}?)\s+(.{1,120})$/;
 
       const normalizeMap = {
         '心率':'脈搏','高密度膽固醇':'HDL','低密度膽固醇':'LDL',
@@ -763,7 +960,7 @@ async function loadRejectedAliases() {
           const next = lines[i + 1].trim();
           if (/[:：]\s*$/.test(next)) continue;
           if (looksLikeValueToken(key)) continue;
-
+		  if (!looksLikeValueToken(next)) continue;
           if (key && next) {
             result[key] = normalizeUnitFront(next);
             i++;

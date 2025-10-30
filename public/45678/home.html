@@ -5,45 +5,84 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>患者首頁 - MakeWell</title>
   <script src="https://cdn.tailwindcss.com"></script>
+
   <style>
-    :root{
-      --bg:#efede9; --bg-2:#dad7cd;
-      --text:#363636; --muted:#6e746e;
-      --primary:#588157; --primary-weak:#659963de;
-      --surface:#ffffff; --chip:#f4f3ef; --border:#e7e5dc;
+    :root {
+      --bg:#efede9; /* 背景顏色 */
+      --text:#363636; 
+      --muted:#6e746e; 
+      --primary:#588157; 
+      --primary-weak:#659963de; 
+      --surface:#ffffff; 
+      --chip:#f4f3ef; 
+      --border:#e7e5dc; 
     }
-    body{ background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%); color:var(--text); }
-    .card{ background:var(--surface); border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,.06); }
-    .feature{ background:var(--chip); border:1px solid var(--border); transition:.15s transform,.15s filter; }
-    .feature:hover{ transform:translateY(-2px); filter:brightness(.985); }
-    .feature-badge{
-      width:44px; height:44px; border-radius:9999px; display:inline-flex; align-items:center; justify-content:center;
-      background:var(--primary); color:#fff; font-size:20px; box-shadow:0 2px 10px rgba(88,129,87,.25);
+    body { 
+      background:var(--bg); 
+      color:var(--text);
+      min-height: 100vh;
     }
-    .btn-logout{
+    .card { 
+      background:var(--surface); 
+      border:1px solid var(--border); 
+      box-shadow:0 10px 30px rgba(0,0,0,.06); 
+    }
+    .feature { 
+      background:var(--chip); 
+      border:1px solid var(--border); 
+      transition:.15s transform,.15s filter; 
+    }
+    .feature:hover { 
+      transform:translateY(-2px); 
+      filter:brightness(.985); 
+    }
+    .feature-badge {
+      width:44px; 
+      height:44px; 
+      border-radius:9999px; 
+      display:inline-flex; 
+      align-items:center; 
+      justify-content:center;
+      background:var(--primary); 
+      color:#fff; 
+      font-size:20px; 
+      box-shadow:0 2px 10px rgba(88,129,87,.25);
+    }
+    .btn-logout {
       border:1px solid var(--border);
-      background:#fff; padding:.7rem 1rem; border-radius:9999px; font-weight:700;
+      background:#fff; 
+      padding:.7rem 1rem; 
+      border-radius:9999px; 
+      font-weight:700;
       transition:.15s transform,.15s filter;
     }
-    .btn-logout:hover{ transform:translateY(-1px); filter:brightness(.98); }
-    .h-divider{ height:1px; width:100%; background:linear-gradient(to right, transparent, var(--border), transparent); }
+    .btn-logout:hover { 
+      transform:translateY(-1px); 
+      filter:brightness(.98); 
+    }
+    .h-divider { 
+      height:1px; 
+      width:100%; 
+      background:linear-gradient(to right, transparent, var(--border), transparent); 
+    }
   </style>
 
   <!-- LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
-  <!-- LIFF + Firestore 守門 & 登出 + 首次提示彈窗 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import { firebaseConfig } from './firebase-config.js';
 
+    // 初始化 Firebase
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth(app);
     const LIFF_ID = "2007877199-Y5R2LenL";
 
+    // 角色判斷
     function roleKey(s){
       const m = String(s||'').trim().toLowerCase();
       if (m === '患者' || m === 'patient') return 'patient';
@@ -57,12 +96,12 @@
       return { isPatient: set.has('patient'), isVolunteer: set.has('volunteer') };
     }
 
-    // ===== 首次登入提示彈窗（含「不再顯示」） =====
-    const modal     = document.getElementById('onboardModal');
-    const backdrop  = document.getElementById('modalBackdrop');
-    const closeBtn  = document.getElementById('modalClose');
-    const ackBtn    = document.getElementById('ackBtn');
-    const dontShow  = document.getElementById('dontShowChk');
+    // ===== 首次登入提示彈窗 =====
+    const modal = document.getElementById('onboardModal');
+    const backdrop = document.getElementById('modalBackdrop');
+    const closeBtn = document.getElementById('modalClose');
+    const ackBtn = document.getElementById('ackBtn');
+    const dontShow = document.getElementById('dontShowChk');
 
     function openModal(){ backdrop.classList.remove('hidden'); modal.classList.remove('hidden'); }
     function closeModal(){ modal.classList.add('hidden'); backdrop.classList.add('hidden'); }
@@ -94,26 +133,33 @@
         const uid = `line:${profile.userId}`;
 
         const snap = await getDoc(doc(db, "users", uid));
-        if (!snap.exists()) { location.href = "register-profile.html"; return; }
+        if (!snap.exists()) { 
+          location.href = "register-profile.html"; 
+          return; 
+        }
 
         const { isPatient, isVolunteer } = getUserRoles(snap.data());
         if (!isPatient) {
-          if (isVolunteer) { location.href = "volunteer.html"; return; }
-          location.href = "register-profile.html"; return;
+          if (isVolunteer) { 
+            location.href = "volunteer.html"; 
+            return; 
+          }
+          location.href = "register-profile.html"; 
+          return;
         }
 
-        // ✅ 是患者 → 依使用者設定決定是否顯示彈窗
+        // ✅ 是患者 → 綁定彈窗
         wireModalHandlers(uid);
       } catch (e) {
         console.error('[HOME] Guard error:', e);
-        alert('登入狀態檢查失敗，將返回登入頁。' + (e?.message || ''));
+        alert('登入狀態檢查失敗，將返回登入頁。');
         location.href = "login.html";
       }
     }
 
     guard();
 
-    // 登出（Firebase + LIFF）
+    // ===== 登出（Firebase + LIFF）=====
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('logoutBtn')?.addEventListener('click', async () => {
         try { await signOut(auth); } catch(e) {}
@@ -123,84 +169,66 @@
     });
   </script>
 </head>
-<body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
-  <div class="mx-auto max-w-[1120px]">
-    <div class="card rounded-3xl p-8 md:p-12 min-h-[82vh] md:min-h-[86vh] flex flex-col">
-      <!-- 頂部 Header -->
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <!-- 左邊 Logo + 標題 -->
-        <div class="flex items-center gap-5">
-          <img src="MakeWell.jpg" alt="MakeWell Logo"
-               class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl border border-[var(--border)] bg-white">
-          <div>
-            <h1 class="text-3xl md:text-4xl font-extrabold leading-tight" style="color:var(--primary)">
-              個人健康首頁
-            </h1>
-            <p class="text-base md:text-lg" style="color:var(--muted)">
-              MakeWell 把照護變得更貼心
-            </p>
-          </div>
-        </div>
 
-        <!-- 右邊按鈕 -->
-        <div class="mt-4 md:mt-0 md:ml-auto">
-          <button id="logoutBtn" class="btn-logout text-sm md:text-base">登出</button>
+<body class="px-4 md:px-6 py-10">
+  <div class="mx-auto max-w-[1120px]">
+    <main class="w-full">
+      <div class="card rounded-3xl px-6 py-10 md:py-24 md:px-14 w-full flex flex-col">
+        <div class="flex justify-between items-center mb-4 md:mb-10">
+          <h3 class="text-3xl md:text-4xl font-extrabold leading-tight" style="color:var(--primary)">
+            👤 個人健康首頁
+          </h3>
+          <button id="logoutBtn" class="btn-logout text-xs md:text-sm">登出</button>
+        </div>
+        <div class="flex-grow flex flex-col justify-center py-8 md:py-12">
+          <section class="grid grid-cols-1 sm:grid-cols-2 gap-5 md:gap-8">
+            <a href="publish.html" class="feature rounded-2xl px-3 py-3 md:px-4 md:py-4 flex items-center gap-5 min-h-[120px]">
+              <span class="feature-badge">📝</span>
+              <div class="min-w-0 flex flex-col justify-center">
+                <div class="text-lg md:text-xl font-semibold">協助請求</div>
+                <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">發布用藥或陪診等協助需求</div>
+              </div>
+              <span class="ml-auto text-2xl">›</span>
+            </a>
+
+            <a href="history.html" class="feature rounded-2xl px-3 py-3 md:px-4 md:py-4 flex items-center gap-5 min-h-[120px]">
+              <span class="feature-badge">📜</span>
+              <div class="min-w-0 flex flex-col justify-center">
+                <div class="text-lg md:text-xl font-semibold">歷史記錄</div>
+                <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">查看我過去的協助申請紀錄</div>
+              </div>
+              <span class="ml-auto text-2xl">›</span>
+            </a>
+
+            <a href="feedback.html" class="feature rounded-2xl px-3 py-3 md:px-4 md:py-4 flex items-center gap-5 min-h-[120px]">
+              <span class="feature-badge">💬</span>
+              <div class="min-w-0 flex flex-col justify-center">
+                <div class="text-lg md:text-xl font-semibold">回饋專區</div>
+                <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">查看志工服務的回饋與評價</div>
+              </div>
+              <span class="ml-auto text-2xl">›</span>
+            </a>
+
+            <a href="profile.html" class="feature rounded-2xl px-3 py-3 md:px-4 md:py-4 flex items-center gap-5 min-h-[120px]">
+              <span class="feature-badge">🙍‍♀️</span>
+              <div class="min-w-0 flex flex-col justify-center">
+                <div class="text-lg md:text-xl font-semibold">個人資料</div>
+                <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">檢視與更新個人基本資料</div>
+              </div>
+              <span class="ml-auto text-2xl">›</span>
+            </a>
+          </section>
         </div>
       </div>
-
-      <div class="mt-8 md:mt-10 h-divider"></div>
-        <section class="mt-8 md:mt-12 grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-          <a href="publish.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
-            <span class="feature-badge">📝</span>
-            <div class="min-w-0">
-              <div class="text-lg md:text-xl font-semibold">協助請求</div>
-              <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">發布用藥或陪診等協助需求</div>
-            </div>
-            <span class="ml-auto text-2xl">›</span>
-          </a>
-
-          <a href="history.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
-            <span class="feature-badge">📜</span>
-            <div class="min-w-0">
-              <div class="text-lg md:text-xl font-semibold">歷史記錄</div>
-              <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">查看我過去的協助申請紀錄</div>
-            </div>
-            <span class="ml-auto text-2xl">›</span>
-          </a>
-
-          <a href="feedback.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
-            <span class="feature-badge">💬</span>
-            <div class="min-w-0">
-              <div class="text-lg md:text-xl font-semibold">回饋專區</div>
-              <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">查看志工服務的回饋與評價</div>
-            </div>
-            <span class="ml-auto text-2xl">›</span>
-          </a>
-
-          <a href="profile.html" class="feature rounded-2xl px-5 py-6 md:px-6 md:py-7 flex items-center gap-5 min-h-[118px]">
-            <span class="feature-badge">🙍‍♀️</span>
-            <div class="min-w-0">
-              <div class="text-lg md:text-xl font-semibold">個人資料</div>
-              <div class="text-sm md:text-base mt-1 truncate" style="color:var(--muted)">檢視與更新個人基本資料</div>
-            </div>
-            <span class="ml-auto text-2xl">›</span>
-          </a>
-        </section>
-
-        <div class="mt-10 md:mt-14"></div>
-      </main>
-    </div>
+    </main>
   </div>
 
-  <!-- 首次提示彈窗（含不再顯示 + 我已了解） -->
+  <!-- 首次提示彈窗 -->
   <div id="modalBackdrop" class="hidden fixed inset-0 z-50 bg-black/50">
     <div id="onboardModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-        <!-- 關閉（右上角 ×） -->
         <button id="modalClose" aria-label="關閉"
-                class="absolute top-3 right-3 rounded-full w-8 h-8 flex items-center justify-center border border-[var(--border)] hover:bg-gray-50">
-          ✕
-        </button>
+          class="absolute top-3 right-3 rounded-full w-8 h-8 flex items-center justify-center border border-[var(--border)] hover:bg-gray-50">✕</button>
 
         <h3 class="text-xl font-extrabold mb-3" style="color:var(--primary)">歡迎使用 MakeWell</h3>
         <ul class="list-disc pl-5 space-y-2 text-[15px]" style="color:var(--muted)">

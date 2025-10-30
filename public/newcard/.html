@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Make Well 圖卡系統</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://static.line-scdn.net/liff/edge/2.1/sdk.js"></script>
+
+  <style>
+    body { background-color: #efede9; color: #363636; font-family: sans-serif; }
+    .logo { display:block; margin: 0 auto; max-width: 160px; }
+    .title-center { text-align:center; color:#363636; }
+    .checkin-card {
+      max-width:720px; margin:24px auto; padding:24px;
+      border-radius:16px; background:#dad7cd; color:#363636;
+    }
+    .checkin-title{ font-size:22px; font-weight:700; text-align:center; }
+    #checkinCount { margin-top:6px; font-size:16px; color:#588157; text-align:center; }
+    .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 12px; }
+    .day {
+      padding: 8px 0; text-align: center; border-radius: 6px;
+      background: #8e8e8cf2; font-weight: bold; color: #363636;
+    }
+    .day.signed {
+      border: 2px solid #588157; background-color: rgba(255,255,255,0.6);
+      background-image: url("S__106053636.jpg"); background-size: 60%;
+      background-repeat: no-repeat; background-position: center; background-blend-mode: lighten;
+    }
+    .btn-primary {
+      background:#588157; color:#fff; border:none; border-radius:999px;
+      padding:5px 5px; font-weight:700; cursor:pointer; min-width:100px;
+    }
+    .btn-primary[disabled]{ opacity:.6; cursor:not-allowed; }
+    .btn-ghost { background:#659963de; color:#fff; border:none; border-radius:999px; padding:5px 5px; }
+    .container { padding:16px; }
+    .spinner {
+      border: 6px solid #f3f3f3; border-top: 6px solid #588157;
+      border-radius: 50%; width: 40px; height: 40px;
+      animation: spin 0.8s linear infinite; margin: 20px auto;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .error { color: red; text-align:center; margin-top: 12px; font-weight:bold; }
+    #cardDisplay {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 12px;
+    }
+    .card {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 8px;
+      margin: 8px;
+      text-align: center;
+      background: white;
+      width: 140px;
+      perspective: 800px;
+      transform-style: preserve-3d;
+      transform: rotateY(180deg);
+      transition: transform 0.6s ease;
+    }
+    .card.flip { transform: rotateY(0deg); }
+    .card img {
+      max-width: 100px;
+      display: block;
+      margin: auto;
+      backface-visibility: hidden;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="S__106053636.jpg" alt="Make Well Logo" class="logo">
+    <section>
+      <h1 class="title-center">集點月曆</h1>
+      <p class="title-center">每日簽到，簽到日將圈起 🎯</p>
+    </section>
+
+    <!-- 簽到卡片 -->
+    <section class="checkin-card" id="checkinCard" style="display:block;">
+      <div class="checkin-title" id="monthTitle"></div>
+      <div id="checkinCount"></div>
+      <div class="calendar" id="calendarDays"></div>
+      <div class="title-center" style="margin-top:0px;">
+        <button id="btnCheckin" class="btn-primary">今日簽到</button>
+        <a href="knowledge-draw.html"><button class="btn-ghost">隨機獲得圖片</button></a>
+        <a href="collection.html"><button class="btn-ghost">查看我的圖鑑</button></a>
+   
+      </div>
+    </section>
+
+    <hr>
+
+
+<!-- 下方按鈕區 -->
+<section class="bg-[#dad7cd] p-6 rounded-lg shadow-md">
+  <h2 class="title-center text-lg font-bold mb-4">更多Make Well系統功能</h2>
+  <div class="title-center flex flex-wrap justify-center gap-4">
+    <a href="quiz.html">
+      <button class="btn-ghost">蒐集更多抽卡機會</button></a>
+    <a href="https://medwell-test1.web.app/45678/login.html?role=%E6%82%A3%E8%80%85">
+      <button class="btn-ghost">志工媒合平台</button></a>
+    <a href="https://medwell-test1.web.app/ocr_data1.html">
+      <button class="btn-ghost">Make Well健康數據紀錄</button></a>
+    <a href="https://medwell-test1.web.app/map/madmap.html">
+      <button class="btn-ghost">就醫/領藥地圖查詢</button></a>
+
+  </div>
+</section>
+
+
+<footer style="margin-top: 40px;text-align:center;">
+  <p style="color: #8e8e8cf2; font-size: 13px;">
+    © 2025 MakeWell 抽卡系統 | 圖卡收集計畫
+  </p>
+</footer>
+
+
+  <script>
+    const DEV_MODE = true;
+    const SKIP_LIFF_LOGIN = false;            // ← 開發時設 true，可不登入 LIFF
+const DEV_MOCK_UID_KEY = "dev_mock_uid"; // 假 uid 保存用
+function getMockUserId() {
+  let id = localStorage.getItem(DEV_MOCK_UID_KEY);
+  if (!id) {
+    id = "DEV_" + Math.random().toString(36).slice(2, 10);
+    localStorage.setItem(DEV_MOCK_UID_KEY, id);
+  }
+  return id;
+}
+
+    let userId = null;
+
+    // 初始化 LIFF + Firebase
+    document.addEventListener("DOMContentLoaded", async () => {
+      await liff.init({ liffId: "2007870072-ZNeMmll2" });
+      if (!liff.isLoggedIn()) { liff.login(); return; }
+      const profile = await liff.getProfile();
+      userId = profile.userId;
+
+      const firebaseConfig = { 
+        apiKey: "AIzaSyCCUzkxpn1quR9PPSBeZBGGl7XVh8vPzjY",
+        authDomain: "medwell-test1.firebaseapp.com",
+        projectId: "medwell-test1",
+        storageBucket: "medwell-test1.firebasestorage.app",
+        messagingSenderId: "860851688843",
+        appId: "1:860851688843:web:622eb8feccad45ce640b8e" };
+        firebase.initializeApp(firebaseConfig);
+    });
+
+    // ===== 簽到月曆邏輯 =====
+    function getMonthKey(){
+      const d=new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    }
+    function getTodayStr(){
+      return new Date().toISOString().slice(0,10);
+    }
+    function renderCalendar(signedDays){
+      const calendar = document.getElementById('calendarDays');
+      const monthTitle = document.getElementById('monthTitle');
+      const checkinCount = document.getElementById('checkinCount');
+      calendar.innerHTML='';
+      const now = new Date();
+      monthTitle.textContent = `${now.getFullYear()} 年 ${now.getMonth()+1} 月`;
+      checkinCount.textContent = `本月已簽到 ${signedDays.length} 天`;
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+      const startWeekday = firstDay.getDay();
+      for(let i=0;i<startWeekday;i++){ calendar.appendChild(document.createElement('div')); }
+      for(let day=1;day<=lastDay;day++){
+        const div=document.createElement('div');
+        div.className='day';
+        div.textContent=day;
+        const dateStr=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        if(signedDays.includes(dateStr)){div.classList.add('signed');}
+        calendar.appendChild(div);
+      }
+    }
+    if(DEV_MODE){
+      document.getElementById('checkinCard').style.display = 'block';
+      const STORAGE_KEY = 'checkin_calendar_data';
+      const btn = document.getElementById('btnCheckin');
+      function loadData(){
+        const data = JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');
+        if(data.month!==getMonthKey()){data.month=getMonthKey();data.days=[];}
+        return Object.assign({month:getMonthKey(),days:[]},data);
+      }
+      function saveData(data){localStorage.setItem(STORAGE_KEY, JSON.stringify(data));}
+      function render(){
+        const data=loadData();
+        renderCalendar(data.days);
+        const already=data.days.includes(getTodayStr());
+        btn.disabled=already;
+        btn.textContent=already?'今日已簽到 ✓':'今日簽到';
+      }
+      btn.addEventListener('click',()=>{
+        const data=loadData();
+        if(!data.days.includes(getTodayStr())){
+          data.days.push(getTodayStr());
+          saveData(data);
+        }
+        render();
+      });
+      render();
+    }
+
+  </script>
+  
+</body>
+</html>

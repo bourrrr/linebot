@@ -6,52 +6,120 @@
   <title>登入 - MakeWell</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    /* 顏色變數，貼近圖片的色調 */
     :root{
       --bg:#efede9; --bg-2:#dad7cd;
       --text:#363636; --muted:#6e746e;
-      --primary:#588157; --primary-weak:#659963de;
-      --surface:#ffffff; --chip:#f4f3ef; --border:#e7e5dc;
+      --primary:#588157; /* 深綠色，用於選中按鈕 */
+      --surface:#ffffff;
+      --chip:#f4f3ef; /* 淺色背景，用於未選中按鈕/切換器背景 */
+      --border:#e7e5dc; /* 輕微邊框色 */
+      --line-btn-bg: #06C755; /* LINE 綠色 */
     }
-    body{ background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%); color:var(--text); }
-    .card{ background:var(--surface); border:1px solid var(--border); box-shadow:0 10px 30px rgba(0,0,0,.06); }
-    .pill{ background:var(--chip); border:1px solid var(--border); }
-    .seg-btn{ color:var(--text); }
-    .seg-btn.active{ background:var(--primary); color:#fff; box-shadow:0 6px 14px rgba(88,129,87,.25); }
-    .btn{ width:100%; border-radius:1.25rem; padding:1.05rem 1rem; font-weight:800; letter-spacing:.02em; transition:.15s transform,.15s filter; }
+    
+    /* 1. 鎖定 body 高度，使用 100vh 確保剛好卡住視窗，並取消滾動 */
+    body{ 
+        background:linear-gradient(180deg,var(--bg) 0%,var(--bg-2) 100%); 
+        color:var(--text); 
+        /* 關鍵調整：確保高度為視窗高且溢出隱藏 */
+        min-height: 100vh; 
+        height: 100vh;
+        overflow: hidden; /* 確保不能滾動 */
+        box-sizing: border-box; /* 確保 padding 不會導致溢出 */
+    }
+    
+    /* 2. 卡片樣式 (圓潤、有陰影) - 恢復原始設定但調整 max-height */
+    .card{ 
+        background:var(--surface); 
+        border:1px solid var(--border); 
+        box-shadow:0 10px 30px rgba(0,0,0,.06); 
+        border-radius: 2rem; 
+        /* 恢復 max-height，讓卡片能縮小，預留 body 邊距 */
+        max-height: calc(250vh - 4rem); /* 預留 body 邊距，確保不會頂到邊緣 */
+        max-width: 420px;
+        overflow-y: auto; /* 如果內容真的溢出，只讓卡片內滾動 */
+        width: 100%; /* 確保寬度可以填滿可用空間 */
+    }
+
+    /* 3. 調整角色選擇按鈕組 (pill/seg-btn) */
+    .pill{ 
+        background: var(--chip); 
+        border: none; 
+        padding: 0.3rem; 
+    }
+    .seg-btn{ 
+        color: var(--text); 
+        border-radius: 2rem; 
+        transition: background-color .2s, color .2s, box-shadow .2s;
+        font-weight: 600;
+        /* 調整這裡：減少上下內邊距以降低按鈕高度 */
+        padding-top: 0.6rem; 
+        padding-bottom: 0.6rem;
+        font-size: 1rem; 
+        background: transparent; 
+    }
+    .seg-btn.active{ 
+        background: var(--primary); 
+        color: #fff; 
+        box-shadow: 0 4px 10px rgba(88,129,87,.2);
+    }
+
+    /* 4. 調整登入按鈕 (亮綠色) */
+    .btn{ 
+        width:100%; 
+        border-radius:1.5rem; 
+        padding:0.9rem 1rem; 
+        font-weight:800; 
+        letter-spacing:.02em; 
+        transition:.15s transform,.15s filter; 
+        font-size: 1.15rem; 
+    }
     .btn:hover{ transform:translateY(-1px); }
-    .btn-line{ background:#06C755; color:#fff; }
-    .feature{ background:var(--chip); border:1px solid var(--border); }
-    .feature .badge{
-      width:28px; height:28px; border-radius:9999px; display:inline-flex; align-items:center; justify-content:center;
-      background:var(--primary); color:#fff; font-size:14px; box-shadow:0 2px 8px rgba(88,129,87,.25);
+    .btn-line{ background:var(--line-btn-bg); color:#fff; border-radius: 1.25rem; }
+
+    /* 5. Logo RWD 調整 */
+    .logo-container { width: 240px; } /* 預設放大至 180px */
+    @media (min-width: 640px) { 
+        .logo-container { width: 260px; } /* 平板/電腦上再放大至 220px */
     }
+
+    /* 6. 註冊連結樣式 (放大字體) */
+    .register-link-container {
+        font-size: 0.9rem; 
+        color: var(--muted);
+        margin-top: 2rem; 
+    }
+    .register-link-container a {
+        color: var(--primary);
+        text-decoration: none; 
+        font-weight: 600;
+    }
+    
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
-  <div class="w-full max-w-xl card rounded-3xl overflow-hidden p-7 sm:p-10">
-    <div class="w-48 sm:w-56 mx-auto">
+<body class="min-h-screen flex items-center justify-center p-6 sm:p-10"> <div class="w-full max-w-md card rounded-3xl p-8 sm:p-12 text-center"> <div class="logo-container mx-auto mt-6 sm:mt-8">
       <img src="MakeWell.jpg" alt="MakeWell Logo" class="block w-full h-auto object-contain">
     </div>
 
-    <div class="mt-5 text-center">
-      <h1 class="text-3xl sm:text-4xl font-extrabold leading-snug" style="color:var(--primary)">MakeWell 把照護變得更貼心</h1>
-      <p class="mt-2 text-[15px]" style="color:var(--muted)">患者與志工安心管理行程與任務。輕鬆登入，繼續你重要的一天。</p>
+    <div class="mt-6 text-center">
+      <h1 class="text-2xl sm:text-3xl font-extrabold leading-snug" style="color:var(--primary)">🧑‍🤝‍🧑歡迎使用志工配對🧑‍🤝‍🧑</h1>
+      <p class="mt-3 text-[13px]" style="color:var(--muted)">選擇身分後進行登入，若未註冊過請先註冊。</p>
     </div>
 
-    <div class="mt-6 pill rounded-full p-1 flex">
-      <button id="patientBtn" class="seg-btn active flex-1 rounded-full text-base font-semibold py-2">患者</button>
-      <button id="volunteerBtn" class="seg-btn flex-1 rounded-full text-base font-semibold py-2">志工</button>
+    <div class="mt-4 pill rounded-full flex">
+      <button id="patientBtn" class="seg-btn active flex-1">患者</button>
+      <button id="volunteerBtn" class="seg-btn flex-1">志工</button>
     </div>
     <input id="role" type="hidden" value="患者"/>
 
-    <button id="lineLoginBtn" class="mt-4 btn btn-line flex items-center justify-center gap-2">
+    <button id="lineLoginBtn" class="mt-6 btn btn-line flex items-center justify-center">
       <span>使用 LINE 帳號登入</span>
     </button>
     <div id="lineStatus" class="text-xs text-center hidden mt-2" style="color:var(--muted)"></div>
 
-    <div class="mt-6 text-center text-sm">
-      還沒有帳號？
-      <a href="register-auth.html" class="font-semibold underline" style="color:var(--primary)">使用 LINE 建立帳號</a>
+    <div class="register-link-container text-center mt-8">
+      還沒註冊嗎？
+      <a href="register-auth.html" class="font-semibold" style="color:var(--primary)">使用LINE帳號註冊</a>
     </div>
 
     <div id="guardMsg" class="hidden mt-4 text-center text-sm rounded-xl px-3 py-2" style="background:#fef9c3; color:#854d0e; border:1px dashed #eab308;">
@@ -59,7 +127,6 @@
     </div>
   </div>
 
-  <!-- LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
   <script type="module">
@@ -78,7 +145,7 @@
 
   const LIFF_ID = "2007877199-Y5R2LenL";
 
-  // ===== 角色工具 =====
+  // ===== 角色工具 (保持不變) =====
   function roleKey(s){
     const m = String(s||'').trim().toLowerCase();
     if (m === '患者' || m === 'patient') return 'patient';
@@ -107,7 +174,7 @@
     sessionStorage.setItem('MW_LAST_ROLE', roleCN);
   }
 
-  // ===== LIFF 初始化 =====
+  // ===== LIFF 初始化 (保持不變) =====
   async function ensureLIFF(){
     try{
       if(!window.liff) throw new Error("LIFF SDK 未載入");
@@ -133,7 +200,7 @@
     }catch{ el.classList.add('hidden'); }
   }
 
-  // ===== 新增：idToken 過期自動刷新 + 取得 custom token（可重試） =====
+  // ===== 新增：idToken 過期自動刷新 + 取得 custom token（可重試） (保持不變) =====
   async function ensureFreshIdToken() {
     const decoded = liff.getDecodedIDToken?.();
     const expMs = decoded?.exp ? decoded.exp * 1000 : 0;
@@ -141,11 +208,11 @@
 
     if (!liff.isLoggedIn()) {
       liff.login({ redirectUri: location.href });
-      return null; // 會跳轉
+      return null;
     }
     if (!liff.getIDToken() || (expMs && expMs <= now)) {
-      liff.login({ redirectUri: location.href }); // 重新授權刷新 id_token
-      return null; // 會跳轉
+      liff.login({ redirectUri: location.href });
+      return null;
     }
     return liff.getIDToken();
   }
@@ -153,19 +220,19 @@
   async function getCustomTokenWithRetry(functions) {
     const callable = httpsCallable(functions, "firebaseCustomToken");
     let idToken = await ensureFreshIdToken();
-    if (!idToken) return null; // 已跳轉
+    if (!idToken) return null;
 
     try {
       const { data } = await callable({ idToken });
       return data?.customToken || null;
     } catch (e) {
       console.warn("[auth] callable failed once, retry with fresh login:", e);
-      liff.login({ redirectUri: location.href }); // 強制刷新再來
+      liff.login({ redirectUri: location.href });
       return null;
     }
   }
 
-  // ===== 初始化 UI =====
+  // ===== 初始化 UI (保持不變) =====
   window.addEventListener('DOMContentLoaded', async () => {
     const last = sessionStorage.getItem('MW_LAST_ROLE') || '患者';
     setActiveRole(last);
@@ -178,7 +245,7 @@
     }
   });
 
-  // ===== 登入流程（httpsCallable + 自動刷新）=====
+  // ===== 登入流程（httpsCallable + 自動刷新）(保持不變) =====
   document.getElementById('lineLoginBtn').addEventListener('click', async () => {
     if (!(await ensureLIFF())) return;
 
@@ -191,7 +258,7 @@
       // 1) 取得 custom token（含過期處理/必要時自動跳轉刷新）
       const functions = getFunctions(app, "asia-east1");
       const customToken = await getCustomTokenWithRetry(functions);
-      if (!customToken) return; // 已跳轉或失敗
+      if (!customToken) return;
 
       // 2) 登入 Firebase 後用 auth.currentUser.uid 查
       await signInWithCustomToken(auth, customToken);
