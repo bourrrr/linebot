@@ -53,7 +53,11 @@ async function rebuildRichMenus() {
 
     const careImagePath = './OCR_modules/menu/assets/richmenu-care.png';
     if (!fs.existsSync(careImagePath)) throw new Error(`圖片文件不存在: ${careImagePath}`);
-    await client.setRichMenuImage(careRichMenu, fs.createReadStream(careImagePath));
+    try {
+	  await client.setRichMenuImage(careRichMenu, fs.createReadStream(careImagePath));
+	} catch (err) {
+	  console.error('❌ 上傳 richmenu-care 失敗:', err?.response?.data || err.message);
+	}
     console.log('✅ 社區服務選單建立完成');
 
     // 3) 健康照護 (service) — Top bar 應在「右半邊」→ 送出「切換到社區服務」
