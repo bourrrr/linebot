@@ -2,219 +2,428 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#588157" />
-  <title>Make Well 圖卡系統 · LINE 登入版</title>
-
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Make Well 確定用藥簽到系統</title>
+  <link rel="stylesheet" href="style.css">
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-  <script src="https://static.line-scdn.net/liff/edge/2.1/sdk.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- LIFF SDK（必要） -->
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
   <style>
-    body { background: #efede9; color: #363636; font-family: 'Noto Sans TC', sans-serif; margin:0; overflow-x:hidden; }
-    .container { max-width: 960px; margin: 0 auto; padding: 20px; }
-    .logo { display:block; margin:0 auto; max-width:120px; border-radius:10px; }
-    h1 { text-align:center; color:#588157; font-size:28px; }
-    .checkin-card { background:#dad7cd; padding:24px; border-radius:16px; box-shadow:0 4px 12px rgba(0,0,0,.1); position:relative; }
-    .month-bar { display:flex; justify-content:space-between; align-items:center; background:#fff; border-radius:10px; padding:8px 12px; margin-bottom:10px; }
-    #weekdayHeader, #calendarDays { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
-    .weekday { text-align:center; color:#666; font-weight:bold; }
-    .day { text-align:center; padding:8px 0; background:#f3f3f1; border-radius:6px; font-weight:bold; color:#363636; transition:transform 0.1s; }
-    .day.today { outline:2px dashed #588157; }
-    .day.signed { border:2px solid #588157; background:url('S__106053636.jpg') center/60% no-repeat rgba(255,255,255,0.6); }
-    .btn { border:none; border-radius:999px; padding:10px 16px; font-weight:bold; cursor:pointer; transition:0.2s; }
-    .btn-primary { background:#588157; color:#fff; }
-    .btn-ghost { background:#659963de; color:#fff; }
-    .btn:hover { transform:scale(1.05); }
-    .cta { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-top:12px; }
-
-    @media (max-width: 680px) {
-      .container { padding: 12px; }
-      .logo { max-width:100px; }
-      h1 { font-size:22px; line-height:1.3; }
-      .checkin-card { padding:16px; border-radius:12px; }
-      .month-bar { flex-direction:column; gap:8px; padding:10px; text-align:center; }
-      .calendar { padding:6px; }
-      #weekdayHeader, #calendarDays { grid-template-columns:repeat(7,1fr); gap:4px; }
-      .day { padding:6px 0; font-size:14px; }
-      .btn { width:100%; font-size:16px; padding:12px; border-radius:12px; }
-      .cta { flex-direction:column; gap:8px; }
+    /* 抽卡整段置中 */
+    #drawSection { text-align: center; }
+    /* 讓資訊小盒子在文字置中時保持漂亮的間距 */
+    #drawSection .info-box { display: inline-block; }
+    :root{
+      --green-dark:#588157;    /* 重綠 */
+      --green-light:#659963de; /* 淺綠 */
+      --gray-soft:#dad7cd;     /* 奶灰（卡片底） */
+      --gray-deep:#8e8e8cf2;   /* 深灰（日期格） */
+      --milk:#efede9;          /* 小奶黃（頁面底） */
+      --ink:#363636;           /* 不死黑（文字） */
+      --month-bg:#ffffff;      /* 月份列底色（柔白） */
+      --month-border:#58815730;/* 月份列邊框（淡綠透明） */
     }
 
-    /* ✅ 簽到成功動畫（含文字提示） */
+    body { background-color: var(--milk); color: var(--ink); font-family: system-ui, sans-serif; }
+    .logo { display:block; margin: 0 auto; max-width: 160px; width: 42vw; min-width: 120px; }
+    .title-center { text-align:center; color:var(--ink); }
+    .text-center { text-align:center; } /* ★ 新增：置中文字的共用 class */
+    .checkin-card {
+      max-width:720px; margin:24px auto; padding:24px;
+      border-radius:16px; background:var(--gray-soft); color:var(--ink);
+    }
+
+    /* 月份切換列（做出與日曆不同的區塊感） */
+    .month-bar{
+      display:flex; align-items:center; justify-content:center; gap:10px;
+      margin-bottom:10px; padding:8px 10px;
+      background: var(--month-bg);
+      border: 1px solid var(--month-border);
+      border-radius: 14px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+    .month-title{
+      font-size:20px; font-weight:800; color:var(--ink);
+      min-width: 180px; text-align:center; letter-spacing:.5px;
+    }
+    .nav-btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      width:36px; height:36px; border-radius:10px; border:1px solid var(--month-border);
+      cursor:pointer; background: #fff; color:#fff; line-height:1;
+      position: relative;
+      transition: transform .06s ease, box-shadow .2s ease, background .2s ease;
+      touch-action: manipulation;
+    }
+    .nav-btn::before{ content:""; width:0; height:0; border-style:solid; position:absolute; }
+    /* 左箭頭 */
+    #prevMonth { background: var(--green-light); }
+    #prevMonth::before{
+      border-width:7px 9px 7px 0; border-color: transparent #fff transparent transparent;
+      left: 12px;
+    }
+    /* 右箭頭 */
+    #nextMonth { background: var(--green-light); }
+    #nextMonth::before{
+      border-width:7px 0 7px 9px; border-color: transparent transparent transparent #fff;
+      right: 12px;
+    }
+    .nav-btn:active{ transform: translateY(1px); }
+    .nav-btn:hover{ box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+
+    #checkinCount { margin-top:6px; font-size:16px; color:var(--green-dark); text-align:center; }
+
+    /* 日曆網格 */
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(36px, 1fr));
+      gap: 6px; margin-top: 12px;
+    }
+    .day {
+      padding: 8px 0; text-align: center; border-radius: 6px;
+      background: var(--gray-deep); font-weight: bold; color: var(--ink);
+      font-size: 14px;
+      user-select: none;
+    }
+    .day.signed {
+      border: 2px solid var(--green-dark); background-color: rgba(255,255,255,0.6);
+      background-image: url("S__106053636.jpg"); background-size: 60%;
+      background-repeat: no-repeat; background-position: center; background-blend-mode: lighten;
+    }
+
+    .btn-primary {
+      background:var(--green-dark); color:#fff; border:none; border-radius:999px;
+      padding:8px 16px; font-weight:700; cursor:pointer; min-width:120px; font-size:14px;
+      touch-action: manipulation;
+    }
+    .btn-primary[disabled]{ opacity:.6; cursor:not-allowed; }
+    .btn-ghost {
+      background:var(--green-light); color:#fff; border:none; border-radius:999px;
+      padding:8px 16px; font-size:14px;
+    }
+    .container { padding:16px; }
+
+    .hint { text-align:center; font-size:12px; color:var(--gray-deep); margin-top:6px; }
+
+    /* ====== 抽卡系統 專用樣式 ====== */
+    .btn{ display:inline-flex; align-items:center; justify-content:center; gap:.4rem; padding:.65rem 1rem; border-radius:.75rem; font-weight:600; transition:transform .06s ease, opacity .2s ease, background .2s ease; text-decoration:none; }
+    .btn:active{ transform:translateY(1px); }
+    .btn--ghost-outline{ color:var(--green-dark); background:transparent; border:1px solid var(--green-dark); }
+    .btn--ghost-outline:hover{ background:var(--gray-soft); }
+    .info-box{ background:var(--gray-soft); color:var(--ink); padding:6px 12px; border-radius:.5rem; border:1px solid var(--green-light); font-weight:500; }
+
+    #result{
+      background:#fff; border:1px solid var(--gray-soft); border-radius:1rem; box-shadow:0 4px 6px rgba(0,0,0,.08); padding:1rem;
+      text-align: center;            /* 結果區置中 */
+      margin-left: auto; margin-right: auto;
+      max-width: 720px;
+    }
+    #cardImg{
+      display:block;
+      margin:0 auto;
+      max-width:420px;
+      width:100%;
+      height:auto;
+    }
+    #errorMsg{ color:red; font-weight:bold; text-align:center; }
+    #result p, #result h3{ text-align:center; }
+
+    #debug{ background:var(--gray-soft); border:1px dashed var(--green-light); color:var(--ink); }
+
+    /* 把抽卡按鈕藏起來（仍保留在 DOM，供模組初始化與程式化點擊） */
+    #drawBtn{ display:none; }
+
+    /* ====== 成功動畫（SVG 打勾 + 文字）====== */
     .success-overlay {
-      position:absolute; inset:0;
-      display:flex; align-items:center; justify-content:center;
-      background:rgba(255,255,255,0.85);
-      border-radius:16px;
-      opacity:0; pointer-events:none; transition:opacity 0.3s ease;
-      z-index:50;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.35);
+      display: none; align-items: center; justify-content: center;
+      z-index: 9999;
+      animation: fadeOut 1.2s ease forwards;
+      animation-delay: 0.8s;
+      backdrop-filter: blur(1px);
     }
-    .success-overlay.active { opacity:1; pointer-events:auto; animation:fadeOut 1.5s forwards; }
-    @keyframes fadeOut { 0%{opacity:1} 80%{opacity:1} 100%{opacity:0} }
-    .checkmark { width:80px; height:80px; border-radius:50%; background:#588157; display:flex; align-items:center; justify-content:center; animation:popIn .3s ease; }
-    @keyframes popIn { from{ transform:scale(0); opacity:0 } to{ transform:scale(1); opacity:1 } }
-    .checkmark::after { content:"✓"; color:#fff; font-size:48px; font-weight:700; }
-    .success-text{ position:absolute; bottom:18%; left:50%; transform:translateX(-50%); font-weight:800; color:#256029; background:rgba(255,255,255,.9); padding:8px 14px; border-radius:999px; box-shadow:0 4px 12px rgba(0,0,0,.08); opacity:0; }
-    .success-overlay.active .success-text{ animation:toast 1.5s ease forwards; }
-    @keyframes toast{ 0%{opacity:0; transform:translate(-50%, 8px)} 20%{opacity:1; transform:translate(-50%, 0)} 80%{opacity:1; transform:translate(-50%, 0)} 100%{opacity:0; transform:translate(-50%, -6px)} }
+    .success-box {
+      width: 230px; height: 230px;
+      border-radius: 20px; background: #ffffff;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      position: relative; overflow: visible; text-align:center;
+      border: 1px solid var(--month-border);
+    }
+    .pulse { position:absolute; width:230px; height:230px; border-radius:50%; background: rgba(88,129,87,0.15); animation: pulse 0.8s ease-out forwards; }
+    @keyframes pulse { 0% { transform: scale(0.6); opacity: 0.8; } 100% { transform: scale(1.2); opacity: 0; } }
+
+    .checkmark-svg { width: 96px; height: 96px; stroke: var(--green-dark); stroke-width: 6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .checkmark__check { stroke-dasharray: 60; stroke-dashoffset: 60; animation: drawCheck 420ms 120ms ease-out forwards; }
+    @keyframes drawCheck { to { stroke-dashoffset: 0; } }
+
+    @keyframes fadeOut { 0% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
+    .success-text { color:var(--green-dark); font-weight:700; font-size:14px; line-height:1.4; animation: textPop 0.3s ease-out forwards; padding: 0 8px; }
+
+    /* ========== RWD ========== */
+    @media (max-width: 768px){
+      .checkin-card{ margin:16px auto; padding:16px; }
+      .month-title{ font-size:18px; min-width: 150px; }
+      .nav-btn{ width:34px; height:34px; }
+      .calendar{ gap: 5px; }
+      .day{ font-size: 13px; padding: 7px 0; }
+      .btn-primary, .btn-ghost{ font-size: 13px; padding: 8px 14px; }
+      .success-box{ width: 210px; height: 210px; }
+      .checkmark-svg{ width: 86px; height: 86px; }
+    }
+    @media (max-width: 480px){
+      .container{ padding:12px; }
+      .month-bar{ gap:8px; padding:6px 8px; border-radius: 12px; }
+      .month-title{ font-size:16px; min-width: 130px; }
+      .nav-btn{ width:32px; height:32px; border-radius: 9px; }
+      #checkinCount{ font-size:14px; }
+      .calendar{ grid-template-columns: repeat(7, minmax(32px, 1fr)); gap: 4px; margin-top: 10px; }
+      .day{ font-size: 12px; padding: 6px 0; border-radius: 5px; }
+      .btn-primary, .btn-ghost{ min-width: 110px; font-size: 12px; padding: 7px 12px; }
+      .hint{ font-size: 11px; }
+      .success-box{ width: 190px; height: 190px; border-radius: 16px; }
+      .checkmark-svg{ width: 76px; height: 76px; }
+      .success-text{ font-size:13px; }
+    }
+    @media (max-width: 360px){
+      .month-title{ min-width: 120px; }
+      .calendar{ grid-template-columns: repeat(7, minmax(28px, 1fr)); gap: 3px; }
+      .day{ font-size: 11px; padding: 5px 0; }
+      .success-box{ width: 176px; height: 176px; }
+      .checkmark-svg{ width: 70px; height: 70px; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <img src="S__106053636.jpg" alt="Make Well Logo" class="logo">
-    <h1>Make Well 圖卡系統（LINE 登入版）</h1>
+    <section>
+      <h1 class="title-center">確定用藥簽到系統</h1>
+    </section>
 
-    <section class="checkin-card">
+    <!-- 簽到卡片（保留） -->
+    <section class="checkin-card" id="checkinCard" style="display:block;">
+      <!-- 月份標題＋左右切換 -->
       <div class="month-bar">
-        <button id="btnPrevMonth" class="btn btn-ghost">◀ 上個月</button>
-        <div id="monthTitle"></div>
-        <button id="btnNextMonth" class="btn btn-ghost">下個月 ▶</button>
+        <button id="prevMonth" class="nav-btn" aria-label="上個月"></button>
+        <div class="month-title" id="monthTitle"></div>
+        <button id="nextMonth" class="nav-btn" aria-label="下個月"></button>
       </div>
-      <div id="checkinCount" style="text-align:center;color:#588157;font-weight:bold;margin-bottom:8px;"></div>
-      <div class="calendar">
-        <div id="weekdayHeader"></div>
-        <div id="calendarDays"></div>
+
+      <div id="checkinCount"></div>
+      <div class="calendar" id="calendarDays"></div>
+      <div class="title-center" style="margin-top:0px;">
+        <button id="btnCheckin" class="btn-primary" title="">今日簽到</button>
+        <a href="collection.html"><button class="btn-ghost">查看我的圖鑑</button></a>
+        <a href="quiz.html"><button class="btn-ghost">蒐集更多圖卡</button></a>
       </div>
-      <div class="cta">
-        <button id="btnCheckin" class="btn btn-primary">今日簽到</button>
-        <a href="knowledge-draw.html"><button class="btn btn-ghost">隨機獲得圖片</button></a>
-        <a href="collection.html"><button class="btn btn-ghost">查看我的圖鑑</button></a>
+      <div id="monthHint" class="hint"></div>
+    </section>
+
+    <hr>
+
+    <!-- 抽卡系統 -->
+    <section class="max-w-md mx-auto p-5" id="drawSection">
+      <h2 class="text-2xl font-bold mb-2" style="color:var(--green-dark)">健康知識圖卡</h2>
+      <p class="text-sm mb-4" style="color:var(--gray-deep)">
+        今日簽到後，系統會自動幫你抽一張卡。（每日上限依規則）
+      </p>
+
+      <div class="flex items-center gap-3 mb-4" style="justify-content:center;">
+        <span class="info-box">今日可抽：<b id="quota">-</b> 次</span>
+        <span class="info-box">已抽：<b id="used">-</b> 次</span>
       </div>
-      <!-- 簽到成功動畫層 -->
-      <div class="success-overlay" id="successOverlay">
-        <div class="checkmark" aria-hidden="true"></div>
-        <div class="success-text" id="successText" aria-live="polite">簽到成功！</div>
+      <!-- 抽卡按鈕（隱藏，供模組初始化與自動點擊） -->
+      <button id="drawBtn" class="btn-primary" aria-hidden="true">🎴 抽一張</button>
+
+      <p id="errorMsg" class="mt-3 text-sm"></p>
+
+      <div id="result" class="mt-6 hidden">
+        <p class="text-sm" style="color:var(--gray-deep)">你抽到了：</p>
+        <h3 id="cardName" class="text-lg font-semibold mb-3"></h3>
+        <img id="cardImg" alt="知識圖片" class="rounded-xl border" />
       </div>
     </section>
+
+    <footer style="margin-top: 40px;text-align:center;">
+      <p style="color: var(--gray-deep); font-size: 13px;">
+        © 2025 MakeWell 健康簽到系統
+      </p>
+    </footer>
+  </div>
+
+  <!-- 成功動畫 Overlay（SVG 勾勾 + 文字） -->
+  <div id="successOverlay" class="success-overlay" aria-hidden="true">
+    <div class="success-box">
+      <div class="pulse"></div>
+      <svg class="checkmark-svg" viewBox="0 0 52 52" aria-hidden="true" focusable="false">
+        <path class="checkmark__check" d="M14 28 L22 36 L38 20"></path>
+      </svg>
+      <div class="success-text">✅ 今日簽到成功。<br>往下滑查看今日健康知識卡片！</div>
+    </div>
   </div>
 
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyCCUzkxpn1quR9PPSBeZBGGl7XVh8vPzjY",
-      authDomain: "medwell-test1.firebaseapp.com",
-      projectId: "medwell-test1",
-      storageBucket: "medwell-test1.firebasestorage.app",
-      messagingSenderId: "860851688843",
-      appId: "1:860851688843:web:622eb8feccad45ce640b8e"
-    };
-    firebase.initializeApp(firebaseConfig);
+    // ====== 測試版全域旗標（改為需要 LINE 登入） ======
+    const DEV_MODE = true;
+    const SKIP_LIFF_LOGIN = false;   // ← 必須登入
+    const DEV_MOCK_UID_KEY = "dev_mock_uid";
 
-    const WEEK_LABELS = ["日","一","二","三","四","五","六"];
+    function getMockUserId() {
+      let id = localStorage.getItem(DEV_MOCK_UID_KEY);
+      if (!id) { id = "DEV_" + Math.random().toString(36).slice(2, 10); localStorage.setItem(DEV_MOCK_UID_KEY, id); }
+      return id;
+    }
+    const MOCK_PROFILE = { userId: getMockUserId(), displayName: "DEV Tester", statusMessage: "Make Well DEV" };
 
-    async function initApp() {
-      await liff.init({ liffId: '2007870072-ZNeMmll2' });
-      if (!liff.isLoggedIn()) {
-        liff.login();
-        return;
-      }
-
-      const profile = await liff.getProfile();
-      const userId = profile.userId;
-
-      const db = firebase.firestore();
-      const checkinRef = db.collection('makewell_checkin');
-
-      function getMonthKey(d=new Date()){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
-      function getTodayStr(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-
-      function renderWeekHeader(){
-        const header=document.getElementById('weekdayHeader');
-        header.innerHTML='';
-        WEEK_LABELS.forEach(day=>{
-          const div=document.createElement('div'); div.className='weekday'; div.textContent=day; header.appendChild(div);
-        });
-      }
-
-      async function getSignedDays(monthKey){
-        const docSnap = await checkinRef.doc(`${userId}_${monthKey}`).get();
-        if(docSnap.exists) return docSnap.data().days || [];
-        return [];
-      }
-
-      async function saveSignedDay(monthKey, today){
-        const ref = checkinRef.doc(`${userId}_${monthKey}`);
-        await db.runTransaction(async (t)=>{
-          const doc = await t.get(ref);
-          let days = [];
-          if(doc.exists) days = doc.data().days || [];
-          if(!days.includes(today)) days.push(today);
-          t.set(ref, { days }, { merge:true });
-        });
-      }
-
-      function renderCalendar(signedDays,baseDate=new Date()){
-        const daysWrap=document.getElementById('calendarDays');
-        const monthTitle=document.getElementById('monthTitle');
-        const checkinCount=document.getElementById('checkinCount');
-        daysWrap.innerHTML='';
-
-        const year=baseDate.getFullYear();
-        const month=baseDate.getMonth();
-        const firstDay=new Date(year,month,1);
-        const lastDate=new Date(year,month+1,0).getDate();
-        const startWeekday=firstDay.getDay();
-        const todayStr=getTodayStr();
-
-        monthTitle.textContent=`${year} 年 ${month+1} 月`;
-        checkinCount.textContent=`本月已簽到 ${signedDays.length} 天`;
-
-        for(let i=0;i<startWeekday;i++){ const gap=document.createElement('div'); daysWrap.appendChild(gap); }
-        for(let d=1; d<=lastDate; d++){
-          const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-          const cell=document.createElement('div');
-          cell.className='day';
-          cell.textContent=d;
-          if(dateStr===todayStr) cell.classList.add('today');
-          if(signedDays.includes(dateStr)) cell.classList.add('signed');
-          daysWrap.appendChild(cell);
-        }
-      }
-
-      function showSuccess(){
-        const overlay=document.getElementById('successOverlay');
-        const textEl=document.getElementById('successText');
-        overlay.classList.remove('active');
-        void overlay.offsetWidth;
-        textEl.textContent='簽到成功！';
-        overlay.classList.add('active');
-        setTimeout(()=>overlay.classList.remove('active'),1500);
-      }
-
-      renderWeekHeader();
-      let currentMonth=new Date(); currentMonth.setDate(1);
-
-      const btnPrev=document.getElementById('btnPrevMonth');
-      const btnNext=document.getElementById('btnNextMonth');
-      const btnCheckin=document.getElementById('btnCheckin');
-
-      async function refresh(baseDate){
-        const key=getMonthKey(baseDate);
-        const signed=await getSignedDays(key);
-        renderCalendar(signed,baseDate);
-        const isThisMonth=getMonthKey(new Date())===key;
-        const today=getTodayStr();
-        btnCheckin.disabled=!isThisMonth||signed.includes(today);
-        btnCheckin.textContent=!isThisMonth?'僅可在本月簽到':(signed.includes(today)?'今日已簽到 ✓':'今日簽到');
-      }
-
-      btnCheckin.addEventListener('click', async ()=>{
-        const key=getMonthKey(currentMonth);
-        const today=getTodayStr();
-        await saveSignedDay(key,today);
-        await refresh(currentMonth);
-        showSuccess();
-      });
-
-      btnPrev.addEventListener('click',()=>{ currentMonth.setMonth(currentMonth.getMonth()-1); refresh(currentMonth); });
-      btnNext.addEventListener('click',()=>{ currentMonth.setMonth(currentMonth.getMonth()+1); refresh(currentMonth); });
-
-      await refresh(currentMonth);
+    // 保留測試用程式碼，但因 SKIP_LIFF_LOGIN=false，不會啟用
+    if (SKIP_LIFF_LOGIN) {
+      window.liff = {
+        init: async () => {}, isLoggedIn: () => true, login: () => {},
+        getProfile: async () => ({ ...MOCK_PROFILE }),
+        getIDToken: () => null, getDecodedIDToken: () => null, isInClient: () => false,
+      };
+      window.lineProfile = { ...MOCK_PROFILE };
     }
 
-    document.addEventListener('DOMContentLoaded', initApp);
+    let userId = null;
+
+    const STORAGE_KEY = 'checkin_calendar_v2';
+
+    function loadAll() { try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) return JSON.parse(raw); } catch {} return { months: {} }; }
+    function saveAll(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+    function monthKeyOf(year, m1){ return `${year}-${String(m1).padStart(2,'0')}`; }
+    function todayStr(){ return new Date().toISOString().slice(0,10); }
+    function ymdParts(d = new Date()){ return { y: d.getFullYear(), m1: d.getMonth()+1, d: d.getDate() }; }
+
+    function isViewingCurrentMonth() { const { y, m1 } = ymdParts(); return (viewYear === y && viewMonth1 === m1); }
+    function isTodayChecked() {
+      const all = loadAll(); const { y, m1 } = ymdParts(); const mk = monthKeyOf(y, m1);
+      const list = all.months[mk] || []; return list.includes(todayStr());
+    }
+    function addTodayCheckin() {
+      const all = loadAll(); const { y, m1, d } = ymdParts();
+      const mk = monthKeyOf(y, m1); const date = `${y}-${String(m1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      if (!all.months[mk]) all.months[mk] = []; if (!all.months[mk].includes(date)) { all.months[mk].push(date); all.months[mk].sort(); saveAll(all); }
+    }
+
+    let viewYear, viewMonth1;
+    function setViewToTodayMonth() { const { y, m1 } = ymdParts(); viewYear = y; viewMonth1 = m1; }
+
+    function renderCalendar() {
+      const calendar = document.getElementById('calendarDays');
+      const monthTitle = document.getElementById('monthTitle');
+      const checkinCount = document.getElementById('checkinCount');
+      const btn = document.getElementById('btnCheckin');
+      const hint = document.getElementById('monthHint');
+
+      monthTitle.textContent = `${viewYear} 年 ${viewMonth1} 月`;
+
+      const all = loadAll(); const mk = monthKeyOf(viewYear, viewMonth1);
+      const signedList = (all.months[mk] || []).slice();
+
+      checkinCount.textContent = `本月已簽到 ${signedList.length} 天`;
+
+      calendar.innerHTML = '';
+      const firstDay = new Date(viewYear, viewMonth1 - 1, 1);
+      const lastDate = new Date(viewYear, viewMonth1, 0).getDate();
+      const startWeekday = firstDay.getDay();
+
+      for (let i=0; i<startWeekday; i++) calendar.appendChild(document.createElement('div'));
+      for (let day=1; day<=lastDate; day++) {
+        const div = document.createElement('div');
+        div.className = 'day';
+        div.textContent = day;
+        const dateStr = `${viewYear}-${String(viewMonth1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        if (signedList.includes(dateStr)) div.classList.add('signed');
+        calendar.appendChild(div);
+      }
+
+      const viewingCurrent = isViewingCurrentMonth();
+      const signedToday = isTodayChecked();
+      if (viewingCurrent) {
+        btn.disabled = signedToday;
+        btn.textContent = signedToday ? '今日已簽到 ✓' : '今日簽到';
+        btn.title = ''; hint.textContent = '';
+      } else {
+        btn.disabled = true; btn.textContent = '今日簽到';
+        btn.title = '僅可在當月畫面簽到'; hint.textContent = '小提醒：切換到「本月」才可簽到喔～';
+      }
+    }
+
+    function playSuccessAnimation() {
+      const overlay = document.getElementById('successOverlay');
+      overlay.style.display = 'flex';
+      setTimeout(() => {
+        overlay.style.display = 'none';
+        overlay.style.animation = 'none';
+        void overlay.offsetWidth;
+        overlay.style.animation = '';
+      }, 1500);
+    }
+
+    function triggerAutoDraw(maxWaitMs = 5000) {
+      const btn = document.getElementById('drawBtn');
+      if (!btn) return;
+      let waited = 0; const step = 100;
+      const timer = setInterval(() => {
+        waited += step;
+        if (!btn.disabled) {
+          btn.click(); clearInterval(timer);
+          document.getElementById('drawSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (waited >= maxWaitMs) {
+          clearInterval(timer);
+          const em = document.getElementById('errorMsg');
+          if (em && !em.textContent) em.textContent = '目前無可用抽卡次數或尚未就緒。請稍後再試或明日再來～';
+        }
+      }, step);
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      const firebaseConfig = {
+        apiKey: "AIzaSyCCUzkxpn1quR9PPSBeZBGGl7XVh8vPzjY",
+        authDomain: "medwell-test1.firebaseapp.com",
+        projectId: "medwell-test1",
+        storageBucket: "medwell-test1.firebasestorage.app",
+        messagingSenderId: "860851688843",
+        appId: "1:860851688843:web:622eb8feccad45ce640b8e"
+      };
+      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+
+      // ===== LIFF 初始化與強制登入 =====
+      const LIFF_ID = "2007870072-ZNeMmll2";
+      await liff.init({ liffId: LIFF_ID });
+      if (!liff.isLoggedIn()) { liff.login(); return; }
+      const profile = await liff.getProfile();
+      userId = profile.userId;
+      window.lineProfile = profile;
+
+      setViewToTodayMonth();
+      renderCalendar();
+
+      document.getElementById('btnCheckin').addEventListener('click', () => {
+        if (!isViewingCurrentMonth()) return;
+        if (isTodayChecked()) return;
+        addTodayCheckin();
+        renderCalendar();
+        playSuccessAnimation();
+        triggerAutoDraw();
+      });
+
+      document.getElementById('prevMonth').addEventListener('click', () => {
+        viewMonth1 -= 1; if (viewMonth1 < 1) { viewMonth1 = 12; viewYear -= 1; } renderCalendar();
+      });
+      document.getElementById('nextMonth').addEventListener('click', () => {
+        viewMonth1 += 1; if (viewMonth1 > 12) { viewMonth1 = 1; viewYear += 1; } renderCalendar();
+      });
+    });
   </script>
+
+  <script type="module" src="./js/knowledge-draw.js"></script>
 </body>
 </html>

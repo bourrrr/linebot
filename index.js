@@ -347,7 +347,7 @@ async function handleEvent(event, client) {
     if (event.type === 'message' && event.message.type === 'text') {
       const msg = (event.message.text || '').trim();
 
-      if (msg === '藥局地圖') {
+      if (msg === '醫療地圖') {
         return client.replyMessage(event.replyToken, [madmapflex]);
       }
       if (msg === '健康AI分析') {

@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>個人資訊（患者） - MakeWell</title>
+    <title>患者個人資訊 - MakeWell</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* 與 volunteer-profile.html 同一套主題樣式 */
         :root{
             --bg:#efede9; --bg-2:#dad7cd;
             --text:#363636; --muted:#6e746e;
@@ -22,67 +23,50 @@
           border:1px solid var(--border);
           box-shadow:0 10px 30px rgba(0,0,0,.06);
         }
+        .h-divider{ height:1px; width:100%; background:linear-gradient(to right, transparent, var(--border), transparent); }
+        .label{ font-weight:700; } 
         .badge{ display:inline-flex; align-items:center; gap:.4rem; padding:.25rem .6rem; border-radius:9999px; border:1px solid var(--border); background:var(--chip); color:var(--muted); font-size:.9rem; }
         
-        /* 統一 input 樣式，並引入 publish.html 的 focus 效果 */
-        /* 替換原有的 .input 樣式 */
-        .input{
+        /* input/select 樣式 */
+        .input, .select {
             width:100%;
             background:#fff;
             border:1px solid var(--border);
-            /* 調整為接近 publish.html 的風格 */
-            border-radius: 12px; /* 接近 publish.html 的 rounded-xl */
-            padding: 0.6rem 0.75rem; /* 接近 publish.html 的 px-3 py-3 */
-            font-size: 1rem; /* 確保文字大小適中，與發布頁的預設大小一致 */
+            border-radius: 12px;
+            padding: 0.6rem 0.75rem;
+            font-size: 1rem;
             transition:.2s;
         }
         .input::placeholder{ color:#a0a6a0; }
-        .input:focus{
+        .input:focus, .select:focus{
             outline:none;
             border-color:var(--primary-weak);
             box-shadow:0 0 0 4px rgba(101,153,99,.18);
         }
 
-        /* 新增/修改：btn-primary 樣式，使其更像 publish.html 的 btn-block */
+        /* 按鈕 */
         .btn-primary{
-    display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
-    background:var(--primary); color:#fff; border:1px solid var(--primary);
-    /* 統一大小和圓角 */
-    padding:0.8rem 1.5rem; /* 保持這個內邊距，它決定了按鈕高度 */
-    border-radius:1rem; /* 16px */
-    font-weight:800; 
-    transition:.15s transform,.15s filter;
-    /* 移除 width: 100% 和 @media 寬度控制，讓 w-1/2 類別生效 */
-}
-    .btn-primary:hover{ transform:translateY(-1px); filter:brightness(.98); }
+            display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+            background:var(--primary); color:#fff; border:1px solid var(--primary);
+            padding:0.8rem 1.5rem;
+            border-radius:1rem; /* 16px */
+            font-weight:800; 
+            transition:.15s transform,.15s filter;
+        }
+        .btn-primary:hover{ transform:translateY(-1px); filter:brightness(.98); }
+        .btn-primary[disabled]{ opacity:.55; cursor:not-allowed; transform:none; filter:none; }
 
-    /* 修改後的 .btn-secondary 樣式（回首頁） */
-    .btn-secondary {
-        display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
-        background: transparent;
-        color: var(--primary);
-        border: 2px solid var(--primary);
-        box-shadow: 0 4px 10px rgba(0,0,0,.05); 
-        
-        /* 統一大小和圓角：使用與 .btn-primary 相同的 padding */
-        padding:0.8rem 1.5rem; 
-        border-radius:1rem; /* 16px */
-        font-weight:700;
-        letter-spacing:.02em;
-        transition:.15s transform,.15s filter;
-
-        /* 移除 width: 100% 和 @media 寬度控制 */
-    }
-    .btn-secondary:hover{ 
-        transform:translateY(-1px); 
-        background: var(--primary-weak);
-        color: #fff;
-        border-color: var(--primary-weak);
-    }
-        @media (min-width: 640px) { /* sm 斷點 */
-            .btn-secondary{
-                width: auto;
-            }
+        .btn-secondary {
+            display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+            background: transparent;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+            box-shadow: 0 4px 10px rgba(0,0,0,.05); 
+            padding:0.8rem 1.5rem; 
+            border-radius:1rem; /* 16px */
+            font-weight:700;
+            letter-spacing:.02em;
+            transition:.15s transform,.15s filter;
         }
         .btn-secondary:hover{ 
             transform:translateY(-1px); 
@@ -90,11 +74,10 @@
             color: #fff;
             border-color: var(--primary-weak);
         }
-        /* 核心修改：新增的 Table 樣式用於左右兩欄佈局 */
+
+        /* form 兩欄佈局 */
         .form-layout-table {
-            width: 70%;
-            text-align: left;
-            padding-right: 0.75rem;
+            width: 100%;
             table-layout: fixed;
             border-collapse: separate;
             border-spacing: 0 0.2rem;
@@ -114,10 +97,27 @@
         .form-layout-table td {
             width: 70%;
         }
-        /* 您新的精簡 CSS 到這裡結束 */
 
-        /* 響應式佈局樣式 (確保小螢幕堆疊功能不遺失) */
-        @media (max-width: 639px) { /* 640px 是 Tailwind CSS 的 sm 斷點 */
+        /* 慢性病 Tag */
+        .chip{
+            display:inline-flex;
+            align-items:center;
+            gap:.5rem;
+            background:var(--chip);
+            border:1px solid var(--border);
+            padding: .4rem .6rem;
+            border-radius: 9999px;
+            font-size: .95rem;
+            margin: 4px;
+        }
+        .chip button{ background:transparent; border:0; cursor:pointer; font-weight:700; padding-left:.25rem; }
+
+        /* 建議選單 */
+        .suggest-item{ padding:.6rem .8rem; cursor:pointer; border-bottom:1px solid #f1f1ee; }
+        .suggest-item:hover{ background:#fbfbf9; }
+
+        /* 響應式 */
+        @media (max-width: 639px) {
             .form-layout-table {
                 border-spacing: 0 0.5rem;
             }
@@ -131,88 +131,86 @@
                 width: 100%;
             }
         }
+
+        /* 小提示字 */
+        .subtle{ color:var(--muted); font-size:12px; }
     </style>
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body class="min-h-screen px-4 py-6 md:px-6 md:py-8">
-    <div class="mx-auto max-w-[900px]">
-        <div class="card rounded-3xl p-8 md:p-10">
-            <div class="w-full max-w-[800px] mx-auto"></div>
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div class="mx-auto max-w-[1120px]">
+        <div class="card rounded-3xl p-8 md:p-10"> 
+            <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div class="flex items-center gap-5">
                     <div>
-                        <h2 class="text-3xl sm:text-4xl font-extrabold mb-3 text-center tracking-tight">📝 個人資訊</h2>
-                        <p class="text-base md:text-lg" style="color:var(--muted)">
-                            更新你的聯絡方式與基本資料（患者）
-                        </p>
+                        <h1 class="text-3xl md:text-4xl font-medium leading-tight">📝 患者個人資訊</h1>
+                        <p class="text-base md:text-lg mt-1" style="color:var(--muted)">更新你的聯絡方式與基本資料。</p>
+                        <div class="flex gap-2 mt-2">
+                            <span id="roleBadge" class="badge hidden">患者</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <main class="mt-8">
-                <section id="patientSection" class="space-y-8">
+            </header>
 
+            <main class="mt-8">
+                <div id="authWarn" class="banner p-3 rounded-lg text-sm hidden">⚠️ 尚未完成登入，請回<a href="login.html" class="underline font-semibold">登入頁</a>使用 LINE 登入。</div>
+
+                <section class="space-y-8">
+                    <!-- 基本資料 -->
                     <div>
                         <div class="flex items-center gap-3">
                             <span class="text-xl font-bold">基本資料</span>
                         </div>
-                        <div>
+                        <div class="mt-4">
                             <table class="form-layout-table">
                                 <tr>
                                     <th><label for="name" class="label">姓名</label></th>
-                                    <td>
-                                        <input id="name" class="input" placeholder="請輸入姓名"/>
-                                    </td>
+                                    <td><input id="name" class="input" placeholder="請輸入姓名"></td>
                                 </tr>
-                                
                                 <tr>
                                     <th><label for="phone" class="label">手機號碼</label></th>
-                                    <td>
-                                        <input id="phone" class="input" placeholder="09xxxxxxxx" inputmode="tel"/>
-                                    </td>
+                                    <td><input id="phone" class="input" inputmode="tel" placeholder="09xxxxxxxx"></td>
                                 </tr>
-                                
                                 <tr>
                                     <th><label for="emergencyName" class="label">緊急聯絡人姓名</label></th>
-                                    <td>
-                                        <input id="emergencyName" class="input" placeholder="例如：王小明"/>
-                                    </td>
+                                    <td><input id="emergencyName" class="input" placeholder="例如：王小明"></td>
                                 </tr>
-                                
                                 <tr>
                                     <th><label for="emergencyPhone" class="label">緊急聯絡人電話</label></th>
-                                    <td>
-                                        <input id="emergencyPhone" class="input" placeholder="09xxxxxxxx" inputmode="tel"/>
-                                    </td>
+                                    <td><input id="emergencyPhone" class="input" inputmode="tel" placeholder="09xxxxxxxx"></td>
                                 </tr>
                             </table>
                         </div>
                     </div>
 
+                    <!-- 慢性病史 -->
                     <div>
                         <div class="flex items-center gap-3">
                             <span class="text-xl font-bold">慢性病史</span>
                         </div>
-                        <div>
+                        <div class="mt-4">
                             <div id="chronicTags" class="flex flex-wrap gap-2"></div>
                             <div class="mt-3 relative">
-                                <input id="chronicInput" class="input" placeholder="輸入慢性病（例如：高血壓、糖尿病），按 Enter 加入"/>
+                                <input id="chronicInput" class="input" placeholder="輸入慢性病（例如：高血壓、糖尿病），按 Enter 加入" aria-label="慢性病輸入"/>
                                 <div id="chronicSuggest" class="absolute z-10 left-0 right-0 mt-1 rounded-2xl border border-[var(--border)] bg-white shadow hidden"></div>
+                                <p class="subtle mt-2">建議選項：高血壓、糖尿病、高血脂、心臟病…</p>
                             </div>
                         </div>
                     </div>
 
+                    <!-- 身心障礙 -->
                     <div>
                         <div class="flex items-center gap-3">
                             <span class="text-xl font-bold">身心障礙程度</span>
-                            <span class="hint text-sm">（必填）</span>
+                            <span class="hint text-sm subtle">（必填）</span>
                         </div>
-                        <div>
+                        <div class="mt-4">
                             <table class="form-layout-table">
                                 <tr>
                                     <th><label for="disability" class="label">程度 <span class="text-red-600">*</span></label></th>
                                     <td>
-                                        <select id="disability" class="input" required>
+                                        <select id="disability" class="select" required>
                                             <option value="">請選擇</option>
                                             <option value="無">無</option>
                                             <option value="輕度">輕度</option>
@@ -225,46 +223,53 @@
                         </div>
                     </div>
 
+                    <!-- 聯絡地址 -->
                     <div>
                         <div class="flex items-center gap-3">
                             <span class="text-xl font-bold">聯絡地址</span>
                         </div>
-                        <div>
+                        <div class="mt-4">
                             <table class="form-layout-table">
                                 <tr>
                                     <th><label for="city" class="label">縣市</label></th>
-                                    <td>
-                                        <select id="city" class="input"></select>
-                                    </td>
+                                    <td><select id="city" class="select"><option value="" disabled selected>請選擇縣市</option></select></td>
                                 </tr>
-                                
                                 <tr>
                                     <th><label for="district" class="label">行政區</label></th>
-                                    <td>
-                                        <select id="district" class="input" disabled></select>
-                                    </td>
+                                    <td><select id="district" class="select" disabled><option value="" disabled selected>請先選擇縣市</option></select></td>
                                 </tr>
                             </table>
                         </div>
                     </div>
-                    <div class="mt-8 flex flex-col-reverse sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                      <a href="home.html" id="cancelBtn" class="btn-secondary w-full sm:w-1/2 order-2 sm:order-1 flex items-center justify-center">
-                          回首頁
-                      </a>
 
-                      <button id="saveBtn" type="button" class="btn-primary w-full sm:w-1/2 order-1 sm:order-2">
-                        儲存變更
-                      </button>
-                    </div>
                 </section>
+
+                <div class="mt-8 flex flex-col-reverse sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+                    <a href="home.html" id="cancelBtn" class="btn-secondary w-full sm:w-1/2 order-2 sm:order-1 flex items-center justify-center">
+                        回首頁
+                    </a>
+
+                    <button id="saveBtn" type="button" class="btn-primary w-full sm:w-1/2 order-1 sm:order-2">
+                        儲存變更
+                    </button>
+                </div>
+                <p id="saveHint" class="mt-3 text-center text-sm" style="color:var(--muted)"></p>
             </main>
         </div>
     </div>
 
     <script type="module">
+        /**
+         * 整合說明
+         * - 保留原 patient 頁面功能（慢性病 tag、地址下拉、必填檢查、LIFF+Firebase 等）
+         * - 版面、按鈕、樣式與 volunteer-profile.html 一致
+         */
+
+        // ---------- 工具函式 ----------
         function roleKey(s){
-            if (s === '患者' || s === 'patient') return 'patient';
-            if (s === '志工' || s === 'volunteer') return 'volunteer';
+            const m = String(s||'').trim().toLowerCase();
+            if (m === '患者' || m === 'patient') return 'patient';
+            if (m === '志工' || m === 'volunteer') return 'volunteer';
             return '';
         }
         function getUserRoles(data){
@@ -274,38 +279,40 @@
             return { isPatient: set.has('patient'), isVolunteer: set.has('volunteer') };
         }
 
+        // 匯入 Firebase + district-data
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { getAuth, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        // 假設這兩個檔案與當前 HTML 檔在同一目錄下
-        import { firebaseConfig } from './firebase-config.js'; 
-        import { cityDistricts as _cd } from './district-data.js';
+        import { firebaseConfig } from "./firebase-config.js";
+        import { cityDistricts as _cd } from "./district-data.js";
 
-        const app  = initializeApp(firebaseConfig);
-        const db   = getFirestore(app);
-        const auth = getAuth(app);
-        const LIFF_ID = "2007877199-Y5R2LenL";
-        // 確保此 URL 是正確的雲函數網址
+        // 常數（請確認是否需要改成你的 Functions 網址）
         const CUSTOM_TOKEN_URL = "https://asia-east1-medwell-test1.cloudfunctions.net/authApi/getFirebaseCustomToken";
+        const LIFF_ID = "2007877199-Y5R2LenL";
 
-        // ----- 小工具 -----
-        const el = (id) => document.getElementById(id);
-        const roleBadge      = el('roleBadge'); // 此處會得到 null
-        const saveBtn        = el('saveBtn');
-        const saveHint       = el('saveHint'); // 此處會得到 null
+        // 初始化
+        const app  = initializeApp(firebaseConfig);
+        const db   = getFirestore(app);
+        const auth = getAuth(app);
 
-        const citySel       = /** @type {HTMLSelectElement} */(el('city'));
-        const districtSel   = /** @type {HTMLSelectElement} */(el('district'));
-        const disabilitySel = /** @type {HTMLSelectElement} */(el('disability'));
+        // DOM shortcut
+        const el = id => document.getElementById(id);
+        const roleBadge = el('roleBadge');
+        const saveBtn = el('saveBtn');
+        const saveHint = el('saveHint');
 
-        // ===== 慢性病史 Tag =====
+        const citySel = /** @type {HTMLSelectElement} */ (el('city'));
+        const districtSel = /** @type {HTMLSelectElement} */ (el('district'));
+        const disabilitySel = /** @type {HTMLSelectElement} */ (el('disability'));
+
+        // --------- 慢性病 Tag 功能（保留原先邏輯） ---------
         const CHRONIC_OPTIONS = [
             '高血壓','糖尿病','高血脂','心臟病','冠狀動脈疾病','心房顫動','中風',
             '慢性腎臟病','慢性肝病/肝硬化','氣喘','慢性阻塞性肺病（COPD）','胃潰瘍/胃食道逆流',
             '甲狀腺功能低下','甲狀腺機能亢進','骨質疏鬆','癌症（請註明）'
         ];
-        const chronicTagsEl    = el('chronicTags');
-        const chronicInputEl   = /** @type {HTMLInputElement} */(el('chronicInput'));
+        const chronicTagsEl    = el('chronicTags');
+        const chronicInputEl   = /** @type {HTMLInputElement} */ (el('chronicInput'));
         const chronicSuggestEl = el('chronicSuggest');
         let chronicSet = new Set();
 
@@ -319,24 +326,33 @@
             Array.from(chronicSet).forEach(v => {
                 const tag = document.createElement('span');
                 tag.className = 'chip';
-                tag.innerHTML = `${escapeHtml(v)} <button type="button" class="ml-1 text-slate-500 hover:text-slate-700" data-remove="${escapeHtml(v)}" aria-label="移除 ${escapeHtml(v)}">×</button>`;
+                // include remove button
+                tag.innerHTML = `${escapeHtml(v)} <button type="button" aria-label="移除 ${escapeHtml(v)}" data-remove="${escapeHtml(v)}">×</button>`;
                 chronicTagsEl.appendChild(tag);
             });
         }
         function showSuggest(items){
             if (!items.length){ chronicSuggestEl.classList.add('hidden'); chronicSuggestEl.innerHTML=''; return; }
-            chronicSuggestEl.innerHTML = items.map(it => `<button type="button" class="w-full text-left px-3 py-2 hover:bg-[#f8f8f5]">${escapeHtml(it)}</button>`).join('');
+            chronicSuggestEl.innerHTML = items.map(it => `<div class="suggest-item">${escapeHtml(it)}</div>`).join('');
             chronicSuggestEl.classList.remove('hidden');
         }
         function addChronic(val){
             const v = normalize(val);
-            if (!v || chronicSet.has(v) || chronicSet.size >= 20) return;
-            chronicSet.add(v); renderChronicTags();
+            if (!v) return;
+            // 如果是逗號分隔字串，拆開
+            v.split(',').map(s => s.trim()).forEach(part => {
+                if (!part) return;
+                if (chronicSet.has(part)) return;
+                if (chronicSet.size >= 20) return;
+                chronicSet.add(part);
+            });
+            renderChronicTags();
         }
         function removeChronic(val){ chronicSet.delete(val); renderChronicTags(); }
         function getChronicArray(){ return [...chronicSet]; }
         function setChronicArray(arr){ chronicSet = new Set((arr||[]).map(normalize).filter(Boolean)); renderChronicTags(); }
 
+        // events
         chronicTagsEl.addEventListener('click', (e) => {
             const btn = e.target.closest('button[data-remove]'); if (!btn) return;
             removeChronic(btn.getAttribute('data-remove'));
@@ -353,12 +369,12 @@
             else if (e.key === 'Backspace' && !chronicInputEl.value){ const arr=[...chronicSet]; if (arr.length) removeChronic(arr[arr.length-1]); }
         });
         chronicSuggestEl.addEventListener('click', (e) => {
-            const btn = e.target.closest('button'); if (!btn) return;
-            addChronic(btn.textContent || ''); chronicInputEl.value=''; showSuggest([]); chronicInputEl.focus();
+            const item = e.target.closest('.suggest-item'); if (!item) return;
+            addChronic(item.textContent || ''); chronicInputEl.value=''; showSuggest([]); chronicInputEl.focus();
         });
         document.addEventListener('click', (e) => { if (!chronicSuggestEl.contains(e.target) && e.target !== chronicInputEl){ showSuggest([]); } });
 
-        // ===== 地址下拉 =====
+        // --------- 地址下拉（使用 district-data） ---------
         function fillCities(){
             citySel.innerHTML = '<option value="" disabled selected>請選擇縣市</option>';
             Object.keys(_cd).forEach(c => citySel.appendChild(new Option(c, c)));
@@ -373,9 +389,8 @@
         }
         citySel.addEventListener('change', () => { fillDistricts(citySel.value); districtSel.focus(); });
 
-        // ===== LIFF 守門（僅患者可進）=====
+        // --------- LIFF 登入與 Firebase 驗證（Patient 專用流程）---------
         let userDocRef = null;
-
         async function ensureLIFF(){
             try{ await liff.init({ liffId: LIFF_ID }); return true; }
             catch(e){ console.error(e); alert('LIFF 初始化失敗'); return false; }
@@ -386,7 +401,7 @@
 
             if (!(await ensureLIFF()) || !liff.isLoggedIn()) { location.href = 'login.html'; return; }
 
-            // 確保 LINE 登入並獲取 Firebase Token
+            // 取得 idToken 並換 custom token
             try {
                 const idToken = liff.getIDToken();
                 if (!idToken) { throw new Error('No ID Token'); }
@@ -409,28 +424,30 @@
 
             const uid = auth.currentUser?.uid;
             if (!uid) { location.href='login.html'; return; }
-            userDocRef = doc(db, 'users', uid);
+            // Firestore users 文件 id 使用 "line:..." 格式（注意：若你的系統不同請調整）
+            const usersDocId = (uid.startsWith('liff:') ? 'line:' + uid.slice(5) : (uid.startsWith('line:') ? uid : ('line:' + uid)));
+            userDocRef = doc(db, 'users', usersDocId);
             const snap = await getDoc(userDocRef);
 
             if (!snap.exists()) { location.href = 'register-profile.html'; return; }
 
             const data = snap.data() || {};
             const { isPatient, isVolunteer } = getUserRoles(data);
-            
-            // 角色檢查與導向
+
+            // 只有患者可進入 patient 頁面
             if (!isPatient) {
                 if (isVolunteer) { location.href = "volunteer.html"; return; }
                 location.href = "register-profile.html"; return;
             }
 
             // 帶值
-            // roleBadge.textContent = '患者'; // 已移除
-            // roleBadge.classList.remove('hidden'); // 已移除
+            roleBadge.textContent = '患者';
+            roleBadge.classList.remove('hidden');
 
-            el('name').value           = data.name || '';
-            el('phone').value          = data.phone || '';
-            el('emergencyName').value  = data.emergencyName || '';
-            el('emergencyPhone').value = data.emergencyPhone || '';
+            el('name').value            = data.name || '';
+            el('phone').value           = data.phone || '';
+            el('emergencyName').value   = data.emergencyName || '';
+            el('emergencyPhone').value  = data.emergencyPhone || '';
 
             setChronicArray(Array.isArray(data.chronic) ? data.chronic : (data.chronic ? String(data.chronic).split(',') : []));
             disabilitySel.value = data.disability || '';
@@ -440,17 +457,17 @@
             if (city){ citySel.value = city; fillDistricts(city, district); } else { fillDistricts('', ''); }
         })();
 
-        // ===== 儲存（僅患者欄位）=====
+        // --------- 儲存（僅患者欄位）---------
         saveBtn.addEventListener('click', async () => {
             if (!userDocRef) return;
 
             try{
                 saveBtn.setAttribute('disabled','true');
-                if (saveHint) saveHint.textContent = '儲存中…'; // 檢查 saveHint 是否存在
+                if (saveHint) saveHint.textContent = '儲存中…';
 
-                // ★ 身心障礙程度為必填檢查
+                // 身心障礙程度為必填檢查
                 if (!disabilitySel.value) {
-                    if (saveHint) saveHint.textContent = '⚠️ 請選擇身心障礙程度（必填）'; // 檢查 saveHint 是否存在
+                    if (saveHint) saveHint.textContent = '⚠️ 請選擇身心障礙程度（必填）';
                     saveBtn.removeAttribute('disabled');
                     return;
                 }
@@ -469,18 +486,18 @@
                 const city = citySel.value || '';
                 const district = districtSel.disabled ? '' : (districtSel.value || '');
 
-                if (!city){ if (saveHint) saveHint.textContent = '⚠️ 請選擇縣市'; saveBtn.removeAttribute('disabled'); return; } // 檢查 saveHint 是否存在
-                if (!district){ if (saveHint) saveHint.textContent = '⚠️ 請選擇行政區'; saveBtn.removeAttribute('disabled'); return; } // 檢查 saveHint 是否存在
+                if (!city){ if (saveHint) saveHint.textContent = '⚠️ 請選擇縣市'; saveBtn.removeAttribute('disabled'); return; }
+                if (!district){ if (saveHint) saveHint.textContent = '⚠️ 請選擇行政區'; saveBtn.removeAttribute('disabled'); return; }
 
                 updates.patientCity = city;
                 updates.patientDistrict = district;
 
                 await updateDoc(userDocRef, updates);
-                if (saveHint) saveHint.textContent = '✅ 資料已更新！'; // 檢查 saveHint 是否存在
-                setTimeout(() => { if (saveHint) saveHint.textContent = ''; }, 1800); // 檢查 saveHint 是否存在
+                if (saveHint) saveHint.textContent = '✅ 資料已更新！';
+                setTimeout(() => { if (saveHint) saveHint.textContent = ''; }, 1800);
             }catch(err){
                 console.error(err);
-                if (saveHint) saveHint.textContent = '❌ 儲存失敗，請稍後重試'; // 檢查 saveHint 是否存在
+                if (saveHint) saveHint.textContent = '❌ 儲存失敗，請稍後重試';
             }finally{
                 saveBtn.removeAttribute('disabled');
             }

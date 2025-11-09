@@ -22,20 +22,19 @@
     .dot{ width:.6rem; height:.6rem; border-radius:999px; background:var(--primary); opacity:.75; }
   </style>
 </head>
+
+<!-- ✅ 統一和「任務待接區」一致的版型：卡片高度 90vh~94vh、背景露出一致 -->
 <body class="min-h-screen p-4 flex items-center justify-center">
-  <!-- 這裡把高度加大，讓背景露出更少 -->
-  <div class="w-full max-w-4xl card rounded-3xl overflow-hidden h-[90vh] md:h-[94vh] flex flex-col">
+  <div class="w-full max-w-[1120px] card rounded-3xl overflow-hidden h-[90vh] md:h-[94vh] flex flex-col">
     <!-- Header（固定） -->
     <div class="p-6 sm:p-8 border-b border-[var(--border)] flex-shrink-0">
       <div class="flex flex-col gap-4 sm:gap-3">
-        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 class="text-3xl sm:text-4xl font-extrabold leading-tight">📜 歷史紀錄</h1>
-            <p class="text-[15px] sm:text-[16px] mt-1" style="color:var(--muted)">查看你已發布的協助請求，依「領藥／陪診」快速篩選。</p>
+            <h1 class="text-3xl sm:text-4xl font-extrabold mb-3 tracking-tight">📜 歷史紀錄</h1>
           </div>
-
+          <a href="home.html" class="text-xs md:text-sm md:ml-auto px-3 py-2 border rounded-full font-semibold" style="color: #363636; border-color: #e7e5dc;">回首頁</a>
           <div class="flex items-center gap-3 w-full sm:w-auto">
-            <a href="home.html" class="btn-link underline whitespace-nowrap">← 回首頁</a>
             <!-- 篩選下拉 -->
             <label class="sr-only" for="typeFilter">篩選</label>
             <select id="typeFilter" class="w-full sm:w-44 rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-[15px]">
@@ -48,10 +47,7 @@
       </div>
     </div>
 
-    <!-- 藍線位置：用分隔線佔位（固定） -->
-    <div class="h-divider flex-shrink-0"></div>
-
-    <!-- 內容：從這裡開始滾動 -->
+    <!-- 內容：可滾動 -->
     <main class="flex-1 overflow-y-auto">
       <div class="p-6 sm:p-8">
         <div id="loading" class="text-center text-sm" style="color:var(--muted)">載入中…</div>
@@ -60,21 +56,31 @@
         <!-- 全部：分兩個區塊 -->
         <div id="allWrapper" class="hidden space-y-8">
           <section>
-            <h2 class="section-title text-xl"><span class="dot"></span> 領藥 <span id="countPickupAll" class="text-sm font-semibold" style="color:var(--muted)"></span></h2>
+            <h2 class="section-title text-xl">
+              <span class="dot"></span> 領藥 
+              <span id="countPickupAll" class="text-sm font-semibold" style="color:var(--muted)"></span>
+            </h2>
             <div id="pickupListAll" class="grid gap-4 mt-3"></div>
             <div id="emptyPickupAll" class="hidden text-sm mt-2" style="color:var(--muted)">沒有「領藥」紀錄</div>
           </section>
           <div class="h-divider"></div>
           <section>
-            <h2 class="section-title text-xl"><span class="dot"></span> 陪診 <span id="countAccompanyAll" class="text-sm font-semibold" style="color:var(--muted)"></span></h2>
+            <h2 class="section-title text-xl">
+              <span class="dot"></span> 陪診 
+              <span id="countAccompanyAll" class="text-sm font-semibold" style="color:var(--muted)"></span>
+            </h2>
             <div id="accompanyListAll" class="grid gap-4 mt-3"></div>
             <div id="emptyAccompanyAll" class="hidden text-sm mt-2" style="color:var(--muted)">沒有「陪診」紀錄</div>
           </section>
         </div>
 
-        <!-- 單一類別：共用容器 -->
+        <!-- 單一類別 -->
         <div id="singleWrapper" class="hidden">
-          <h2 id="singleTitle" class="section-title text-xl"><span class="dot"></span> <span id="singleLabel">—</span> <span id="singleCount" class="text-sm font-semibold" style="color:var(--muted)"></span></h2>
+          <h2 id="singleTitle" class="section-title text-xl">
+            <span class="dot"></span> 
+            <span id="singleLabel">—</span> 
+            <span id="singleCount" class="text-sm font-semibold" style="color:var(--muted)"></span>
+          </h2>
           <div id="singleList" class="grid gap-4 mt-3"></div>
           <div id="emptySingle" class="hidden text-sm mt-2" style="color:var(--muted)">目前沒有符合的紀錄</div>
         </div>
@@ -82,174 +88,149 @@
     </main>
   </div>
 
-  <!-- head 加上 LIFF SDK -->
+  <!-- LIFF SDK -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
-  <!-- 原本的 module（保留） -->
+  <!-- Firebase 模組與邏輯 -->
   <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { firebaseConfig } from "./firebase-config.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { firebaseConfig } from "./firebase-config.js";
 
-  const app = initializeApp(firebaseConfig);
-  const db  = getFirestore(app);
-  const LIFF_ID = "2007877199-Y5R2LenL";
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+    const LIFF_ID = "2007877199-Y5R2LenL";
 
-  // ======= UI refs =======
-  const loadingEl        = document.getElementById('loading');
-  const emptyAllEl       = document.getElementById('emptyAll');
-  const allWrapper       = document.getElementById('allWrapper');
-  const pickupListAll    = document.getElementById('pickupListAll');
-  const accompanyListAll = document.getElementById('accompanyListAll');
-  const emptyPickupAll   = document.getElementById('emptyPickupAll');
-  const emptyAccompanyAll= document.getElementById('emptyAccompanyAll');
-  const countPickupAll   = document.getElementById('countPickupAll');
-  const countAccompanyAll= document.getElementById('countAccompanyAll');
+    const loadingEl = document.getElementById('loading');
+    const emptyAllEl = document.getElementById('emptyAll');
+    const allWrapper = document.getElementById('allWrapper');
+    const pickupListAll = document.getElementById('pickupListAll');
+    const accompanyListAll = document.getElementById('accompanyListAll');
+    const emptyPickupAll = document.getElementById('emptyPickupAll');
+    const emptyAccompanyAll = document.getElementById('emptyAccompanyAll');
+    const countPickupAll = document.getElementById('countPickupAll');
+    const countAccompanyAll = document.getElementById('countAccompanyAll');
+    const singleWrapper = document.getElementById('singleWrapper');
+    const singleLabel = document.getElementById('singleLabel');
+    const singleList = document.getElementById('singleList');
+    const emptySingle = document.getElementById('emptySingle');
+    const singleCount = document.getElementById('singleCount');
+    const typeFilter = document.getElementById('typeFilter');
 
-  const singleWrapper    = document.getElementById('singleWrapper');
-  const singleLabel      = document.getElementById('singleLabel');
-  const singleList       = document.getElementById('singleList');
-  const emptySingle      = document.getElementById('emptySingle');
-  const singleCount      = document.getElementById('singleCount');
-  const typeFilter       = document.getElementById('typeFilter');
+    let allRecords = [];
 
-  let allRecords = [];
-
-  // ======= LIFF =======
-  async function ensureLIFF(){
-    try { await liff.init({ liffId: LIFF_ID }); return true; }
-    catch (e) { console.error(e); alert("LIFF 初始化失敗"); return false; }
-  }
-
-  // ======= Helpers =======
-  function classify(typeVal){
-    const t = String(typeVal || "").trim();
-    if (t.includes("領藥")) return "pickup";
-    if (t.includes("陪診")) return "accompany";
-    return "pickup";
-  }
-  function formatTime(t){
-    try{
-      if (!t) return "無時間";
-      if (typeof t === "string") return new Date(t).toLocaleString();
-      if (t.toDate) return t.toDate().toLocaleString();
-      return "無時間";
-    }catch{ return "無時間"; }
-  }
-  function getTs(t){
-    try{
-      if (!t) return 0;
-      if (typeof t === "string") return new Date(t).getTime() || 0;
-      if (t.toDate) return t.toDate().getTime() || 0;
-      return 0;
-    }catch{ return 0; }
-  }
-  function escapeHtml(input){
-    const s = (input === null || input === undefined) ? "" : String(input);
-    return s
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  }
-
-  function buildCard(data){
-    const timeStr   = formatTime(data.time);
-    const address   = `${data.city || ""}${data.district || ""}${data.road || ""}` || "—";
-    const note      = data.note || "無";
-    const hospital  = data.hospital || "無";
-    const accompany = data.accompany || "";
-    const prescriptionURL = data.prescriptionURL || "";
-    const type      = data.type || "未分類";
-
-    let accHtml = "";
-    if (accompany) {
-      accHtml = '<div class="text-[15px] mt-1">🙋‍♂️ 陪同進診間：' + escapeHtml(accompany) + "</div>";
-    }
-    let imgHtml = "";
-    if (prescriptionURL) {
-      imgHtml = '<div class="mt-3"><img src="' + prescriptionURL + '" alt="處方簽" class="w-40 rounded-lg border border-[var(--border)]" /></div>';
+    async function ensureLIFF(){
+      try { await liff.init({ liffId: LIFF_ID }); return true; }
+      catch (e) { console.error(e); alert("LIFF 初始化失敗"); return false; }
     }
 
-    const wrap = document.createElement("div");
-    wrap.className = "rounded-2xl border border-[var(--border)] bg-white p-4 sm:p-5 shadow-sm";
-    wrap.innerHTML =
-      '<div class="flex flex-wrap items-center justify-between gap-2">' +
-        '<div class="text-sm" style="color:var(--muted)">⏰ ' + escapeHtml(timeStr) + "</div>" +
-        '<span class="badge green">' + escapeHtml(type) + "</span>" +
-      "</div>" +
-      '<div class="mt-2 font-bold text-lg">📍 地址：' + escapeHtml(address) + "</div>" +
-      '<div class="text-[15px] mt-1">🏥 醫院／藥局：' + escapeHtml(hospital) + "</div>" +
-      accHtml +
-      '<div class="text-[15px] mt-1">📝 備註：' + escapeHtml(note) + "</div>" +
-      imgHtml;
-    return wrap;
-  }
-
-  function renderByFilter(mode){
-    pickupListAll.innerHTML    = "";
-    accompanyListAll.innerHTML = "";
-    singleList.innerHTML       = "";
-    [emptyPickupAll, emptyAccompanyAll, emptySingle].forEach(el => el.classList.add("hidden"));
-    emptyAllEl.classList.add("hidden");
-
-    if (mode === "all") {
-      singleWrapper.classList.add("hidden");
-      allWrapper.classList.remove("hidden");
-
-      const pickups    = allRecords.filter(r => classify(r.type) === "pickup");
-      const accompanies= allRecords.filter(r => classify(r.type) === "accompany");
-
-      countPickupAll.textContent    = "（" + pickups.length + " 筆）";
-      countAccompanyAll.textContent = "（" + accompanies.length + " 筆）";
-
-      pickups.forEach(r => pickupListAll.appendChild(buildCard(r)));
-      accompanies.forEach(r => accompanyListAll.appendChild(buildCard(r)));
-
-      if (pickups.length === 0) emptyPickupAll.classList.remove("hidden");
-      if (accompanies.length === 0) emptyAccompanyAll.classList.remove("hidden");
-      if (pickups.length === 0 && accompanies.length === 0) emptyAllEl.classList.remove("hidden");
-    } else {
-      allWrapper.classList.add("hidden");
-      singleWrapper.classList.remove("hidden");
-
-      const label = (mode === "pickup") ? "領藥" : "陪診";
-      singleLabel.textContent = label;
-      const list = allRecords.filter(r => classify(r.type) === mode);
-      singleCount.textContent = "（" + list.length + " 筆）";
-      list.forEach(r => singleList.appendChild(buildCard(r)));
-      if (list.length === 0) emptySingle.classList.remove("hidden");
+    function classify(typeVal){
+      const t = String(typeVal || "").trim();
+      if (t.includes("領藥")) return "pickup";
+      if (t.includes("陪診")) return "accompany";
+      return "pickup";
     }
-  }
-
-  // ======= Main =======
-  (async () => {
-    if (!(await ensureLIFF()) || !liff.isLoggedIn()) { location.href = "login.html"; return; }
-    const prof = await liff.getProfile();
-    const uid  = "line:" + prof.userId;
-
-    try {
-      const userSnap = await getDoc(doc(db, "users", uid));
-      if (!userSnap.exists()) { location.href = "register-profile.html"; return; }
-
-      const snap = await getDocs(collection(db, "users", uid, "records"));
-      allRecords = [];
-      snap.forEach(d => allRecords.push(d.data()));
-
-      // 新→舊
-      allRecords.sort((a,b) => (getTs(b.time) - getTs(a.time)));
-
-      loadingEl.classList.add("hidden");
-      if (allRecords.length === 0) { emptyAllEl.classList.remove("hidden"); return; }
-      renderByFilter(typeFilter.value);
-    } catch (err) {
-      loadingEl.textContent = "讀取失敗，請稍後重試";
-      console.error(err);
+    function formatTime(t){
+      try{
+        if (!t) return "無時間";
+        if (typeof t === "string") return new Date(t).toLocaleString();
+        if (t.toDate) return t.toDate().toLocaleString();
+        return "無時間";
+      }catch{ return "無時間"; }
     }
-  })();
+    function getTs(t){
+      try{
+        if (!t) return 0;
+        if (typeof t === "string") return new Date(t).getTime() || 0;
+        if (t.toDate) return t.toDate().getTime() || 0;
+        return 0;
+      }catch{ return 0; }
+    }
+    function escapeHtml(input){
+      const s = (input === null || input === undefined) ? "" : String(input);
+      return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+    }
 
-  typeFilter.addEventListener("change", () => renderByFilter(typeFilter.value));
+    function buildCard(data){
+      const timeStr = formatTime(data.time);
+      const address = `${data.city || ""}${data.district || ""}${data.road || ""}` || "—";
+      const note = data.note || "無";
+      const hospital = data.hospital || "無";
+      const accompany = data.accompany || "";
+      const prescriptionURL = data.prescriptionURL || "";
+      const type = data.type || "未分類";
+
+      let accHtml = accompany ? `<div class="text-[15px] mt-1">🙋‍♂️ 陪同進診間：${escapeHtml(accompany)}</div>` : "";
+      let imgHtml = prescriptionURL ? `<div class="mt-3"><img src="${prescriptionURL}" alt="處方簽" class="w-40 rounded-lg border border-[var(--border)]" /></div>` : "";
+
+      const wrap = document.createElement("div");
+      wrap.className = "rounded-2xl border border-[var(--border)] bg-white p-4 sm:p-5 shadow-sm";
+      wrap.innerHTML =
+        `<div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="text-sm" style="color:var(--muted)">⏰ ${escapeHtml(timeStr)}</div>
+          <span class="badge green">${escapeHtml(type)}</span>
+        </div>
+        <div class="mt-2 font-bold text-lg">📍 地址：${escapeHtml(address)}</div>
+        <div class="text-[15px] mt-1">🏥 醫院／藥局：${escapeHtml(hospital)}</div>
+        ${accHtml}
+        <div class="text-[15px] mt-1">📝 備註：${escapeHtml(note)}</div>
+        ${imgHtml}`;
+      return wrap;
+    }
+
+    function renderByFilter(mode){
+      pickupListAll.innerHTML = "";
+      accompanyListAll.innerHTML = "";
+      singleList.innerHTML = "";
+      [emptyPickupAll, emptyAccompanyAll, emptySingle].forEach(el => el.classList.add("hidden"));
+      emptyAllEl.classList.add("hidden");
+
+      if (mode === "all") {
+        singleWrapper.classList.add("hidden");
+        allWrapper.classList.remove("hidden");
+        const pickups = allRecords.filter(r => classify(r.type) === "pickup");
+        const accompanies = allRecords.filter(r => classify(r.type) === "accompany");
+        countPickupAll.textContent = `（${pickups.length} 筆）`;
+        countAccompanyAll.textContent = `（${accompanies.length} 筆）`;
+        pickups.forEach(r => pickupListAll.appendChild(buildCard(r)));
+        accompanies.forEach(r => accompanyListAll.appendChild(buildCard(r)));
+        if (pickups.length === 0) emptyPickupAll.classList.remove("hidden");
+        if (accompanies.length === 0) emptyAccompanyAll.classList.remove("hidden");
+        if (pickups.length === 0 && accompanies.length === 0) emptyAllEl.classList.remove("hidden");
+      } else {
+        allWrapper.classList.add("hidden");
+        singleWrapper.classList.remove("hidden");
+        const label = (mode === "pickup") ? "領藥" : "陪診";
+        singleLabel.textContent = label;
+        const list = allRecords.filter(r => classify(r.type) === mode);
+        singleCount.textContent = `（${list.length} 筆）`;
+        list.forEach(r => singleList.appendChild(buildCard(r)));
+        if (list.length === 0) emptySingle.classList.remove("hidden");
+      }
+    }
+
+    (async () => {
+      if (!(await ensureLIFF()) || !liff.isLoggedIn()) { location.href = "login.html"; return; }
+      const prof = await liff.getProfile();
+      const uid = "line:" + prof.userId;
+
+      try {
+        const userSnap = await getDoc(doc(db, "users", uid));
+        if (!userSnap.exists()) { location.href = "register-profile.html"; return; }
+        const snap = await getDocs(collection(db, "users", uid, "records"));
+        allRecords = [];
+        snap.forEach(d => allRecords.push(d.data()));
+        allRecords.sort((a,b) => getTs(b.time) - getTs(a.time));
+        loadingEl.classList.add("hidden");
+        if (allRecords.length === 0) { emptyAllEl.classList.remove("hidden"); return; }
+        renderByFilter(typeFilter.value);
+      } catch (err) {
+        loadingEl.textContent = "讀取失敗，請稍後重試";
+        console.error(err);
+      }
+    })();
+
+    typeFilter.addEventListener("change", () => renderByFilter(typeFilter.value));
   </script>
 </body>
 </html>
