@@ -40,7 +40,7 @@ async function rebuildRichMenus() {
          action: { type: 'postback', data: 'switch=service' }
         },
         { bounds: { x: 1069, y: 450, width: 680, height: 450 },
-          action: { type: 'message', text: '藥局地圖' } },
+          action: { type: 'message', text: '醫療地圖' } },
         { bounds: { x: 1794, y: 450, width: 680, height: 450 },
           action: { type: 'message', text: '飲食推薦' } },
         { bounds: { x: 1125, y: 1013, width: 1280, height: 460 },
